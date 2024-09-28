@@ -1,12 +1,12 @@
-#  [doGior](https://github.com/) Does Stream
+#  [doGior](https://github.com/doGior) Does Stream
 
 Repository for Cloudstream 3 providing streams from websites I like (mostly italians)
 
 ### Current plugins
 
-**Plugin** | **Website** | **Content** | **Language** | **Functioning**  
-| --- | --- | --- | :--------------: | :---: |  
-Streamed | https://streamed.su | Live Sports | 🇮🇹  🇬🇧   | ✅  
+| **Plugin** | **Website**         | **Content** | **Language** | **Functioning** |
+|------------|---------------------|-------------|:------------:|:---------------:|  
+| Streamed   | https://streamed.su | Live Sports |  🇮🇹  🇬🇧  |        ✅        |
 
 ## Install
 Click on the pizza to install
