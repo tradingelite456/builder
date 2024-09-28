@@ -26,7 +26,7 @@ class StreamedExtractor : ExtractorApi() {
         if (url.isNotEmpty()) {
             try {
                 val rawSource = app.get(url).body.string()
-//                Log.d(TAG, rawSource)
+                Log.d(TAG, rawSource)
                 val source = parseJson<List<Streamed.Source>>(rawSource)
                 val serverDomain = "https://rr.vipstreams.in"
                 if (source.isNotEmpty()) {
