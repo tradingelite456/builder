@@ -13,6 +13,8 @@ on:
       - main
     paths-ignore:
       - '*.md'
+      - '*.png'
+      - 'ExampleProvider/*
 
 jobs:
   build:
