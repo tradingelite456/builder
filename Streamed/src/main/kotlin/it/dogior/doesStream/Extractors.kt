@@ -33,7 +33,7 @@ class StreamedExtractor : ExtractorApi() {
                     source.forEach{ s ->
                         val isHdString = if(s.isHD) "HD" else "SD"
                         val contentUrl = "$serverDomain/${s.source}/js/${s.id}/${s.streamNumber}/playlist.m3u8"
-                        Log.d(TAG, "Content URL: $contentUrl")
+//                        Log.d(TAG, "Content URL: $contentUrl")
                         callback.invoke(
                             ExtractorLink(
                                 source = s.source!!,
