@@ -24,18 +24,17 @@ import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 
 
-class Streamed(val plugin: StreamedPlugin) : MainAPI() {
+class Streamed : MainAPI() {
     override var mainUrl = Companion.mainUrl
     override var name = Companion.name
     override var supportedTypes = setOf(TvType.Live)
-    override var lang = "en"
+    override var lang = "it"
     override val hasMainPage = true
     override val hasDownloadSupport = false
 
     companion object {
         val mainUrl = "https://streamed.su"
         var name = "Streamed"
-        val refHeader = mapOf("Referer" to mainUrl)
     }
 
     private val sectionNamesList = mainPageOf(
