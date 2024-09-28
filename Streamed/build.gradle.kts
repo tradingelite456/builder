@@ -21,7 +21,7 @@ cloudstream {
 
 
     requiresResources = true
-    language = "en"
+    language = "it"
 
     iconUrl = "https://streamed.su/favicon.png"
 }
