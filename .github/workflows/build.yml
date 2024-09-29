@@ -13,6 +13,7 @@ on:
       - main
     paths-ignore:
       - '*.md'
+      - '*.png'
 
 jobs:
   build:
@@ -45,6 +46,7 @@ jobs:
           cd $GITHUB_WORKSPACE/src
           chmod +x gradlew
           ./gradlew make makePluginsJson
+          rm **/build/ExampleProvider.cs3
           cp **/build/*.cs3 $GITHUB_WORKSPACE/builds
           cp build/plugins.json $GITHUB_WORKSPACE/builds
 
