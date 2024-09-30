@@ -24,11 +24,7 @@ import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
-import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
-import okhttp3.Headers
-import org.jsoup.nodes.DataNode
-import java.io.File
 
 
 class StreamingCommunity : MainAPI() {
@@ -49,7 +45,6 @@ class StreamingCommunity : MainAPI() {
         "$mainUrl/api/browse/trending" to "I Titoli Del Momento",
         "$mainUrl/api/browse/latest" to "Aggiunti di Recente",
     )
-
     override val mainPage = sectionNamesList
 
     private fun searchResponseBuilder(
@@ -84,10 +79,10 @@ class StreamingCommunity : MainAPI() {
     //Get the Homepage
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val TAG = "STREAMINGCOMMUNITY:MainPage"
-        val section = request.data.substringAfterLast("/")
         val url: String = request.data
-        var params = emptyMap<String, String>().toMutableMap()
-        /*        when (section) {
+        val params = emptyMap<String, String>().toMutableMap()
+      /*  val section = request.data.substringAfterLast("/")
+                when (section) {
                     "trending" -> {
                         Log.d(TAG, "TRENDING")
                     }
@@ -109,7 +104,7 @@ class StreamingCommunity : MainAPI() {
         Log.d(TAG, "Params: $params")
         val response = app.get(url, params = params)
         val responseString = response.body.string()
-        val responseJson = parseJson<Sezione>(responseString)
+        val responseJson = parseJson<Section>(responseString)
         Log.d(TAG, "Response: $responseJson")
 
         val titlesList = searchResponseBuilder(responseJson.titles)
@@ -130,24 +125,18 @@ class StreamingCommunity : MainAPI() {
 
     // This function gets called when you search for something also
     //This is to get Title,Href,Posters for Homepage
-    override suspend fun search(query: String): List<SearchResponse>? {
-//        val slug = if (genreFilter.state != 0) {
-//            "browse/genre?g=${URLEncoder.encode(genreFilter.toUriPart(), "utf-8")}"
-//        } else {
-//            "search?q=$query"
-//        }
-//
-//        return if (page == 1) {
-//            app.get("$mainUrl/$slug")
-//        } else {
-//            val apiHeaders = headers.newBuilder()
-//                .add("Accept", "application/json, text/plain, */*")
-//                .add("Host", baseUrl.toHttpUrl().host)
-//                .add("Referer", "$mainUrl/$slug")
-//                .build()
-//            app.get("$mainUrl/api/$slug&offset=${(page - 1) * 60}", headers = apiHeaders)
-//        }
-        return null
+    override suspend fun search(query: String): List<SearchResponse> {
+        val TAG = "STREAMINGCOMMUNITY:search"
+        val url = "$mainUrl/api/search"
+        val params = mapOf("q" to query)
+        val titlesList = mutableListOf<Title>()
+
+        val response = app.get(url, params = params).body.string()
+        Log.d(TAG, "Response: $response")
+        val result = parseJson<SearchData>(response)
+        titlesList.addAll(result.titles)
+
+        return searchResponseBuilder(titlesList)
     }
 
     // This function gets called when you enter the page/show
@@ -247,7 +236,9 @@ class StreamingCommunity : MainAPI() {
         return true
     }
 
-    data class Sezione(
+    // DTOs
+
+    data class Section(
         @JsonProperty("name") val name: String,
         @JsonProperty("label") val label: String,
         @JsonProperty("titles") val titles: List<Title>,
@@ -260,8 +251,6 @@ class StreamingCommunity : MainAPI() {
         @JsonProperty("type") val type: String,
         @JsonProperty("score") val score: String,
         @JsonProperty("sub_ita") val subIta: Int,
-        @JsonProperty("last_air_date") val lastAirDate: String,
-        @JsonProperty("age") val age: Int?, // Can be null or another type, modify if more info is available
         @JsonProperty("seasons_count") val seasonsCount: Int,
         @JsonProperty("images") val images: List<PosterImage>
     ) {
@@ -283,19 +272,10 @@ class StreamingCommunity : MainAPI() {
         @JsonProperty("imageable_id") val imageableId: Int,
     )
 
-    data class Pivot(
-        @JsonProperty("title_id") val titleId: Int,
-        @JsonProperty("genre_id") val genreId: Int
-    )
-
     data class Genre(
         @JsonProperty("id") val id: Int,
         @JsonProperty("name") val name: String,
         @JsonProperty("type") val type: String,
-        @JsonProperty("hidden") val hidden: Int,
-        @JsonProperty("created_at") val createdAt: String,
-        @JsonProperty("updated_at") val updatedAt: String,
-        @JsonProperty("pivot") val pivot: Pivot
     )
 
     data class TitlePreview(
@@ -318,6 +298,10 @@ class StreamingCommunity : MainAPI() {
             return null
         }
     }
+
+    data class SearchData(
+        @JsonProperty("data") val titles: List<Title>,
+    )
 
     // Data class copied from the StreamingCommunity plugin for Aniyomi because I'm lazy
     data class SingleShowResponse(
