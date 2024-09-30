@@ -101,9 +101,12 @@ class Streamed : MainAPI() {
         val rawList = app.get(request.data).body.string()
         val listJson = parseJson<List<Match>>(rawList)
 
-        Log.d(TAG, "Element: ${listJson[0]}")
-        Log.d(TAG, "Teams: ${listJson[0].teams}")
-        Log.d(TAG, "Sources: ${listJson[0].getSources().values}")
+        Log.d(TAG, "Element List: ${listJson}")
+        if (listJson.isNotEmpty()){
+            Log.d(TAG, "Element: ${listJson[0]}")
+            Log.d(TAG, "Teams: ${listJson[0].teams}")
+            Log.d(TAG, "Sources: ${listJson[0].getSources().values}")
+        }
 
 
         val list = searchResponseBuilder(listJson) { match ->
