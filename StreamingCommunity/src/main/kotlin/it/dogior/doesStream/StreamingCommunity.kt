@@ -44,6 +44,20 @@ class StreamingCommunity : MainAPI() {
         "$mainUrl/api/browse/top10" to "Top 10 di oggi",
         "$mainUrl/api/browse/trending" to "I Titoli Del Momento",
         "$mainUrl/api/browse/latest" to "Aggiunti di Recente",
+        "$mainUrl/api/browse/genre@Animazione" to "Animazione",
+        "$mainUrl/api/browse/genre@Avventura" to "Avventura",
+        "$mainUrl/api/browse/genre@Azione" to "Azione",
+        "$mainUrl/api/browse/genre@Commedia" to "Commedia",
+        "$mainUrl/api/browse/genre@Crime" to "Crime",
+        "$mainUrl/api/browse/genre@Documentario" to "Documentario",
+        "$mainUrl/api/browse/genre@Dramma" to "Dramma",
+        "$mainUrl/api/browse/genre@Famiglia" to "Famiglia",
+        "$mainUrl/api/browse/genre@Fantascienza" to "Fantascienza",
+        "$mainUrl/api/browse/genre@Fantasy" to "Fantasy",
+        "$mainUrl/api/browse/genre@Horror" to "Horror",
+        "$mainUrl/api/browse/genre@Reality" to "Reality",
+        "$mainUrl/api/browse/genre@Romance" to "Romance",
+        "$mainUrl/api/browse/genre@Thriller" to "Thriller",
     )
     override val mainPage = sectionNamesList
 
@@ -79,24 +93,31 @@ class StreamingCommunity : MainAPI() {
     //Get the Homepage
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val TAG = "STREAMINGCOMMUNITY:MainPage"
-        val url: String = request.data
+        var url: String = request.data
         val params = emptyMap<String, String>().toMutableMap()
-      /*  val section = request.data.substringAfterLast("/")
-                when (section) {
-                    "trending" -> {
-                        Log.d(TAG, "TRENDING")
-                    }
 
-                    "latest" -> {
-                        Log.d(TAG, "LATEST")
-                    }
+        val section = request.data.substringAfterLast("/")
+        when (section) {
+            "trending" -> {
+                Log.d(TAG, "TRENDING")
+            }
 
-                    "top10" -> {
-        //                url = request.data.substringBeforeLast("m")
-        //                params["type"] = "movie"
-                        Log.d(TAG, "TOP10")
-                    }
-                }*/
+            "latest" -> {
+                Log.d(TAG, "LATEST")
+            }
+
+            "top10" -> {
+//                url = request.data.substringBeforeLast("m")
+//                params["type"] = "movie"
+                Log.d(TAG, "TOP10")
+            }
+            else -> {
+                val genere = url.substringAfterLast('@')
+                url = url.substringBeforeLast('@')
+                params["g"] = genere
+            }
+        }
+
         if (page > 0) {
             params["offset"] = ((page - 1) * 60).toString()
         }
@@ -249,7 +270,7 @@ class StreamingCommunity : MainAPI() {
         @JsonProperty("slug") val slug: String,
         @JsonProperty("name") val name: String,
         @JsonProperty("type") val type: String,
-        @JsonProperty("score") val score: String,
+        @JsonProperty("score") val score: String?,
         @JsonProperty("sub_ita") val subIta: Int,
         @JsonProperty("seasons_count") val seasonsCount: Int,
         @JsonProperty("images") val images: List<PosterImage>
