@@ -6,12 +6,9 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.APIHolder.capitalize
 import com.lagradost.cloudstream3.Episode
-import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
-import com.lagradost.cloudstream3.LiveSearchResponse
-import com.lagradost.cloudstream3.LiveStreamLoadResponse
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
@@ -24,11 +21,14 @@ import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.app
 
 import com.lagradost.cloudstream3.mainPageOf
+import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
-import com.lagradost.cloudstream3.newMovieLoadResponse
-import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
+import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import okhttp3.Headers
+import org.jsoup.nodes.DataNode
+import java.io.File
 
 
 class StreamingCommunity : MainAPI() {
@@ -37,8 +37,6 @@ class StreamingCommunity : MainAPI() {
     override var supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
     override var lang = "it"
     override val hasMainPage = true
-    private val headers =
-        mapOf("User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:96.0) Gecko/20100101 Firefox/96.0")
 
 
     companion object {
@@ -57,25 +55,28 @@ class StreamingCommunity : MainAPI() {
     private fun searchResponseBuilder(
         listJson: List<Title>
     ): List<SearchResponse> {
-        val list: List<SearchResponse> = listJson.filter{ it.type == "movie" || it.type == "tv"}.map { title ->
-            val itemData = "@${title.name}§${title.score}·${title.slug}"
-            if (title.type == "tv"){
-                TvSeriesSearchResponse(
-                    name = title.name,
-                    url = "$mainUrl/api/titles/preview/${title.id}$itemData",
-                    apiName = this@StreamingCommunity.name,
-                    posterUrl = "https://cdn.streamingcommunity.computer/images/" + title.getPoster(),
+        val domain = mainUrl.substringAfter("://")
+        val list: List<SearchResponse> =
+            listJson.filter { it.type == "movie" || it.type == "tv" }.map { title ->
+                val itemData = "@${title.name}§${title.score}·${title.slug}"
 
-                )
-            } else {
-                MovieSearchResponse(
-                    name = title.name,
-                    url = "$mainUrl/api/titles/preview/${title.id}$itemData",
-                    apiName = this@StreamingCommunity.name,
-                    posterUrl = "https://cdn.streamingcommunity.computer/images/" + title.getPoster(),
-                )
+                if (title.type == "tv") {
+                    TvSeriesSearchResponse(
+                        name = title.name,
+                        url = "$mainUrl/api/titles/preview/${title.id}$itemData",
+                        apiName = this@StreamingCommunity.name,
+                        posterUrl = "https://cdn.$domain/images/" + title.getPoster(),
+
+                        )
+                } else {
+                    MovieSearchResponse(
+                        name = title.name,
+                        url = "$mainUrl/api/titles/preview/${title.id}$itemData",
+                        apiName = this@StreamingCommunity.name,
+                        posterUrl = "https://cdn.$domain/images/" + title.getPoster(),
+                    )
+                }
             }
-        }
         return list
     }
 
@@ -84,29 +85,29 @@ class StreamingCommunity : MainAPI() {
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val TAG = "STREAMINGCOMMUNITY:MainPage"
         val section = request.data.substringAfterLast("/")
-        var url: String = request.data
+        val url: String = request.data
         var params = emptyMap<String, String>().toMutableMap()
-        when (section) {
-            "trending" -> {
-                Log.d(TAG, "TRENDING")
-            }
+        /*        when (section) {
+                    "trending" -> {
+                        Log.d(TAG, "TRENDING")
+                    }
 
-            "latest" -> {
-                Log.d(TAG, "LATEST")
-            }
+                    "latest" -> {
+                        Log.d(TAG, "LATEST")
+                    }
 
-            "top10" -> {
-//                url = request.data.substringBeforeLast("m")
-//                params["type"] = "movie"
-                Log.d(TAG, "TOP10")
-            }
-        }
+                    "top10" -> {
+        //                url = request.data.substringBeforeLast("m")
+        //                params["type"] = "movie"
+                        Log.d(TAG, "TOP10")
+                    }
+                }*/
         if (page > 0) {
             params["offset"] = ((page - 1) * 60).toString()
         }
         Log.d(TAG, "Url: $url")
         Log.d(TAG, "Params: $params")
-        val response = app.get(url, params = params, headers = headers)
+        val response = app.get(url, params = params)
         val responseString = response.body.string()
         val responseJson = parseJson<Sezione>(responseString)
         Log.d(TAG, "Response: $responseJson")
@@ -156,15 +157,20 @@ class StreamingCommunity : MainAPI() {
         val name = url.substringAfterLast('@').substringBeforeLast('§')
         val imdbScore = url.substringAfterLast('§').substringBeforeLast('·')
         val slug = url.substringAfterLast('·')
-        val previewUrl = url.substringBeforeLast('·')
+        val previewUrl = url.substringBeforeLast('@')
+        Log.d(TAG, "URL with data: $url")
         Log.d(TAG, "Name: $name")
         Log.d(TAG, "IMDB: $imdbScore")
         Log.d(TAG, "SLUG: $slug")
         Log.d(TAG, "Url: $previewUrl")
-        val title = parseJson<TitlePreview>(app.post(previewUrl).body.string())
-
+        val response = app.post(previewUrl).body.string()
+        Log.d(TAG, "Title Preview: $response")
+        val title = parseJson<TitlePreview>(response)
+        val genres = title.genres.map { it.name.capitalize() }
+        val domain = mainUrl.substringAfter("://")
         if (title.type == "tv") {
             val episodes: List<Episode> = getEpisodes(title.id, slug)
+            Log.d(TAG, "Episode List: $episodes")
 
             val tvShow = TvSeriesLoadResponse(
                 name = name,
@@ -172,8 +178,8 @@ class StreamingCommunity : MainAPI() {
                 type = TvType.TvSeries,
                 apiName = this.name,
                 plot = title.plot,
-                posterUrl = "https://cdn.streamingcommunity.computer/images/" + title.getBackgroundImage(),
-                tags = listOf("IMDB: $imdbScore"),
+                posterUrl = "https://cdn.$domain/images/" + title.getBackgroundImage(),
+                tags = listOf("IMDB: $imdbScore") + genres,
                 episodes = episodes
             )
             Log.d(TAG, "TV Show: $tvShow")
@@ -186,8 +192,8 @@ class StreamingCommunity : MainAPI() {
                 type = TvType.Movie,
                 apiName = this.name,
                 plot = title.plot,
-                posterUrl = "https://cdn.streamingcommunity.computer/images/" + title.getBackgroundImage(),
-                tags = listOf("IMDB: $imdbScore"),
+                posterUrl = "https://cdn.$domain/images/" + title.getBackgroundImage(),
+                tags = listOf("IMDB: $imdbScore") + genres
             )
 
             Log.d(TAG, "Movie: $movie")
@@ -196,10 +202,37 @@ class StreamingCommunity : MainAPI() {
     }
 
     private suspend fun getEpisodes(id: Int, slug: String): List<Episode> {
-//        val episode = Episode(
-//
-//        )
-        return emptyList()
+        val TAG = "STREAMINGCOMMUNITY:getEpisodes"
+
+        val episodeList = mutableListOf<Episode>()
+
+        val url = "$mainUrl/titles/$id-$slug"
+        val response = app.get(url).document.select("#app").attr("data-page")
+        Log.d(TAG, "Response data: $response")
+        val data = parseJson<SingleShowResponse>(response)
+        val props = data.props
+        val loadedSeason = props.loadedSeason
+        Log.d(TAG, "Props: $props")
+        Log.d(TAG, "Loaded Season: $loadedSeason")
+
+        props.title?.seasons?.forEach { season ->
+            val episodes = if (season.id == props.loadedSeason!!.id) {
+                props.loadedSeason.episodes
+            } else{
+                val r = app.get(url + "/stagione-${season.number}")
+                parseJson<SingleShowResponse>(r.document.select("#app").attr("data-page")).props.loadedSeason!!.episodes
+            }
+
+            episodes.forEach { ep ->
+                episodeList.add(newEpisode("$mainUrl/watch/${season.id}?e=${ep.id}"){
+                    this.name = ep.name
+                    this.season = season.number
+                    this.episode = ep.number
+                })
+            }
+        }
+
+        return episodeList
     }
 
     // This function is how you load the links
@@ -226,12 +259,12 @@ class StreamingCommunity : MainAPI() {
         @JsonProperty("name") val name: String,
         @JsonProperty("type") val type: String,
         @JsonProperty("score") val score: String,
-        @JsonProperty("sub_ita") val sub_ita: Int,
-        @JsonProperty("last_air_date") val last_air_date: String,
+        @JsonProperty("sub_ita") val subIta: Int,
+        @JsonProperty("last_air_date") val lastAirDate: String,
         @JsonProperty("age") val age: Int?, // Can be null or another type, modify if more info is available
-        @JsonProperty("seasons_count") val seasons_count: Int,
+        @JsonProperty("seasons_count") val seasonsCount: Int,
         @JsonProperty("images") val images: List<PosterImage>
-    ){
+    ) {
         fun getPoster(): String? {
             this.images.forEach {
                 if (it.type == "poster") {
@@ -246,13 +279,13 @@ class StreamingCommunity : MainAPI() {
     data class PosterImage(
         @JsonProperty("filename") val filename: String,
         @JsonProperty("type") val type: String,
-        @JsonProperty("imageable_type") val imageable_type: String,
-        @JsonProperty("imageable_id") val imageable_id: Int,
+        @JsonProperty("imageable_type") val imageableType: String,
+        @JsonProperty("imageable_id") val imageableId: Int,
     )
 
     data class Pivot(
-        @JsonProperty("title_id") val title_id: Int,
-        @JsonProperty("genre_id") val genre_id: Int
+        @JsonProperty("title_id") val titleId: Int,
+        @JsonProperty("genre_id") val genreId: Int
     )
 
     data class Genre(
@@ -260,8 +293,8 @@ class StreamingCommunity : MainAPI() {
         @JsonProperty("name") val name: String,
         @JsonProperty("type") val type: String,
         @JsonProperty("hidden") val hidden: Int,
-        @JsonProperty("created_at") val created_at: String,
-        @JsonProperty("updated_at") val updated_at: String,
+        @JsonProperty("created_at") val createdAt: String,
+        @JsonProperty("updated_at") val updatedAt: String,
         @JsonProperty("pivot") val pivot: Pivot
     )
 
@@ -269,21 +302,57 @@ class StreamingCommunity : MainAPI() {
         @JsonProperty("id") val id: Int,
         @JsonProperty("type") val type: String,
         @JsonProperty("runtime") val runtime: Int,
-        @JsonProperty("release_date") val release_date: String,
+        @JsonProperty("release_date") val releaseDate: String,
         @JsonProperty("quality") val quality: String,
         @JsonProperty("plot") val plot: String,
-        @JsonProperty("seasons_count") val seasons_count: Int,
+        @JsonProperty("seasons_count") val seasonsCount: Int,
         @JsonProperty("genres") val genres: List<Genre>,
         @JsonProperty("images") val images: List<PosterImage>
-    )
-    {
+    ) {
         fun getBackgroundImage(): String? {
             this.images.forEach {
-                if (it.type == "cover") {
+                if (it.type == "background") {
                     return it.filename
                 }
             }
             return null
+        }
+    }
+
+    // Data class copied from the StreamingCommunity plugin for Aniyomi because I'm lazy
+    data class SingleShowResponse(
+        val props: SingleShowObject,
+        val version: String? = null,
+    ) {
+        data class SingleShowObject(
+            val title: ShowObject? = null,
+            val loadedSeason: LoadedSeasonObject? = null,
+        ) {
+            data class ShowObject(
+                val id: Int,
+                val plot: String? = null,
+                val status: String? = null,
+                val seasons: List<SeasonObject>,
+                val genres: List<GenreObject>? = null,
+            ) {
+                data class SeasonObject(
+                    val id: Int,
+                    val number: Int,
+                )
+                data class GenreObject(
+                    val name: String,
+                )
+            }
+            data class LoadedSeasonObject(
+                val id: Int,
+                val episodes: List<EpisodeObject>,
+            ) {
+                data class EpisodeObject(
+                    val id: Int,
+                    val number: Int,
+                    val name: String,
+                )
+            }
         }
     }
 }
