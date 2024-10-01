@@ -25,6 +25,7 @@ import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import okhttp3.HttpUrl.Companion.toHttpUrl
 
 
 class StreamingCommunity : MainAPI() {
@@ -183,7 +184,7 @@ class StreamingCommunity : MainAPI() {
         val genres = title.genres.map { it.name.capitalize() }
         val domain = mainUrl.substringAfter("://")
         val tags = listOf("IMDB: ${title.score}") + genres
-        val actors = title.mainActors.map{ac -> ActorData(actor = Actor(ac.name))}
+        val actors = title.mainActors.map { ac -> ActorData(actor = Actor(ac.name)) }
         if (title.type == "tv") {
             val episodes: List<Episode> = getEpisodes(props)
             Log.d(TAG, "Episode List: $episodes")
@@ -205,7 +206,7 @@ class StreamingCommunity : MainAPI() {
             val movie = MovieLoadResponse(
                 name = title.name,
                 url = url,
-                dataUrl = "$mainUrl/watch/${title.id}",
+                dataUrl = "$mainUrl/iframe/${title.id}",
                 type = TvType.Movie,
                 apiName = this.name,
                 plot = title.plot,
@@ -225,24 +226,24 @@ class StreamingCommunity : MainAPI() {
         val episodeList = mutableListOf<Episode>()
         val title = props.title
 
-        title?.seasons?.forEach{ season ->
+        title?.seasons?.forEach { season ->
             val responseEpisodes = emptyList<it.dogior.doesStream.Episode>().toMutableList()
-            if(season.id == props.loadedSeason!!.id) {
+            if (season.id == props.loadedSeason!!.id) {
                 responseEpisodes.addAll(props.loadedSeason.episodes!!)
-            } else{
+            } else {
                 if (this.inertiaVersion == "") {
                     setInertiaVersion()
                 }
                 val url = "$mainUrl/titles/${title.id}-${title.slug}/stagione-${season.number}"
-                val obj = parseJson<InertiaResponse>(app.get(url, headers = this.headers).body.string())
+                val obj =
+                    parseJson<InertiaResponse>(app.get(url, headers = this.headers).body.string())
                 Log.d(TAG, "Parsed Response: $obj")
                 responseEpisodes.addAll(obj.props.loadedSeason?.episodes!!)
-
             }
-            responseEpisodes.forEach{ ep ->
+            responseEpisodes.forEach { ep ->
                 episodeList.add(
                     Episode(
-                        data = "$mainUrl/watch/${season.id}?e=${ep.id}",
+                        data = "$mainUrl/iframe/${title.id}?episode_id=${ep.id}",
                         name = ep.name,
                         posterUrl = props.cdnUrl + "/images/" + ep.getCover(),
                         description = ep.plot,
@@ -265,8 +266,14 @@ class StreamingCommunity : MainAPI() {
     ): Boolean {
         val TAG = "STREAMINGCOMMUNITY:Links"
 
+        Log.d(TAG, "Url : $data")
 
-
-        return true
+        StreamingCommunityExtractor().getUrl(
+            url = data,
+            referer = mainUrl,
+            subtitleCallback = subtitleCallback,
+            callback = callback
+        )
+        return false
     }
 }

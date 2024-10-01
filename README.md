@@ -7,7 +7,7 @@ Repository for Cloudstream 3 providing streams from websites I like (mostly ital
 | **Plugin**         | **Website**                         | **Content**      | **Language** | **Functioning** |
 |--------------------|-------------------------------------|------------------|:------------:|:---------------:|  
 | Streamed           | https://streamed.su                 | Live Sports      |  🇮🇹  🇬🇧  |        ✅        |
-| StreamingCommunity | https://streamingcommunity.computer | Movies, TV Shows |     🇮🇹     |        ❌        |
+| StreamingCommunity | https://streamingcommunity.computer | Movies, TV Shows |     🇮🇹     |        ✅        |
 
 ## Install
 Click on the pizza to install

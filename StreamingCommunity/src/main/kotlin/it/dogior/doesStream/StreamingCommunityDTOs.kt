@@ -133,6 +133,7 @@ data class TitleProp(
     @JsonProperty("release_date") val releaseDate: String,
     @JsonProperty("age") val age: Int,
     @JsonProperty("seasons_count") val seasonsCount: Int,
+    @JsonProperty("scws_id") val scwsId: Int?,
     @JsonProperty("seasons") val seasons: List<Season>,
     @JsonProperty("images") val images: List<PosterImage>,
     @JsonProperty("genres") val genres: List<Genre>,
@@ -147,3 +148,19 @@ data class TitleProp(
         return null
     }
 }
+
+data class Server(
+    @JsonProperty("name") val name: String,
+    @JsonProperty("active") val active: Boolean,
+    @JsonProperty("url") val url: String
+)
+
+data class MasterPlaylist(
+    @JsonProperty("params") val params: Params,
+    @JsonProperty("url") val url: String
+)
+
+data class Params(
+    @JsonProperty("token") val token: String,
+    @JsonProperty("expires") val expires: String
+)

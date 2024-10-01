@@ -1,15 +1,15 @@
 package it.dogior.doesStream
 
 import android.util.Log
-import com.lagradost.cloudstream3.APIHolder.capitalize
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.ExtractorApi
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
+import okhttp3.HttpUrl.Companion.toHttpUrl
 
-class StreamedExtractor : ExtractorApi() {
+class StreamingCommunityExtractor : ExtractorApi() {
     override val mainUrl = StreamingCommunity.mainUrl
     override val name = StreamingCommunity.name
     override val requiresReferer = false
@@ -23,34 +23,65 @@ class StreamedExtractor : ExtractorApi() {
         val TAG = "StreaminCommunityExtractor:getUrl"
         Log.d(TAG,"REFERER: $referer  URL: $url")
 
-//        if (url.isNotEmpty()) {
-//            try {
-//                val rawSource = app.get(url).body.string()
-////                Log.d(TAG, rawSource)
-//                val source = parseJson<List<StreamingCommunity.Source>>(rawSource)
-//                val serverDomain = "https://rr.vipstreams.in"
-//                if (source.isNotEmpty()) {
-//                    source.forEach{ s ->
-//                        val isHdString = if(s.isHD) "HD" else "SD"
-//                        val contentUrl = "$serverDomain/${s.source}/js/${s.id}/${s.streamNumber}/playlist.m3u8"
-////                        Log.d(TAG, "Content URL: $contentUrl")
-//                        callback.invoke(
-//                            ExtractorLink(
-//                                source = s.source!!,
-//                                name = "${s.source.capitalize()} $isHdString \t ${s.language}",
-//                                url = contentUrl,
-//                                referer = referer!!,
-//                                isM3u8 = true,
-//                                quality = Qualities.Unknown.value
-//                            )
-//                        )
-//                    }
-//                }
-//            } catch (e: Exception) {
-//                Log.d(TAG, "Error: ${e.message}")
-//            }
-//        }
+        if (url.isNotEmpty()) {
+            val playlistUrl = getPlaylistLink(url)
+            callback.invoke(
+                ExtractorLink(
+                    source = "Vixcloud",
+                    name = "Streaming Community ITA",
+                    url = playlistUrl,
+                    referer = referer!!,
+                    isM3u8 = true,
+                    quality = Qualities.Unknown.value
+                )
+            )
+        }
 
+    }
+
+    suspend fun getPlaylistLink(data: String): String {
+        val TAG = "StreaminCommunityExtractor:getPlaylistLink"
+        val iframeUrl = app.get(data).document
+            .select("iframe").attr("src")
+        Log.w(TAG, "IFRAME URL: $iframeUrl")
+        val headers = mapOf(
+            "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Host" to iframeUrl.toHttpUrl().host,
+            "Referer" to "$mainUrl/"
+        )
+
+        val iframe = app.get(iframeUrl, headers = headers).document
+        val script =
+            iframe.selectFirst("script:containsData(masterPlaylist)")!!.data().replace("\\", "")
+                .replace("\n", "").replace("\t", "")
+//        val windowVideo = script.substringAfter("= ").substringBefore(";")
+        val windowStreams = script.substringAfter("window.streams = ")
+            .substringBefore(";        window.masterPlaylist = ")
+        val windowMasterPlaylist = script.substringAfter("window.masterPlaylist = ")
+            .substringBefore("        window.canPlayFHD")
+//        val windowCanPlayFHD = script.substringAfter("window.canPlayFHD = ")
+        Log.d(TAG, "SCRIPT: $script")
+//        Log.d(TAG, "windowVideo: $windowVideo")
+//        Log.d(TAG, "windowStreams: $windowStreams")
+        Log.d(TAG, "windowMasterPlaylist: $windowMasterPlaylist")
+//        Log.d(TAG, "windowCanPlayFHD: $windowCanPlayFHD")
+
+        val servers = parseJson<List<Server>>(windowStreams)
+        Log.d(TAG, "Server List: $servers")
+
+        // Hopefully different streams will have the same format errors
+        val mP = windowMasterPlaylist
+            .replace("params", "'params'")
+            .replace("url", "'url'")
+            .replace("'", "\"")
+            .replace(" ", "")
+            .replace(",}", "}")
+
+        val masterPlaylist = parseJson<MasterPlaylist>(mP)
+        Log.d(TAG, "MasterPlaylist Obj: $masterPlaylist")
+
+        val masterPlaylistUrl = "${masterPlaylist.url}&token=${masterPlaylist.params.token}&expires=${masterPlaylist.params.expires}&b=1"
+        return masterPlaylistUrl
     }
 
 }
