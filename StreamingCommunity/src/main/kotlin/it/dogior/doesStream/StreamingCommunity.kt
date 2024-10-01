@@ -206,7 +206,7 @@ class StreamingCommunity : MainAPI() {
             val movie = MovieLoadResponse(
                 name = title.name,
                 url = url,
-                dataUrl = "$mainUrl/iframe/${title.id}",
+                dataUrl = "$mainUrl/iframe/${title.id}&canPlayFHD=1",
                 type = TvType.Movie,
                 apiName = this.name,
                 plot = title.plot,
@@ -243,7 +243,7 @@ class StreamingCommunity : MainAPI() {
             responseEpisodes.forEach { ep ->
                 episodeList.add(
                     Episode(
-                        data = "$mainUrl/iframe/${title.id}?episode_id=${ep.id}",
+                        data = "$mainUrl/iframe/${title.id}?episode_id=${ep.id}&canPlayFHD=1",
                         name = ep.name,
                         posterUrl = props.cdnUrl + "/images/" + ep.getCover(),
                         description = ep.plot,
