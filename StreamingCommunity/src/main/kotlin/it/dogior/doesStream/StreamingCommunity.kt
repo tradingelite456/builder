@@ -205,7 +205,7 @@ class StreamingCommunity : MainAPI() {
             val movie = MovieLoadResponse(
                 name = title.name,
                 url = url,
-                dataUrl = url,
+                dataUrl = "$mainUrl/watch/${title.id}",
                 type = TvType.Movie,
                 apiName = this.name,
                 plot = title.plot,
@@ -264,6 +264,8 @@ class StreamingCommunity : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
         val TAG = "STREAMINGCOMMUNITY:Links"
+
+
 
         return true
     }
