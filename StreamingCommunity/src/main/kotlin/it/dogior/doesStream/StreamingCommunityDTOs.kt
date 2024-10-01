@@ -10,13 +10,10 @@ data class Section(
 
 data class Title(
     @JsonProperty("id") val id: Int,
-    @JsonProperty("slug") val slug: String,
     @JsonProperty("name") val name: String,
+    @JsonProperty("slug") val slug: String,
     @JsonProperty("type") val type: String,
-    @JsonProperty("score") val score: String?,
-    @JsonProperty("sub_ita") val subIta: Int,
-    @JsonProperty("seasons_count") val seasonsCount: Int,
-    @JsonProperty("images") val images: List<PosterImage>
+    @JsonProperty("images") val images: List<PosterImage>,
 ) {
     fun getPoster(): String? {
         this.images.forEach {
@@ -27,20 +24,6 @@ data class Title(
         return null
     }
 }
-
-
-data class PosterImage(
-    @JsonProperty("filename") val filename: String,
-    @JsonProperty("type") val type: String,
-    @JsonProperty("imageable_type") val imageableType: String,
-    @JsonProperty("imageable_id") val imageableId: Int,
-)
-
-data class Genre(
-    @JsonProperty("id") val id: Int,
-    @JsonProperty("name") val name: String,
-    @JsonProperty("type") val type: String,
-)
 
 data class TitlePreview(
     @JsonProperty("id") val id: Int,
@@ -63,43 +46,104 @@ data class TitlePreview(
     }
 }
 
+
+data class PosterImage(
+    @JsonProperty("filename") val filename: String,
+    @JsonProperty("type") val type: String,
+    @JsonProperty("imageable_type") val imageableType: String,
+    @JsonProperty("imageable_id") val imageableId: Int,
+)
+
+data class Genre(
+    @JsonProperty("id") val id: Int,
+    @JsonProperty("name") val name: String,
+    @JsonProperty("type") val type: String,
+)
+
 data class SearchData(
     @JsonProperty("data") val titles: List<Title>,
 )
 
-// Data class copied from the StreamingCommunity plugin for Aniyomi because I'm lazy
-data class SingleShowResponse(
-    val props: SingleShowObject,
-    val version: String? = null,
-) {
-    data class SingleShowObject(
-        val title: ShowObject? = null,
-        val loadedSeason: LoadedSeasonObject? = null,
-    ) {
-        data class ShowObject(
-            val id: Int,
-            val plot: String? = null,
-            val status: String? = null,
-            val seasons: List<SeasonObject>,
-            val genres: List<GenreObject>? = null,
-        ) {
-            data class SeasonObject(
-                val id: Int,
-                val number: Int,
-            )
-            data class GenreObject(
-                val name: String,
-            )
+data class InertiaResponse(
+    @JsonProperty("props") val props: Props,
+    @JsonProperty("url") val url: String,
+    @JsonProperty("version") val version: String
+)
+
+data class Props(
+    @JsonProperty("scws_url") val scwsUrl: String,
+    @JsonProperty("cdn_url") val cdnUrl: String,
+    @JsonProperty("title") val title: TitleProp?,
+    @JsonProperty("loadedSeason") val loadedSeason: Season?,
+    @JsonProperty("sliders") val sliders: List<Slider>?,
+    @JsonProperty("genres") val genres: List<Genre>?,
+    @JsonProperty("label") val label: String?,
+    @JsonProperty("browseMoreApiRoute") val browseMoreApiRoute: String?,
+)
+
+data class Season(
+    @JsonProperty("id") val id: Int,
+    @JsonProperty("number") val number: Int,
+    @JsonProperty("name") val name: String?,
+    @JsonProperty("plot") val plot: String?,
+    @JsonProperty("release_date") val releaseDate: String?,
+    @JsonProperty("title_id") val titleId: Int,
+    @JsonProperty("episodes") val episodes: List<Episode>?
+)
+
+data class Episode(
+    @JsonProperty("id") val id: Int,
+    @JsonProperty("number") val number: Int,
+    @JsonProperty("name") val name: String,
+    @JsonProperty("plot") val plot: String,
+    @JsonProperty("duration") val duration: Int,
+    @JsonProperty("scws_id") val scwsId: Int,
+    @JsonProperty("season_id") val seasonId: Int,
+    @JsonProperty("images") val images: List<PosterImage>
+){
+    fun getCover(): String? {
+        this.images.forEach {
+            if (it.type == "cover") {
+                return it.filename
+            }
         }
-        data class LoadedSeasonObject(
-            val id: Int,
-            val episodes: List<EpisodeObject>,
-        ) {
-            data class EpisodeObject(
-                val id: Int,
-                val number: Int,
-                val name: String,
-            )
+        return null
+    }
+}
+
+data class Slider(
+    @JsonProperty("name") val name: String,
+    @JsonProperty("label") val label: String,
+    @JsonProperty("titles") val titles: List<Title>,
+)
+
+data class MainActor(
+    @JsonProperty("id") val id: Int,
+    @JsonProperty("name") val name: String,
+)
+
+data class TitleProp(
+    @JsonProperty("id") val id: Int,
+    @JsonProperty("name") val name: String,
+    @JsonProperty("slug") val slug: String,
+    @JsonProperty("plot") val plot: String,
+    @JsonProperty("quality") val quality: String,
+    @JsonProperty("type") val type: String,
+    @JsonProperty("score") val score: String,
+    @JsonProperty("release_date") val releaseDate: String,
+    @JsonProperty("age") val age: Int,
+    @JsonProperty("seasons_count") val seasonsCount: Int,
+    @JsonProperty("seasons") val seasons: List<Season>,
+    @JsonProperty("images") val images: List<PosterImage>,
+    @JsonProperty("genres") val genres: List<Genre>,
+    @JsonProperty("main_actors") val mainActors: List<MainActor>
+){
+    fun getBackgroundImage(): String? {
+        this.images.forEach {
+            if (it.type == "background") {
+                return it.filename
+            }
         }
+        return null
     }
 }

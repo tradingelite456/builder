@@ -4,6 +4,8 @@ package it.dogior.doesStream
 
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.APIHolder.capitalize
+import com.lagradost.cloudstream3.Actor
+import com.lagradost.cloudstream3.ActorData
 import com.lagradost.cloudstream3.Episode
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.HomePageList
@@ -20,7 +22,6 @@ import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.app
 
 import com.lagradost.cloudstream3.mainPageOf
-import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -32,6 +33,9 @@ class StreamingCommunity : MainAPI() {
     override var supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
     override var lang = "it"
     override val hasMainPage = true
+    private var inertiaVersion = ""
+    private val headers =
+        mapOf("X-Inertia" to true.toString(), "X-Inertia-Version" to inertiaVersion).toMutableMap()
 
 
     companion object {
@@ -40,44 +44,50 @@ class StreamingCommunity : MainAPI() {
     }
 
     private val sectionNamesList = mainPageOf(
-        "$mainUrl/api/browse/top10" to "Top 10 di oggi",
-        "$mainUrl/api/browse/trending" to "I Titoli Del Momento",
-        "$mainUrl/api/browse/latest" to "Aggiunti di Recente",
-        "$mainUrl/api/browse/genre@Animazione" to "Animazione",
-        "$mainUrl/api/browse/genre@Avventura" to "Avventura",
-        "$mainUrl/api/browse/genre@Azione" to "Azione",
-        "$mainUrl/api/browse/genre@Commedia" to "Commedia",
-        "$mainUrl/api/browse/genre@Crime" to "Crime",
-        "$mainUrl/api/browse/genre@Documentario" to "Documentario",
-        "$mainUrl/api/browse/genre@Dramma" to "Dramma",
-        "$mainUrl/api/browse/genre@Famiglia" to "Famiglia",
-        "$mainUrl/api/browse/genre@Fantascienza" to "Fantascienza",
-        "$mainUrl/api/browse/genre@Fantasy" to "Fantasy",
-        "$mainUrl/api/browse/genre@Horror" to "Horror",
-        "$mainUrl/api/browse/genre@Reality" to "Reality",
-        "$mainUrl/api/browse/genre@Romance" to "Romance",
-        "$mainUrl/api/browse/genre@Thriller" to "Thriller",
+        "$mainUrl/browse/top10" to "Top 10 di oggi",
+        "$mainUrl/browse/trending" to "I Titoli Del Momento",
+        "$mainUrl/browse/latest" to "Aggiunti di Recente",
+        "$mainUrl/browse/genre?g=Animazione" to "Animazione",
+        "$mainUrl/browse/genre?g=Avventura" to "Avventura",
+        "$mainUrl/browse/genre?g=Azione" to "Azione",
+        "$mainUrl/browse/genre?g=Commedia" to "Commedia",
+        "$mainUrl/browse/genre?g=Crime" to "Crime",
+        "$mainUrl/browse/genre?g=Documentario" to "Documentario",
+        "$mainUrl/browse/genre?g=Dramma" to "Dramma",
+        "$mainUrl/browse/genre?g=Famiglia" to "Famiglia",
+        "$mainUrl/browse/genre?g=Fantascienza" to "Fantascienza",
+        "$mainUrl/browse/genre?g=Fantasy" to "Fantasy",
+        "$mainUrl/browse/genre?g=Horror" to "Horror",
+        "$mainUrl/browse/genre?g=Reality" to "Reality",
+        "$mainUrl/browse/genre?g=Romance" to "Romance",
+        "$mainUrl/browse/genre?g=Thriller" to "Thriller",
     )
     override val mainPage = sectionNamesList
+
+    private suspend fun setInertiaVersion() {
+        val inertiaPageObject = app.get(mainUrl).document.select("#app").attr("data-page")
+        this.inertiaVersion =
+            inertiaPageObject.substringAfter("\"version\":\"").substringBefore("\"")
+        this.headers["X-Inertia-Version"] = this.inertiaVersion
+    }
 
     private fun searchResponseBuilder(listJson: List<Title>): List<SearchResponse> {
         val domain = mainUrl.substringAfter("://")
         val list: List<SearchResponse> =
             listJson.filter { it.type == "movie" || it.type == "tv" }.map { title ->
-                val itemData = "@${title.name}§${title.score}·${title.slug}"
+                val url = "$mainUrl/titles/${title.id}-${title.slug}"
 
                 if (title.type == "tv") {
                     TvSeriesSearchResponse(
                         name = title.name,
-                        url = "$mainUrl/api/titles/preview/${title.id}$itemData",
+                        url = url,
                         apiName = this@StreamingCommunity.name,
                         posterUrl = "https://cdn.$domain/images/" + title.getPoster(),
-
-                        )
+                    )
                 } else {
                     MovieSearchResponse(
                         name = title.name,
-                        url = "$mainUrl/api/titles/preview/${title.id}$itemData",
+                        url = url,
                         apiName = this@StreamingCommunity.name,
                         posterUrl = "https://cdn.$domain/images/" + title.getPoster(),
                     )
@@ -89,7 +99,7 @@ class StreamingCommunity : MainAPI() {
     //Get the Homepage
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val TAG = "STREAMINGCOMMUNITY:MainPage"
-        var url: String = request.data
+        var url: String = mainUrl + "/api" + request.data.substringAfter(mainUrl)
         val params = emptyMap<String, String>().toMutableMap()
 
         val section = request.data.substringAfterLast("/")
@@ -107,9 +117,10 @@ class StreamingCommunity : MainAPI() {
 //                params["type"] = "movie"
                 Log.d(TAG, "TOP10")
             }
+
             else -> {
-                val genere = url.substringAfterLast('@')
-                url = url.substringBeforeLast('@')
+                val genere = url.substringAfterLast('=')
+                url = url.substringBeforeLast('?')
                 params["g"] = genere
             }
         }
@@ -145,60 +156,62 @@ class StreamingCommunity : MainAPI() {
         val TAG = "STREAMINGCOMMUNITY:search"
         val url = "$mainUrl/api/search"
         val params = mapOf("q" to query)
-        val titlesList = mutableListOf<Title>()
 
         val response = app.get(url, params = params).body.string()
         Log.d(TAG, "Response: $response")
         val result = parseJson<SearchData>(response)
-        titlesList.addAll(result.titles)
 
-        return searchResponseBuilder(titlesList)
+        return searchResponseBuilder(result.titles)
     }
 
     // This function gets called when you enter the page/show
     override suspend fun load(url: String): LoadResponse {
         val TAG = "STREAMINGCOMMUNITY:Item"
-//        Log.d(TAG, "Url: $url")
-        val name = url.substringAfterLast('@').substringBeforeLast('§')
-        val imdbScore = url.substringAfterLast('§').substringBeforeLast('·')
-        val slug = url.substringAfterLast('·')
-        val previewUrl = url.substringBeforeLast('@')
-        Log.d(TAG, "URL with data: $url")
-        Log.d(TAG, "Name: $name")
-        Log.d(TAG, "IMDB: $imdbScore")
-        Log.d(TAG, "SLUG: $slug")
-        Log.d(TAG, "Url: $previewUrl")
-        val response = app.post(previewUrl).body.string()
-        Log.d(TAG, "Title Preview: $response")
-        val title = parseJson<TitlePreview>(response)
+
+        Log.d(TAG, "URL: $url")
+        if (this.inertiaVersion == "") {
+            setInertiaVersion()
+        }
+
+        val response = app.get(url, headers = this.headers)
+        val responseBody = response.body.string()
+        Log.d(TAG, "Request: ${response.okhttpResponse.request}")
+        Log.d(TAG, "Response: $responseBody")
+
+        val props = parseJson<InertiaResponse>(responseBody).props
+        val title = props.title!!
         val genres = title.genres.map { it.name.capitalize() }
         val domain = mainUrl.substringAfter("://")
+        val tags = listOf("IMDB: ${title.score}") + genres
+        val actors = title.mainActors.map{ac -> ActorData(actor = Actor(ac.name))}
         if (title.type == "tv") {
-            val episodes: List<Episode> = getEpisodes(title.id, slug)
+            val episodes: List<Episode> = getEpisodes(props)
             Log.d(TAG, "Episode List: $episodes")
 
             val tvShow = TvSeriesLoadResponse(
-                name = name,
-                url = previewUrl,
+                name = title.name,
+                url = url,
                 type = TvType.TvSeries,
                 apiName = this.name,
                 plot = title.plot,
                 posterUrl = "https://cdn.$domain/images/" + title.getBackgroundImage(),
-                tags = listOf("IMDB: $imdbScore") + genres,
-                episodes = episodes
+                tags = tags,
+                episodes = episodes,
+                actors = actors
             )
             Log.d(TAG, "TV Show: $tvShow")
             return tvShow
         } else {
             val movie = MovieLoadResponse(
-                name = name,
-                url = previewUrl,
-                dataUrl = previewUrl,
+                name = title.name,
+                url = url,
+                dataUrl = url,
                 type = TvType.Movie,
                 apiName = this.name,
                 plot = title.plot,
                 posterUrl = "https://cdn.$domain/images/" + title.getBackgroundImage(),
-                tags = listOf("IMDB: $imdbScore") + genres
+                tags = tags,
+                actors = actors
             )
 
             Log.d(TAG, "Movie: $movie")
@@ -206,34 +219,37 @@ class StreamingCommunity : MainAPI() {
         }
     }
 
-    private suspend fun getEpisodes(id: Int, slug: String): List<Episode> {
+    private suspend fun getEpisodes(props: Props): List<Episode> {
         val TAG = "STREAMINGCOMMUNITY:getEpisodes"
 
         val episodeList = mutableListOf<Episode>()
+        val title = props.title
 
-        val url = "$mainUrl/titles/$id-$slug"
-        val response = app.get(url).document.select("#app").attr("data-page")
-        Log.d(TAG, "Response data: $response")
-        val data = parseJson<SingleShowResponse>(response)
-        val props = data.props
-        val loadedSeason = props.loadedSeason
-        Log.d(TAG, "Props: $props")
-        Log.d(TAG, "Loaded Season: $loadedSeason")
-
-        props.title?.seasons?.forEach { season ->
-            val episodes = if (season.id == props.loadedSeason!!.id) {
-                props.loadedSeason.episodes
+        title?.seasons?.forEach{ season ->
+            val responseEpisodes = emptyList<it.dogior.doesStream.Episode>().toMutableList()
+            if(season.id == props.loadedSeason!!.id) {
+                responseEpisodes.addAll(props.loadedSeason.episodes!!)
             } else{
-                val r = app.get(url + "/stagione-${season.number}")
-                parseJson<SingleShowResponse>(r.document.select("#app").attr("data-page")).props.loadedSeason!!.episodes
-            }
+                if (this.inertiaVersion == "") {
+                    setInertiaVersion()
+                }
+                val url = "$mainUrl/titles/${title.id}-${title.slug}/stagione-${season.number}"
+                val obj = parseJson<InertiaResponse>(app.get(url, headers = this.headers).body.string())
+                Log.d(TAG, "Parsed Response: $obj")
+                responseEpisodes.addAll(obj.props.loadedSeason?.episodes!!)
 
-            episodes.forEach { ep ->
-                episodeList.add(newEpisode("$mainUrl/watch/${season.id}?e=${ep.id}"){
-                    this.name = ep.name
-                    this.season = season.number
-                    this.episode = ep.number
-                })
+            }
+            responseEpisodes.forEach{ ep ->
+                episodeList.add(
+                    Episode(
+                        data = "$mainUrl/watch/${season.id}?e=${ep.id}",
+                        name = ep.name,
+                        posterUrl = props.cdnUrl + "/images/" + ep.getCover(),
+                        description = ep.plot,
+                        episode = ep.number,
+                        season = season.number
+                    )
+                )
             }
         }
 
