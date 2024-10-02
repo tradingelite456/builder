@@ -131,6 +131,7 @@ data class TitleProp(
     @JsonProperty("type") val type: String,
     @JsonProperty("score") val score: String,
     @JsonProperty("release_date") val releaseDate: String,
+    @JsonProperty("status") val status: String?,
     @JsonProperty("age") val age: Int,
     @JsonProperty("seasons_count") val seasonsCount: Int,
     @JsonProperty("scws_id") val scwsId: Int?,

@@ -25,7 +25,6 @@ import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
-import okhttp3.HttpUrl.Companion.toHttpUrl
 
 
 class StreamingCommunity : MainAPI() {
@@ -114,8 +113,6 @@ class StreamingCommunity : MainAPI() {
             }
 
             "top10" -> {
-//                url = request.data.substringBeforeLast("m")
-//                params["type"] = "movie"
                 Log.d(TAG, "TOP10")
             }
 
@@ -185,6 +182,7 @@ class StreamingCommunity : MainAPI() {
         val domain = mainUrl.substringAfter("://")
         val tags = listOf("IMDB: ${title.score}") + genres
         val actors = title.mainActors.map { ac -> ActorData(actor = Actor(ac.name)) }
+        val year = title.releaseDate.substringBefore('-').toIntOrNull()
         if (title.type == "tv") {
             val episodes: List<Episode> = getEpisodes(props)
             Log.d(TAG, "Episode List: $episodes")
@@ -198,7 +196,8 @@ class StreamingCommunity : MainAPI() {
                 posterUrl = "https://cdn.$domain/images/" + title.getBackgroundImage(),
                 tags = tags,
                 episodes = episodes,
-                actors = actors
+                actors = actors,
+                year = year
             )
             Log.d(TAG, "TV Show: $tvShow")
             return tvShow
@@ -212,7 +211,9 @@ class StreamingCommunity : MainAPI() {
                 plot = title.plot,
                 posterUrl = "https://cdn.$domain/images/" + title.getBackgroundImage(),
                 tags = tags,
-                actors = actors
+                actors = actors,
+                year = year,
+                comingSoon = title.status == "Post Production"
             )
 
             Log.d(TAG, "Movie: $movie")
