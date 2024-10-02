@@ -29,7 +29,7 @@ class StreamingCommunityExtractor : ExtractorApi() {
             callback.invoke(
                 ExtractorLink(
                     source = "Vixcloud",
-                    name = "Streaming Community ITA",
+                    name = "Streaming Community",
                     url = playlistUrl,
                     referer = referer!!,
                     isM3u8 = true,
@@ -40,7 +40,7 @@ class StreamingCommunityExtractor : ExtractorApi() {
 
     }
 
-    suspend fun getPlaylistLink(url: String): String {
+    private suspend fun getPlaylistLink(url: String): String {
         val TAG = "StreamingCommunityExtractor:getPlaylistLink"
 
         Log.d(TAG, url)
@@ -87,10 +87,10 @@ class StreamingCommunityExtractor : ExtractorApi() {
 
         val masterPlaylistUrl: String
         val params = "token=${masterPlaylist.params.token}&expires=${masterPlaylist.params.expires}&h=1"
-        if ("?b1" in masterPlaylist.url) {
-            masterPlaylistUrl = "${masterPlaylist.url}&$params"
+        masterPlaylistUrl = if ("?b1" in masterPlaylist.url) {
+            "${masterPlaylist.url}&$params"
         } else{
-            masterPlaylistUrl = "${masterPlaylist.url}?$params"
+            "${masterPlaylist.url}?$params"
         }
         return masterPlaylistUrl
     }
