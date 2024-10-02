@@ -21,7 +21,7 @@ class StreamingCommunityExtractor : ExtractorApi() {
             subtitleCallback: (SubtitleFile) -> Unit,
             callback: (ExtractorLink) -> Unit
     ) {
-        val TAG = "StreamingCommunityExtractor:getUrl"
+        val TAG = "GetUrl"
         Log.d(TAG,"REFERER: $referer  URL: $url")
 
         if (url.isNotEmpty()) {
@@ -41,7 +41,7 @@ class StreamingCommunityExtractor : ExtractorApi() {
     }
 
     private suspend fun getPlaylistLink(url: String): String {
-        val TAG = "StreamingCommunityExtractor:getPlaylistLink"
+        val TAG = "getPlaylistLink"
 
         Log.d(TAG, url)
         val iframeUrl = app.get(url).document

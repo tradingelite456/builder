@@ -25,18 +25,3 @@ cloudstream {
 
     iconUrl = "https://streamed.su/favicon.png"
 }
-
-android {
-    buildFeatures {
-        viewBinding = true
-    }
-
-    defaultConfig {
-        minSdk = 26
-        compileSdk =33
-        targetSdk = 33
-    }
-}
-dependencies {
-    implementation("androidx.appcompat:appcompat:1.7.0")
-}

@@ -20,7 +20,7 @@ class StreamedExtractor : ExtractorApi() {
             subtitleCallback: (SubtitleFile) -> Unit,
             callback: (ExtractorLink) -> Unit
     ) {
-        val TAG = "StreamedExtractor:getUrl"
+        val TAG = "StreamedExtractor"
         Log.d(TAG,"REFERER: $referer  URL: $url")
 
         if (url.isNotEmpty()) {
