@@ -85,7 +85,13 @@ class StreamingCommunityExtractor : ExtractorApi() {
         val masterPlaylist = parseJson<MasterPlaylist>(mP)
         Log.d(TAG, "MasterPlaylist Obj: $masterPlaylist")
 
-        val masterPlaylistUrl = "${masterPlaylist.url}&token=${masterPlaylist.params.token}&expires=${masterPlaylist.params.expires}&h=1"
+        val masterPlaylistUrl: String
+        val params = "token=${masterPlaylist.params.token}&expires=${masterPlaylist.params.expires}&h=1"
+        if ("?b1" in masterPlaylist.url) {
+            masterPlaylistUrl = "${masterPlaylist.url}&$params"
+        } else{
+            masterPlaylistUrl = "${masterPlaylist.url}?$params"
+        }
         return masterPlaylistUrl
     }
 
