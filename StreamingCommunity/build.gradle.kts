@@ -1,5 +1,3 @@
-@file:Suppress("UnstableApiUsage")
-
 // use an integer for version numbers
 version = 2
 
@@ -20,12 +18,8 @@ cloudstream {
     status = 1
 
 
-    requiresResources = true
+    requiresResources = false
     language = "it"
 
     iconUrl = "https://streamingcommunity.computer/icon/favicon-32x32.png?v=2"
-}
-
-dependencies {
-    implementation("androidx.appcompat:appcompat:1.7.0")
 }

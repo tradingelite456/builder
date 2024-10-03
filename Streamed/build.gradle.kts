@@ -1,5 +1,3 @@
-@file:Suppress("UnstableApiUsage")
-
 // use an integer for version numbers
 version = 1
 
@@ -20,7 +18,7 @@ cloudstream {
     status = 1
 
 
-    requiresResources = true
+    requiresResources = false
     language = "it"
 
     iconUrl = "https://streamed.su/favicon.png"
