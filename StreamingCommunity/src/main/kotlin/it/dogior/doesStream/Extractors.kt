@@ -36,6 +36,16 @@ class StreamingCommunityExtractor : ExtractorApi() {
                     quality = Qualities.Unknown.value
                 )
             )
+//            callback.invoke(
+//                ExtractorLink(
+//                    source = "Vixcloud",
+//                    name = "Streaming Community",
+//                    url = playlistUrl,
+//                    referer = referer!!,
+//                    isM3u8 = true,
+//                    quality = Qualities.Unknown.value
+//                )
+//            )
         }
 
     }
@@ -57,7 +67,7 @@ class StreamingCommunityExtractor : ExtractorApi() {
         )
 
         val iframe = app.get(iframeUrl, headers = headers).document
-        Log.d(TAG, "TEST: ${iframe.body()}")
+//        Log.d(TAG, "TEST: ${iframe.body()}")
 
         val script =
             iframe.selectFirst("script:containsData(masterPlaylist)")!!.data().replace("\\", "")
@@ -85,13 +95,23 @@ class StreamingCommunityExtractor : ExtractorApi() {
         val masterPlaylist = parseJson<MasterPlaylist>(mP)
         Log.d(TAG, "MasterPlaylist Obj: $masterPlaylist")
 
-        val masterPlaylistUrl: String
-        val params = "token=${masterPlaylist.params.token}&expires=${masterPlaylist.params.expires}&h=1"
+        var masterPlaylistUrl: String
+        val params = "token=${masterPlaylist.params.token}&expires=${masterPlaylist.params.expires}"
         masterPlaylistUrl = if ("?b1" in masterPlaylist.url) {
             "${masterPlaylist.url}&$params"
         } else{
             "${masterPlaylist.url}?$params"
         }
+        masterPlaylistUrl = "$masterPlaylistUrl&h=1"
+        if(app.get(masterPlaylistUrl).code == 401){
+            Log.d(TAG, "Trying adding h=1")
+            Log.d(TAG, "Url before: $masterPlaylistUrl")
+            // If I understood things correctly h=1 enables 1080p streaming,
+            // but if the source doesn't have it it will return an error 401 Unauthorized
+            masterPlaylistUrl = masterPlaylistUrl.substringBefore("&h=1")
+            Log.d(TAG, "Url after: $masterPlaylistUrl")
+        }
+
         return masterPlaylistUrl
     }
 
