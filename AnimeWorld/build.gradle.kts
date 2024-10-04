@@ -23,5 +23,5 @@ cloudstream {
         "OVA",
     )
 
-    iconUrl = "https://static.animeworld.so/assets/images/favicon/favicon-32x32.png?3="
+    iconUrl = "https://static.animeworld.so/assets/images/favicon/android-icon-192x192.png?s"
 }

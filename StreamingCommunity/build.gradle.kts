@@ -25,5 +25,5 @@ cloudstream {
     requiresResources = false
     language = "it"
 
-    iconUrl = "https://streamingcommunity.computer/icon/favicon-32x32.png?v=2"
+    iconUrl = "https://streamingcommunity.computer/apple-touch-icon.png?v=2"
 }

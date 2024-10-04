@@ -2,7 +2,6 @@
 
 package it.dogior.doesStream
 
-import android.annotation.SuppressLint
 import android.content.Context
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.CommonActivity.activity
@@ -32,7 +31,6 @@ import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
-import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.util.Locale
 
 typealias Str = BooleanOrString.AsString
@@ -62,8 +60,8 @@ class AnimeUnity : MainAPI() {
     private val sectionNamesList = mainPageOf(
         "$mainUrl/archivio/" to "Popolari",
         "$mainUrl/archivio/" to "I migliori",
-        "$mainUrl/archivio/" to "Popolari non doppiati",
-        "$mainUrl/archivio/" to "I migliori non doppiati",
+        "$mainUrl/archivio/" to "Popolari doppiati",
+        "$mainUrl/archivio/" to "I migliori doppiati",
     )
     override val mainPage = sectionNamesList
 
@@ -97,8 +95,9 @@ class AnimeUnity : MainAPI() {
                 this?.putString("${it.id}-${it.slug}", it.toJson())
                 this?.apply()
             }
+            val title = it.titleIt ?: it.titleEng ?: it.title!!
             newAnimeSearchResponse(
-                name = it.title ?: it.titleIt ?: it.titleEng!!,
+                name = title.replace(" (ITA)", ""),
                 url = "$mainUrl/anime/${it.id}-${it.slug}",
                 type = if (it.type == "TV") TvType.Anime
                 else if (it.type == "Movie" || it.episodesCount == 1) TvType.AnimeMovie
@@ -149,19 +148,19 @@ class AnimeUnity : MainAPI() {
     }
 
     private fun getDataPerHomeSection(section: String) = when (section) {
-        "Popolari" -> {
+        "Popolari doppiati" -> {
             RequestData(orderBy = Str("Popolarità"))
         }
 
-        "I migliori" -> {
+        "I migliori doppiati" -> {
             RequestData(orderBy = Str("Valutazione"))
         }
 
-        "Popolari non doppiati" -> {
+        "Popolari" -> {
             RequestData(orderBy = Str("Popolarità"), dubbed = 0)
         }
 
-        "I migliori non doppiati" -> {
+        "I migliori" -> {
             RequestData(orderBy = Str("Valutazione"), dubbed = 0)
         }
 
@@ -194,7 +193,6 @@ class AnimeUnity : MainAPI() {
     }
 
     // This function gets called when you enter the page/show
-    @SuppressLint("DefaultLocale")
     override suspend fun load(url: String): LoadResponse {
         val localTag = "$TAG:load"
         Log.d(localTag, "URL: $url")
@@ -214,8 +212,9 @@ class AnimeUnity : MainAPI() {
                 this.episode = it.number.toIntOrNull()
             }
         }
+        val t = title.titleIt ?: title.titleEng ?: title.title!!
         val anime = newAnimeLoadResponse(
-            name = title.titleIt ?: title.titleEng ?: title.title!!,
+            name = t.replace(" (ITA)", ""),
             url = url,
             type = if (title.type == "TV") TvType.Anime
             else if (title.type == "Movie" || title.episodesCount == 1) TvType.AnimeMovie
@@ -225,13 +224,13 @@ class AnimeUnity : MainAPI() {
             addRating(title.score)
             addDuration(title.episodesLength.toString() + " minuti")
             val dub = if (title.dub == 1) DubStatus.Dubbed else DubStatus.Subbed
-            if (this.type != TvType.AnimeMovie) {
-                addEpisodes(dub, episodes)
-                addAniListId(title.anilistId)
-                addMalId(title.malId)
-            }
+            addEpisodes(dub, episodes)
+
+            addAniListId(title.anilistId)
+            addMalId(title.malId)
             this.plot = title.plot
-            this.tags = title.genres.map { it.name.capitalize(Locale.ITALIAN) }
+            val doppiato = if (title.dub == 1) "\uD83C\uDDEE\uD83C\uDDF9  Italiano" else "\uD83C\uDDEF\uD83C\uDDF5  Giapponese"
+            this.tags = listOf(doppiato) + title.genres.map { it.name.capitalize(Locale.ITALIAN) }
         }
 
         return anime
@@ -246,73 +245,22 @@ class AnimeUnity : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
         val localTag = "$TAG:loadLinks"
-
-        resetHeadersAndCookies()
-        setupHeadersAndCookies()
         Log.d(localTag, "Url : $data")
 
-        val document = app.get(data, headers = headers, cookies = cookies).document
+        val document = app.get(data).document
 
         val sourceUrl = document.select("video-player").attr("embed_url")
 //        Log.d(localTag, "Document: $document")
         Log.d(localTag, "Iframe: $sourceUrl")
 
-        resetHeadersAndCookies()
-        headers["Host"] = sourceUrl.toHttpUrl().host
-        headers["Referer"] = mainUrl
-        headers["Accept"] =
-            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
 
-        val iframe = app.get(sourceUrl, headers = headers).document
-        val scripts = iframe.select("script")
-        val script = scripts.find { it.data().contains("masterPlaylist") }!!.data().replace("\n", "\t")
-
-        val scriptJson = getSanitisedScript(script)
-        Log.d(TAG, "Script Json: $scriptJson")
-
-        val scriptObj = parseJson<Script>(scriptJson)
-        Log.d(TAG, "Script Obj: $scriptObj")
-
-        val masterPlaylist = scriptObj.masterPlaylist
-
-        var masterPlaylistUrl: String
-        val params = "token=${masterPlaylist.params.token}&expires=${masterPlaylist.params.expires}"
-        masterPlaylistUrl = if ("?b1" in masterPlaylist.url) {
-            "${masterPlaylist.url}&$params"
-        } else{
-            "${masterPlaylist.url}?$params"
-        }
-
-        if(scriptObj.canPlayFHD){
-            masterPlaylistUrl += "&h=1"
-        }
-
-        Log.d(localTag, "Master Playlist URL: $masterPlaylistUrl")
 
         AnimeUnityExtractor().getUrl(
-            url = masterPlaylistUrl,
+            url = sourceUrl,
             referer = mainUrl,
             subtitleCallback = subtitleCallback,
             callback = callback
         )
         return true
-    }
-
-    private fun getSanitisedScript(script: String): String {
-        return "{" + script.replace("window.video", "\"video\"")
-            .replace("window.streams", "\"streams\"")
-            .replace("window.masterPlaylist", "\"masterPlaylist\"")
-            .replace("window.canPlayFHD", "\"canPlayFHD\"")
-            .replace("params", "\"params\"")
-            .replace("url", "\"url\"")
-            .replace("\"\"url\"\"", "\"url\"")
-            .replace("\"canPlayFHD\"", ",\"canPlayFHD\"")
-            .replace(",\t        }", "}")
-            .replace(",\t            }", "}")
-            .replace("'", "\"")
-            .replace(";", ",")
-            .replace("=", ":")
-            .replace("\\", "")
-            .trimIndent() + "}"
     }
 }
