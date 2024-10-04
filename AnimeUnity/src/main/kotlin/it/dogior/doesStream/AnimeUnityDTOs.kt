@@ -14,17 +14,18 @@ sealed class BooleanOrString {
         }
     }
     data class AsString(val value: String) : BooleanOrString()
-}
 
-fun BooleanOrString.getValue(): Any {
-    return when (this) {
-        is BooleanOrString.AsBoolean -> this.value // Access boolean value
-        is BooleanOrString.AsString -> this.value  // Access string value
+    fun getValue(): Any {
+        return when (this) {
+            is AsBoolean -> this.value // Access boolean value
+            is AsString -> this.value  // Access string value
+        }
     }
 }
 
+
 data class RequestData(
-    val title: BooleanOrString = BooleanOrString.AsBoolean(false),
+    val title: String = "",
     val type: BooleanOrString = BooleanOrString.AsBoolean(false),
     val year: BooleanOrString = BooleanOrString.AsBoolean(false),
     val orderBy: BooleanOrString = BooleanOrString.AsBoolean(false),
@@ -37,7 +38,7 @@ data class RequestData(
 ){
     private fun toJson(): JSONObject {
         val m = mapOf(
-            "title" to title.getValue(),
+            "title" to title,
             "type" to type.getValue(),
             "year" to year.getValue(),
             "order" to orderBy.getValue(),
