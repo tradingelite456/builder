@@ -17,7 +17,7 @@ cloudstream {
     * 2: Slow
     * 3: Beta only
     * */
-    status = 0
+    status = 3
     tvTypes = listOf(
         "AnimeMovie",
         "Anime",
@@ -27,5 +27,5 @@ cloudstream {
     language = "it"
     requiresResources = false
 
-    iconUrl = "https://www.animeunity.to/favicon-32x32.png"
+    iconUrl = "https://www.animeunity.to/apple-touch-icon.png"
 }
