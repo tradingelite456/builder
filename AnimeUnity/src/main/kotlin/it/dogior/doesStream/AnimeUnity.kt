@@ -2,9 +2,11 @@
 
 package it.dogior.doesStream
 
+import android.annotation.SuppressLint
+import android.content.Context
 import com.lagradost.api.Log
+import com.lagradost.cloudstream3.CommonActivity.activity
 import com.lagradost.cloudstream3.DubStatus
-import com.lagradost.cloudstream3.Episode
 import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
@@ -28,8 +30,10 @@ import com.lagradost.cloudstream3.newAnimeSearchResponse
 import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
+import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
-import com.lagradost.nicehttp.NiceResponse
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import java.util.Locale
 
 typealias Str = BooleanOrString.AsString
 typealias Bool = BooleanOrString.AsBoolean
@@ -44,6 +48,7 @@ class AnimeUnity : MainAPI() {
     override val hasMainPage = true
     override val hasQuickSearch: Boolean = true
     override var sequentialMainPage = true
+    val sharedPref = activity?.getPreferences(Context.MODE_PRIVATE)
 
     companion object {
         val mainUrl = "https://www.animeunity.to"
@@ -88,6 +93,10 @@ class AnimeUnity : MainAPI() {
 
     private fun searchResponseBuilder(objectList: List<Anime>): List<SearchResponse> {
         val list = objectList.map {
+            with(sharedPref?.edit()) {
+                this?.putString("${it.id}-${it.slug}", it.toJson())
+                this?.apply()
+            }
             newAnimeSearchResponse(
                 name = it.title ?: it.titleIt ?: it.titleEng!!,
                 url = "$mainUrl/anime/${it.id}-${it.slug}",
@@ -185,82 +194,49 @@ class AnimeUnity : MainAPI() {
     }
 
     // This function gets called when you enter the page/show
+    @SuppressLint("DefaultLocale")
     override suspend fun load(url: String): LoadResponse {
         val localTag = "$TAG:load"
         Log.d(localTag, "URL: $url")
 
-        val animeId = url.substringAfterLast("/").substringBefore("-").toInt()
-        val animeSlug = url.substringAfterLast("/").substringAfter("-")
+        val animeKey = url.substringAfterLast("/")
 
-        Log.d(localTag, "Id: $animeId \t Slug: $animeSlug")
+        Log.d(localTag, "Pref key: $animeKey")
 
-        val title =
-            getAnimeElement(animeId, animeSlug) ?: throw ErrorLoadingException("Error loading API")
+//        val title =
+//            getAnimeElement(animeId, animeSlug) ?: throw ErrorLoadingException("Error loading API")
 
+        val title = sharedPref?.getString(animeKey, null)?.let { parseJson<Anime>(it) }
+            ?: throw ErrorLoadingException("Error loading API")
+        val episodes = title.episodes.map {
+//            Log.d(localTag, "Episodes: ${it.toJson()}")
+            newEpisode("$url/${it.id}") {
+                this.episode = it.number.toIntOrNull()
+            }
+        }
         val anime = newAnimeLoadResponse(
             name = title.titleIt ?: title.titleEng ?: title.title!!,
             url = url,
             type = if (title.type == "TV") TvType.Anime
-                else if (title.type == "Movie" || title.episodesCount == 1) TvType.AnimeMovie
-                else TvType.OVA,
-            ) {
+            else if (title.type == "Movie" || title.episodesCount == 1) TvType.AnimeMovie
+            else TvType.OVA,
+        ) {
             addPoster(title.imageUrlCover ?: title.imageUrl)
             addRating(title.score)
             addDuration(title.episodesLength.toString() + " minuti")
             val dub = if (title.dub == 1) DubStatus.Dubbed else DubStatus.Subbed
             if (this.type != TvType.AnimeMovie) {
-                addEpisodes(dub, getEpisodes(title))
+                addEpisodes(dub, episodes)
                 addAniListId(title.anilistId)
                 addMalId(title.malId)
             }
             this.plot = title.plot
-            this.tags = title.genres.map { it.name.capitalize() }
+            this.tags = title.genres.map { it.name.capitalize(Locale.ITALIAN) }
         }
 
         return anime
     }
 
-    private suspend fun getAnimeElement(animeId: Int, slug: String): Anime? {
-
-        val url = "$mainUrl/archivio/get-animes"
-        val animeName = slug.replace("-", " ").replace("ita", "").trim()
-        var titles: List<Anime>?
-        var offset = 0
-        do {
-            resetHeadersAndCookies()
-            setupHeadersAndCookies()
-            val requestBody = RequestData(title = animeName, offset = offset, dubbed = 0).toRequestBody()
-            val response =
-                app.post(url, headers = headers, cookies = cookies, requestBody = requestBody)
-            val responseObj = parseJson<ApiResponse>(response.text)
-            titles = responseObj.titles
-            val totalTitles = responseObj.total
-
-            Log.d("$TAG:getAnime", "Id e Slug attuali: $animeId \t $slug")
-            Log.d("$TAG:getAnime", "Offset: $offset \t Titles: $titles")
-            if (titles?.any { it.id == animeId && it.slug == slug } == true) {
-                return titles.firstOrNull { it.id == animeId && it.slug == slug }
-            }
-            offset += 30
-        } while ((offset < totalTitles - 30))
-
-        return null
-    }
-
-    private fun getEpisodes(anime: Anime): List<Episode> {
-        val localTag = "$TAG:getEpisodes"
-        val episodeList = mutableListOf<Episode>()
-
-        anime.episodes.forEach { ep ->
-            episodeList.add(
-                newEpisode(ep.link){
-                    this.episode = ep.number.toIntOrNull()
-                }
-            )
-        }
-
-        return episodeList
-    }
 
     // This function is how you load the links
     override suspend fun loadLinks(
@@ -271,14 +247,72 @@ class AnimeUnity : MainAPI() {
     ): Boolean {
         val localTag = "$TAG:loadLinks"
 
-        Log.d(TAG, "Url : $data")
+        resetHeadersAndCookies()
+        setupHeadersAndCookies()
+        Log.d(localTag, "Url : $data")
+
+        val document = app.get(data, headers = headers, cookies = cookies).document
+
+        val sourceUrl = document.select("video-player").attr("embed_url")
+//        Log.d(localTag, "Document: $document")
+        Log.d(localTag, "Iframe: $sourceUrl")
+
+        resetHeadersAndCookies()
+        headers["Host"] = sourceUrl.toHttpUrl().host
+        headers["Referer"] = mainUrl
+        headers["Accept"] =
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+
+        val iframe = app.get(sourceUrl, headers = headers).document
+        val scripts = iframe.select("script")
+        val script = scripts.find { it.data().contains("masterPlaylist") }!!.data().replace("\n", "\t")
+
+        val scriptJson = getSanitisedScript(script)
+        Log.d(TAG, "Script Json: $scriptJson")
+
+        val scriptObj = parseJson<Script>(scriptJson)
+        Log.d(TAG, "Script Obj: $scriptObj")
+
+        val masterPlaylist = scriptObj.masterPlaylist
+
+        var masterPlaylistUrl: String
+        val params = "token=${masterPlaylist.params.token}&expires=${masterPlaylist.params.expires}"
+        masterPlaylistUrl = if ("?b1" in masterPlaylist.url) {
+            "${masterPlaylist.url}&$params"
+        } else{
+            "${masterPlaylist.url}?$params"
+        }
+
+        if(scriptObj.canPlayFHD){
+            masterPlaylistUrl += "&h=1"
+        }
+
+        Log.d(localTag, "Master Playlist URL: $masterPlaylistUrl")
 
         AnimeUnityExtractor().getUrl(
-            url = data,
+            url = masterPlaylistUrl,
             referer = mainUrl,
             subtitleCallback = subtitleCallback,
             callback = callback
         )
-        return false
+        return true
+    }
+
+    private fun getSanitisedScript(script: String): String {
+        return "{" + script.replace("window.video", "\"video\"")
+            .replace("window.streams", "\"streams\"")
+            .replace("window.masterPlaylist", "\"masterPlaylist\"")
+            .replace("window.canPlayFHD", "\"canPlayFHD\"")
+            .replace("params", "\"params\"")
+            .replace("url", "\"url\"")
+            .replace("\"\"url\"\"", "\"url\"")
+            .replace("\"canPlayFHD\"", ",\"canPlayFHD\"")
+            .replace(",\t        }", "}")
+            .replace(",\t            }", "}")
+            .replace("'", "\"")
+            .replace(";", ",")
+            .replace("=", ":")
+            .replace("\\", "")
+            .trimIndent() + "}"
     }
 }

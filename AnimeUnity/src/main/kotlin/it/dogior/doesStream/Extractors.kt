@@ -21,20 +21,20 @@ class AnimeUnityExtractor : ExtractorApi() {
             subtitleCallback: (SubtitleFile) -> Unit,
             callback: (ExtractorLink) -> Unit
     ) {
-        val TAG = "GetUrl"
-        Log.d(TAG,"REFERER: $referer  URL: $url")
+        val TAG = "AnimeUnity:getUrl"
+        Log.d(TAG, "REFERER: $referer  URL: $url")
 
-//        if (url.isNotEmpty()) {
-//            callback.invoke(
-//                ExtractorLink(
-//                    source = "Vixcloud",
-//                    name = "Streaming Community",
-//                    url = url,
-//                    referer = referer!!,
-//                    isM3u8 = true,
-//                    quality = Qualities.Unknown.value
-//                )
-//            )
+        if (url.isNotEmpty()) {
+            callback.invoke(
+                ExtractorLink(
+                    source = "Vixcloud",
+                    name = "AnimeUnity",
+                    url = url,
+                    referer = referer!!,
+                    isM3u8 = true,
+                    quality = Qualities.Unknown.value
+                )
+            )
         }
-
+    }
 }

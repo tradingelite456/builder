@@ -18,6 +18,11 @@ cloudstream {
     * 3: Beta only
     * */
     status = 0
+    tvTypes = listOf(
+        "AnimeMovie",
+        "Anime",
+        "OVA",
+    )
 
     language = "it"
     requiresResources = false

@@ -36,16 +36,6 @@ class StreamingCommunityExtractor : ExtractorApi() {
                     quality = Qualities.Unknown.value
                 )
             )
-//            callback.invoke(
-//                ExtractorLink(
-//                    source = "Vixcloud",
-//                    name = "Streaming Community",
-//                    url = playlistUrl,
-//                    referer = referer!!,
-//                    isM3u8 = true,
-//                    quality = Qualities.Unknown.value
-//                )
-//            )
         }
 
     }
@@ -73,15 +63,15 @@ class StreamingCommunityExtractor : ExtractorApi() {
             iframe.selectFirst("script:containsData(masterPlaylist)")!!.data().replace("\\", "")
                 .replace("\n", "").replace("\t", "")
 //        val windowVideo = script.substringAfter("= ").substringBefore(";")
-        val windowStreams = script.substringAfter("window.streams = ")
+//        val windowStreams = script.substringAfter("window.streams = ")
             .substringBefore(";        window.masterPlaylist = ")
         val windowMasterPlaylist = script.substringAfter("window.masterPlaylist = ")
             .substringBefore("        window.canPlayFHD")
 //        val windowCanPlayFHD = script.substringAfter("window.canPlayFHD = ")
         Log.d(TAG, "SCRIPT: $script")
 
-        val servers = parseJson<List<Server>>(windowStreams)
-        Log.d(TAG, "Server List: $servers")
+//        val servers = parseJson<List<Server>>(windowStreams)
+//        Log.d(TAG, "Server List: $servers")
 
         // Hopefully different streams will have the same format errors
         val mP = windowMasterPlaylist
