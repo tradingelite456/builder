@@ -16,6 +16,10 @@ cloudstream {
     * 3: Beta only
     * */
     status = 1
+    tvTypes = listOf(
+        "TvSeries",
+        "Movie",
+    )
 
 
     requiresResources = false

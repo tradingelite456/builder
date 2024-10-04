@@ -16,6 +16,7 @@ cloudstream {
     * 3: Beta only
     * */
     status = 1
+    tvTypes = listOf("Live")
 
 
     requiresResources = false
