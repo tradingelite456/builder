@@ -7,7 +7,7 @@ cloudstream {
     // All of these properties are optional, you can safely remove them
 
     // description = "Lorem Ipsum"
-     authors = listOf("Gian-Fr")
+     authors = listOf("Gian-Fr", "doGior")
 
     /**
      * Status int as the following:
@@ -23,5 +23,5 @@ cloudstream {
         "OVA",
     )
 
-    iconUrl = "https://www.google.com/s2/favicons?domain=www.animeworld.tv&sz=%size%"
+    iconUrl = "https://static.animeworld.so/assets/images/favicon/favicon-32x32.png?3="
 }
