@@ -57,10 +57,10 @@ class AnimeWorld : MainAPI() {
     }
 
     override val mainPage = mainPageOf(
-        "$mainUrl/tops/dubbed?sort=1" to "Top 100 Anime",
+        "$mainUrl/filter?language=it&sort=1" to "Ultimi aggiunti",
         "$mainUrl/filter?status=0&language=it&sort=1" to "In Corso",
         "$mainUrl/filter?language=it&sort=6" to "Più Visti",
-        "$mainUrl/filter?language=it&sort=1" to "Ultimi aggiunti",
+        "$mainUrl/tops/dubbed?sort=1" to "Top 100 Anime",
 
         // I wanted to include subbed anime, but tbh I don't really care.
         // If you want them just uncomment these lines:
@@ -72,19 +72,27 @@ class AnimeWorld : MainAPI() {
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         Log.d("AnimeWorld:MainPage", "Url:${request.data}")
-        val pagedata = app.get(request.data)
+        val pagedata: NiceResponse = if(page > 1){
+            app.get(request.data+"&page=$page")
+        }else{
+            app.get(request.data)
+        }
         val document = pagedata.document
         val list = ArrayList<SearchResponse>()
-
+        var hasNextPage = false
         if (request.name == "Top 100 Anime") {
-            //TODO
             val items = document.select("div.row  .content")
-            Log.d("AnimeWorld:MainPage", "Items: ${items[0]}")
+//            Log.d("AnimeWorld:MainPage", "Items: ${items[0]}")
             items.map { list.add(it.contentToSearchResult()) }
+        }else{
+            val items = document.select("div.film-list > .item")
+//            Log.d("AnimeWorld:MainPage", "Items: ${items[0]}")
+            items.map { list.add(it.toSearchResult()) }
+
+            val pagingWrapper = document.select("#paging-form").firstOrNull()
+            val totalPages = pagingWrapper?.select("span.total")?.text()?.toIntOrNull()
+            hasNextPage = totalPages != null && (page + 1) < totalPages
         }
-        val items = document.select("div.film-list > .item")
-//        Log.d("AnimeWorld:MainPage", "Items: ${items[0]}")
-        items.map { list.add(it.toSearchResult()) }
 
 
         return newHomePageResponse(
@@ -92,7 +100,7 @@ class AnimeWorld : MainAPI() {
                 name = request.name,
                 list = list,
                 isHorizontalImages = false
-            ), false
+            ), hasNextPage
         )
     }
 
@@ -152,39 +160,6 @@ class AnimeWorld : MainAPI() {
         val type = when {
             typeElement.select(".movie").isNotEmpty() -> TvType.AnimeMovie
             typeElement.select(".ova").isNotEmpty() -> TvType.OVA
-            else -> TvType.Anime
-        }
-
-        return newAnimeSearchResponse(title, url, type) {
-            addDubStatus(dub)
-            this.otherName = otherTitle
-            this.posterUrl = poster
-        }
-    }
-
-    private fun Element.filterItemToSearchResult(): AnimeSearchResponse {
-        fun String.parseHref(): String {
-            val h = this.split('.').toMutableList()
-            h[1] = h[1].substringBeforeLast('/')
-            return h.joinToString(".")
-        }
-
-        val inner = this.select("div.inner")
-
-        val anchor = inner.select("a.name").first() ?: throw ErrorLoadingException("Error parsing the page")
-        val title = anchor.text().removeSuffix(" (ITA)")
-        val otherTitle = anchor.attr("data-jtitle").removeSuffix(" (ITA)")
-
-        val url = fixUrl(anchor.attr("href").parseHref())
-        val poster = this.select("a.poster img").attr("src")
-
-        val statusElement = this.select("div.status") // .first()
-        val dub = statusElement.select(".dub").isNotEmpty()
-
-
-        val type = when {
-            statusElement.select(".movie").isNotEmpty() -> TvType.AnimeMovie
-            statusElement.select(".ova").isNotEmpty() -> TvType.OVA
             else -> TvType.Anime
         }
 
@@ -284,8 +259,10 @@ class AnimeWorld : MainAPI() {
         val episodes = servers.select(".server[data-name=\"9\"] .episode").map {
             val id = it.select("a").attr("data-id")
             val number = it.select("a").attr("data-episode-num").toIntOrNull()
+            val epUrl ="$mainUrl/api/episode/info?id=$id"
+            Log.d("AnimeWorld:load", "Url: $epUrl")
             Episode(
-                "$mainUrl/api/episode/info?id=$id",
+                epUrl,
                 episode = number
             )
         }
@@ -294,7 +271,6 @@ class AnimeWorld : MainAPI() {
         val recommendations = document.select(".film-list.interesting .item").map {
             it.toSearchResult()
         }
-
         return newAnimeLoadResponse(title, url, type) {
             engName = title
             japName = otherTitle
