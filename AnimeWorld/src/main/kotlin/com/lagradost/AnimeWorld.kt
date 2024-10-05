@@ -1,5 +1,6 @@
 package com.lagradost
 
+import android.annotation.SuppressLint
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.*
@@ -13,6 +14,12 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.nicehttp.NiceResponse
 import org.jsoup.nodes.Element
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeParseException
+import java.util.Date
 
 class AnimeWorld : MainAPI() {
     override var mainUrl = "https://www.animeworld.so"
@@ -218,8 +225,11 @@ class AnimeWorld : MainAPI() {
         }
     }
 
+    @SuppressLint("NewApi")
     override suspend fun load(url: String): LoadResponse {
         val document = request(url).document
+        Log.d("AnimeWorld:load", "Url: $url")
+
 
         val widget = document.select("div.widget.info")
         val title = widget.select(".info .title").text().removeSuffix(" (ITA)")
@@ -255,18 +265,32 @@ class AnimeWorld : MainAPI() {
                 duration = meta.nextElementSibling()?.text()
         }
 
-        val servers = document.select(".widget.servers")
+        val servers = document.select(".widget.servers > .widget-body")
+
+
+//        val servers = document.select(".widget.servers")
+
         val episodes = servers.select(".server[data-name=\"9\"] .episode").map {
             val id = it.select("a").attr("data-id")
             val number = it.select("a").attr("data-episode-num").toIntOrNull()
             val epUrl ="$mainUrl/api/episode/info?id=$id"
-            Log.d("AnimeWorld:load", "Url: $epUrl")
+            Log.d("AnimeWorld:load", "Ep Url: $epUrl")
             Episode(
                 epUrl,
                 episode = number
             )
         }
         val comingSoon = episodes.isEmpty()
+        val nextAiringDate = document.select("#next-episode").attr("data-calendar-date")
+        val nextAiringTime = document.select("#next-episode").attr("data-calendar-time")
+        Log.d("AnimeWorld:load", "NextAiring: $nextAiringDate $nextAiringTime")
+
+        val nextAiringUnix = try {
+            LocalDateTime.parse("${nextAiringDate}T$nextAiringTime").atZone(ZoneId.of("ECT"))
+                .toEpochSecond()
+        } catch (e: DateTimeParseException){
+            null
+        }
 
         val recommendations = document.select(".film-list.interesting .item").map {
             it.toSearchResult()
@@ -287,6 +311,7 @@ class AnimeWorld : MainAPI() {
             addTrailer(trailerUrl)
             this.recommendations = recommendations
             this.comingSoon = comingSoon
+            this.nextAiring = nextAiringUnix?.let { NextAiring(episodes.last().episode!! + 1, it) }
         }
     }
 
