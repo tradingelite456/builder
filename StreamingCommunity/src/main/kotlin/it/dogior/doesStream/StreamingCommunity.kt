@@ -11,6 +11,8 @@ import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
+import com.lagradost.cloudstream3.LoadResponse.Companion.addImdbId
+import com.lagradost.cloudstream3.LoadResponse.Companion.addTMDbId
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.MovieLoadResponse
@@ -183,6 +185,7 @@ class StreamingCommunity : MainAPI() {
         val tags = listOf("IMDB: ${title.score}") + genres
         val actors = title.mainActors.map { ac -> ActorData(actor = Actor(ac.name)) }
         val year = title.releaseDate.substringBefore('-').toIntOrNull()
+        val related = props.sliders?.get(0)
         if (title.type == "tv") {
             val episodes: List<Episode> = getEpisodes(props)
             Log.d(TAG, "Episode List: $episodes")
@@ -197,7 +200,8 @@ class StreamingCommunity : MainAPI() {
                 tags = tags,
                 episodes = episodes,
                 actors = actors,
-                year = year
+                year = year,
+                recommendations = related?.titles?.let { searchResponseBuilder(it) }
             )
             Log.d(TAG, "TV Show: $tvShow")
             return tvShow
@@ -213,7 +217,8 @@ class StreamingCommunity : MainAPI() {
                 tags = tags,
                 actors = actors,
                 year = year,
-                comingSoon = title.status == "Post Production"
+//                comingSoon = title.status == "Post Production",
+                recommendations = related?.titles?.let { searchResponseBuilder(it) }
             )
 
             Log.d(TAG, "Movie: $movie")
