@@ -1,5 +1,3 @@
-@file:Suppress("PackageName")
-
 package it.dogior.doesStream
 
 import com.fasterxml.jackson.annotation.JsonProperty
@@ -28,13 +26,15 @@ class Streamed : MainAPI() {
     override var mainUrl = Companion.mainUrl
     override var name = Companion.name
     override var supportedTypes = setOf(TvType.Live)
-    override var lang = "it"
+    override var lang = "en"
     override val hasMainPage = true
     override val hasDownloadSupport = false
 
     companion object {
         val mainUrl = "https://streamed.su"
         var name = "Streamed"
+
+
     }
 
     private val sectionNamesList = mainPageOf(
@@ -58,11 +58,16 @@ class Streamed : MainAPI() {
 
     override val mainPage = sectionNamesList
 
-    private fun searchResponseBuilder(
+
+    private suspend fun searchResponseBuilder(
         listJson: List<Match>,
         filter: (Match) -> Boolean
     ): List<LiveSearchResponse> {
-        return listJson.filter(filter).map { match ->
+        return listJson.filter{
+            // In theory it should filter out matches that starts more than 10 minutes in the future
+            // since they, most of the time, do not have info in the API
+            (it.isoDateTime ?: 0) <= System.currentTimeMillis() + (1000 * 60 * 10)
+        }.filter(filter).map { match ->
             var url = "null"
             if (match.matchSources.isNotEmpty()) {
                 val sourceName = match.matchSources[0].sourceName
@@ -165,7 +170,7 @@ class Streamed : MainAPI() {
         Log.d(TAG, "Response: ${app.get(url)}")
         val data = parseJson<List<Source>>(rawJson)
 
-        var elementName = "No Info Yet"
+        var elementName = "No Info"
         var elementPlot: String? = null
         var elementPoster: String? = null
         var elementTags: ArrayList<String> = arrayListOf()
