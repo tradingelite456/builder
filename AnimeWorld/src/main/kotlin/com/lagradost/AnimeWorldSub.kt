@@ -14,17 +14,14 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.nicehttp.NiceResponse
 import org.jsoup.nodes.Element
-import java.time.Instant
 import java.time.LocalDateTime
-import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeParseException
-import java.util.Date
 
-class AnimeWorld : MainAPI() {
+class AnimeWorldSub : MainAPI() {
     override var mainUrl = "https://www.animeworld.so"
-    override var name = "AnimeWorld"
-    override var lang = "it"
+    override var name = "AnimeWorld Sub"
+    override var lang = "jp"
     override val hasMainPage = true
     override val hasQuickSearch = true
 
@@ -64,34 +61,27 @@ class AnimeWorld : MainAPI() {
     }
 
     override val mainPage = mainPageOf(
-        "$mainUrl/filter?language=it&sort=1" to "Ultimi aggiunti",
-        "$mainUrl/filter?status=0&language=it&sort=1" to "In Corso",
-        "$mainUrl/filter?language=it&sort=6" to "Più Visti",
-        "$mainUrl/tops/dubbed?sort=1" to "Top 100 Anime",
-
-        // I wanted to include subbed anime, but tbh I don't really care.
-        // If you want them just uncomment these lines:
-
-        //"$mainUrl/filter?status=0&language=jp&sort=1" to "In Corso subbed",
-        //"$mainUrl/filter?language=jp&sort=6" to "Più Visti subbed",
-        //"$mainUrl/filter?language=jp&sort=1" to "Ultimi aggiunti subbed",
+        "$mainUrl/filter?status=0&language=jp&sort=1" to "In Corso",
+        "$mainUrl/filter?language=jp&sort=6" to "Più Visti",
+        "$mainUrl/filter?language=jp&sort=1" to "Ultimi aggiunti",
+        "$mainUrl/tops/all?sort=1" to "Top Anime",
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         Log.d("AnimeWorld:MainPage", "Url:${request.data}")
-        val pagedata: NiceResponse = if(page > 1){
-            app.get(request.data+"&page=$page")
-        }else{
+        val pagedata: NiceResponse = if (page > 1) {
+            app.get(request.data + "&page=$page")
+        } else {
             app.get(request.data)
         }
         val document = pagedata.document
-        val list = ArrayList<SearchResponse>()
+        val list = ArrayList<AnimeSearchResponse>()
         var hasNextPage = false
-        if (request.name == "Top 100 Anime") {
+        if (request.name == "Top Anime") {
             val items = document.select("div.row  .content")
 //            Log.d("AnimeWorld:MainPage", "Items: ${items[0]}")
             items.map { list.add(it.contentToSearchResult()) }
-        }else{
+        } else {
             val items = document.select("div.film-list > .item")
 //            Log.d("AnimeWorld:MainPage", "Items: ${items[0]}")
             items.map { list.add(it.toSearchResult()) }
@@ -101,11 +91,16 @@ class AnimeWorld : MainAPI() {
             hasNextPage = totalPages != null && (page + 1) < totalPages
         }
 
+        val finalList = list.filter{ searchResponse ->
+            searchResponse.dubStatus?.any{
+                it == DubStatus.Subbed
+            } ?: true
+        }
 
         return newHomePageResponse(
             HomePageList(
                 name = request.name,
-                list = list,
+                list = finalList,
                 isHorizontalImages = false
             ), hasNextPage
         )
@@ -118,7 +113,8 @@ class AnimeWorld : MainAPI() {
             return h.joinToString(".")
         }
 
-        val anchor = this.select("a.name").firstOrNull() ?: throw ErrorLoadingException("Error parsing the page")
+        val anchor = this.select("a.name").firstOrNull()
+            ?: throw ErrorLoadingException("Error parsing the page")
         val title = anchor.text().removeSuffix(" (ITA)")
         val otherTitle = anchor.attr("data-jtitle").removeSuffix(" (ITA)")
 
@@ -155,7 +151,8 @@ class AnimeWorld : MainAPI() {
 
         val info = this.select("div.info > .main")
 
-        val name = info.select("a > .name").firstOrNull() ?: throw ErrorLoadingException("Error parsing the page")
+        val name = info.select("a > .name").firstOrNull()
+            ?: throw ErrorLoadingException("Error parsing the page")
         val title = name.text().removeSuffix(" (ITA)")
         val otherTitle = name.attr("data-jtitle").removeSuffix(" (ITA)")
 
@@ -215,13 +212,22 @@ class AnimeWorld : MainAPI() {
                 this.otherName = anime.otherTitle
                 this.posterUrl = anime.image
             }
+        }?.filter{ searchResponse ->
+            searchResponse.dubStatus?.any{
+                it == DubStatus.Subbed
+            } ?: true
         }
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
         val document = request("$mainUrl/search?keyword=$query").document
-        return document.select(".film-list > .item").map {
+        val searchResultList = document.select(".film-list > .item").map {
             it.toSearchResult()
+        }
+        return searchResultList.filter{ searchResponse ->
+            searchResponse.dubStatus?.any{
+                it == DubStatus.Subbed
+            } ?: true
         }
     }
 
@@ -273,7 +279,7 @@ class AnimeWorld : MainAPI() {
         val episodes = servers.select(".server[data-name=\"9\"] .episode").map {
             val id = it.select("a").attr("data-id")
             val number = it.select("a").attr("data-episode-num").toIntOrNull()
-            val epUrl ="$mainUrl/api/episode/info?id=$id"
+            val epUrl = "$mainUrl/api/episode/info?id=$id"
             Log.d("AnimeWorld:load", "Ep Url: $epUrl")
             Episode(
                 epUrl,
@@ -288,7 +294,7 @@ class AnimeWorld : MainAPI() {
         val nextAiringUnix = try {
             LocalDateTime.parse("${nextAiringDate}T$nextAiringTime").atZone(ZoneId.of("ECT"))
                 .toEpochSecond()
-        } catch (e: DateTimeParseException){
+        } catch (e: DateTimeParseException) {
             null
         }
 
