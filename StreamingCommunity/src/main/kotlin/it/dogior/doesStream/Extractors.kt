@@ -26,6 +26,8 @@ class StreamingCommunityExtractor : ExtractorApi() {
 
         if (url.isNotEmpty()) {
             val playlistUrl = getPlaylistLink(url)
+            Log.w(TAG, "FINAL URL: $playlistUrl")
+
             callback.invoke(
                 ExtractorLink(
                     source = "Vixcloud",
@@ -43,47 +45,10 @@ class StreamingCommunityExtractor : ExtractorApi() {
     private suspend fun getPlaylistLink(url: String): String {
         val TAG = "getPlaylistLink"
 
-        Log.d(TAG, url)
-        val iframeUrl = app.get(url).document
-            .select("iframe").attr("src")
+        Log.d(TAG, "Item url: $url")
 
-        Log.w(TAG, "IFRAME URL: $iframeUrl")
-        val headers = mapOf(
-            "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-            "Host" to iframeUrl.toHttpUrl().host,
-            "Sec-Fetch-Dest" to "iframe",
-            "Sec-Fetch-Mode" to "navigate",
-            "Sec-Fetch-Site" to "cross-site",
-        )
-
-        val iframe = app.get(iframeUrl, headers = headers).document
-//        Log.d(TAG, "TEST: ${iframe.body()}")
-
-        val script =
-            iframe.selectFirst("script:containsData(masterPlaylist)")!!.data().replace("\\", "")
-                .replace("\n", "").replace("\t", "")
-//        val windowVideo = script.substringAfter("= ").substringBefore(";")
-//        val windowStreams = script.substringAfter("window.streams = ")
-            .substringBefore(";        window.masterPlaylist = ")
-        val windowMasterPlaylist = script.substringAfter("window.masterPlaylist = ")
-            .substringBefore("        window.canPlayFHD")
-//        val windowCanPlayFHD = script.substringAfter("window.canPlayFHD = ")
-        Log.d(TAG, "SCRIPT: $script")
-
-//        val servers = parseJson<List<Server>>(windowStreams)
-//        Log.d(TAG, "Server List: $servers")
-
-        // Hopefully different streams will have the same format errors
-        val mP = windowMasterPlaylist
-            .replace("params", "'params'")
-            .replace("url", "'url'")
-            .replace("'", "\"")
-            .replace(" ", "")
-            .replace(",}", "}")
-        Log.d(TAG, "windowMasterPlaylist: $mP")
-
-        val masterPlaylist = parseJson<MasterPlaylist>(mP)
-        Log.d(TAG, "MasterPlaylist Obj: $masterPlaylist")
+        val script = getScript(url)
+        val masterPlaylist = script.masterPlaylist
 
         var masterPlaylistUrl: String
         val params = "token=${masterPlaylist.params.token}&expires=${masterPlaylist.params.expires}"
@@ -92,17 +57,62 @@ class StreamingCommunityExtractor : ExtractorApi() {
         } else{
             "${masterPlaylist.url}?$params"
         }
-        masterPlaylistUrl = "$masterPlaylistUrl&h=1"
-        if(app.get(masterPlaylistUrl).code == 401){
-            Log.d(TAG, "Trying adding h=1")
-            Log.d(TAG, "Url before: $masterPlaylistUrl")
-            // If I understood things correctly h=1 enables 1080p streaming,
-            // but if the source doesn't have it it will return an error 401 Unauthorized
-            masterPlaylistUrl = masterPlaylistUrl.substringBefore("&h=1")
-            Log.d(TAG, "Url after: $masterPlaylistUrl")
+
+        if(script.canPlayFHD){
+            masterPlaylistUrl += "&h=1"
         }
 
+        Log.d(TAG, "Master Playlist URL: $masterPlaylistUrl")
         return masterPlaylistUrl
     }
 
+    private suspend fun getScript(url:String): Script {
+        val headers = mutableMapOf(
+            "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Host" to url.toHttpUrl().host,
+            "Referer" to mainUrl,
+            "Sec-Fetch-Dest" to "iframe",
+            "Sec-Fetch-Mode" to "navigate",
+            "Sec-Fetch-Site" to "cross-site",
+            "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0",
+        )
+
+        val iframe = app.get(url, headers = headers).document
+        Log.d("getScript", "IFRAME1: $iframe")
+//        Log.d("getScript", "IFRAME: $iframe")
+        val src = iframe.select("iframe").attr("src")
+        Log.d("getScript", "IFRAME Src: $src")
+        headers["Host"] = src.toHttpUrl().host
+        Log.d("getScript", "Headers: $headers")
+        val iframe2 = app.get(src, headers = headers).document
+        Log.d("getScript", "IFRAME2: $iframe2")
+        val scripts = iframe2.select("script")
+        val script = scripts.find { it.data().contains("masterPlaylist") }!!.data().replace("\n", "\t")
+
+        val scriptJson = getSanitisedScript(script)
+        Log.d("getScript", "Script Json: $scriptJson")
+
+        val scriptObj = parseJson<Script>(scriptJson)
+        Log.d("getScript", "Script Obj: $scriptObj")
+
+        return scriptObj
+    }
+
+    private fun getSanitisedScript(script: String): String {
+        return "{" + script.replace("window.video", "\"video\"")
+            .replace("window.streams", "\"streams\"")
+            .replace("window.masterPlaylist", "\"masterPlaylist\"")
+            .replace("window.canPlayFHD", "\"canPlayFHD\"")
+            .replace("params", "\"params\"")
+            .replace("url", "\"url\"")
+            .replace("\"\"url\"\"", "\"url\"")
+            .replace("\"canPlayFHD\"", ",\"canPlayFHD\"")
+            .replace(",\t        }", "}")
+            .replace(",\t            }", "}")
+            .replace("'", "\"")
+            .replace(";", ",")
+            .replace("=", ":")
+            .replace("\\", "")
+            .trimIndent() + "}"
+    }
 }
