@@ -14,9 +14,9 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.nicehttp.NiceResponse
 import org.jsoup.nodes.Element
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.format.DateTimeParseException
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 
 class AnimeWorldSub : MainAPI() {
     override var mainUrl = "https://www.animeworld.so"
@@ -292,9 +292,10 @@ class AnimeWorldSub : MainAPI() {
         Log.d("AnimeWorld:load", "NextAiring: $nextAiringDate $nextAiringTime")
 
         val nextAiringUnix = try {
-            LocalDateTime.parse("${nextAiringDate}T$nextAiringTime").atZone(ZoneId.of("ECT"))
-                .toEpochSecond()
-        } catch (e: DateTimeParseException) {
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm", Locale.getDefault()).apply {
+                timeZone = TimeZone.getTimeZone("Europe/Paris")
+            }.parse(nextAiringDate + "T" + nextAiringTime)?.time?.div(1000)
+        } catch (e: Exception) {
             null
         }
 
