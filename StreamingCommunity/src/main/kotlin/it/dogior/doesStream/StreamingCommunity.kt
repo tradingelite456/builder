@@ -13,11 +13,13 @@ import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.LoadResponse.Companion.addImdbId
 import com.lagradost.cloudstream3.LoadResponse.Companion.addTMDbId
+import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.MovieLoadResponse
 import com.lagradost.cloudstream3.MovieSearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.TrailerData
 import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import com.lagradost.cloudstream3.TvSeriesSearchResponse
 import com.lagradost.cloudstream3.TvType
@@ -25,6 +27,7 @@ import com.lagradost.cloudstream3.app
 
 import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newHomePageResponse
+import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 
@@ -186,23 +189,38 @@ class StreamingCommunity : MainAPI() {
         val actors = title.mainActors.map { ac -> ActorData(actor = Actor(ac.name)) }
         val year = title.releaseDate.substringBefore('-').toIntOrNull()
         val related = props.sliders?.get(0)
+//        Log.d(TAG, "Trailer List: $trailers")
         if (title.type == "tv") {
             val episodes: List<Episode> = getEpisodes(props)
             Log.d(TAG, "Episode List: $episodes")
 
-            val tvShow = TvSeriesLoadResponse(
-                name = title.name,
-                url = url,
-                type = TvType.TvSeries,
-                apiName = this.name,
-                plot = title.plot,
-                posterUrl = "https://cdn.$domain/images/" + title.getBackgroundImage(),
-                tags = tags,
-                episodes = episodes,
-                actors = actors,
-                year = year,
-                recommendations = related?.titles?.let { searchResponseBuilder(it) }
-            )
+//            val tvShow = TvSeriesLoadResponse(
+//                name = title.name,
+//                url = url,
+//                type = TvType.TvSeries,
+//                apiName = this.name,
+//                plot = title.plot,
+//                posterUrl = "https://cdn.$domain/images/" + title.getBackgroundImage(),
+//                tags = tags,
+//                episodes = episodes,
+//                actors = actors,
+//                year = year,
+//                recommendations = related?.titles?.let { searchResponseBuilder(it) },
+//            )
+//            tvShow.addImdbId(title.imdbId)
+//            tvShow.addTMDbId(title.tmdbId.toString())
+//            tvShow.addTrailer(title.trailers.firstOrNull{it.youtubeId != null}?.getYoutubeUrl())
+            val tvShow = newTvSeriesLoadResponse(title.name, url, TvType.TvSeries, episodes) {
+                this.posterUrl = "https://cdn.$domain/images/" + title.getBackgroundImage()
+                this.tags = tags
+                this.episodes = episodes
+                this.actors = actors
+                this.year = year
+                this.recommendations = related?.titles?.let { searchResponseBuilder(it) }
+                this.addImdbId(title.imdbId)
+                this.addTMDbId(title.tmdbId.toString())
+                this.addTrailer(title.trailers.firstOrNull{it.youtubeId != null}?.getYoutubeUrl())
+            }
             Log.d(TAG, "TV Show: $tvShow")
             return tvShow
         } else {
@@ -218,9 +236,11 @@ class StreamingCommunity : MainAPI() {
                 actors = actors,
                 year = year,
 //                comingSoon = title.status == "Post Production",
-                recommendations = related?.titles?.let { searchResponseBuilder(it) }
+                recommendations = related?.titles?.let { searchResponseBuilder(it) },
             )
-
+            movie.addTrailer(title.trailers.firstOrNull{it.youtubeId != null}?.getYoutubeUrl())
+            movie.addImdbId(title.imdbId)
+            movie.addTMDbId(title.tmdbId.toString())
             Log.d(TAG, "Movie: $movie")
             return movie
         }

@@ -95,7 +95,7 @@ data class Episode(
     @JsonProperty("id") val id: Int,
     @JsonProperty("number") val number: Int,
     @JsonProperty("name") val name: String,
-    @JsonProperty("plot") val plot: String,
+    @JsonProperty("plot") val plot: String?,
     @JsonProperty("duration") val duration: Int,
     @JsonProperty("scws_id") val scwsId: Int,
     @JsonProperty("season_id") val seasonId: Int,
@@ -126,15 +126,18 @@ data class TitleProp(
     @JsonProperty("id") val id: Int,
     @JsonProperty("name") val name: String,
     @JsonProperty("slug") val slug: String,
-    @JsonProperty("plot") val plot: String,
+    @JsonProperty("plot") val plot: String?,
     @JsonProperty("quality") val quality: String,
     @JsonProperty("type") val type: String,
     @JsonProperty("score") val score: String,
     @JsonProperty("release_date") val releaseDate: String,
     @JsonProperty("status") val status: String?,
     @JsonProperty("age") val age: Int,
+    @JsonProperty("tmdb_id") val tmdbId: Int?,
+    @JsonProperty("imdb_id") val imdbId: String?,
     @JsonProperty("seasons_count") val seasonsCount: Int,
     @JsonProperty("scws_id") val scwsId: Int?,
+    @JsonProperty("trailers") val trailers: List<Trailer>,
     @JsonProperty("seasons") val seasons: List<Season>,
     @JsonProperty("images") val images: List<PosterImage>,
     @JsonProperty("genres") val genres: List<Genre>,
@@ -147,6 +150,19 @@ data class TitleProp(
             }
         }
         return null
+    }
+}
+
+
+data class Trailer(
+    @JsonProperty("id") val id: Int,
+    @JsonProperty("name") val name: String,
+    @JsonProperty("youtube_id") val youtubeId: String?,
+    @JsonProperty("title_id") val titleId: Int?,
+){
+    fun getYoutubeUrl(): String? {
+        if(this.youtubeId == null) return null
+        return "https://www.youtube.com/watch?v=${this.youtubeId}"
     }
 }
 
