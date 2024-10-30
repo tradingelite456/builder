@@ -133,19 +133,28 @@ data class TitleProp(
     @JsonProperty("release_date") val releaseDate: String,
     @JsonProperty("status") val status: String?,
     @JsonProperty("age") val age: Int,
+    @JsonProperty("runtime") val runtime: Int?,
     @JsonProperty("tmdb_id") val tmdbId: Int?,
     @JsonProperty("imdb_id") val imdbId: String?,
     @JsonProperty("seasons_count") val seasonsCount: Int,
     @JsonProperty("scws_id") val scwsId: Int?,
-    @JsonProperty("trailers") val trailers: List<Trailer>,
+    @JsonProperty("trailers") val trailers: List<Trailer>?,
     @JsonProperty("seasons") val seasons: List<Season>,
     @JsonProperty("images") val images: List<PosterImage>,
     @JsonProperty("genres") val genres: List<Genre>,
     @JsonProperty("main_actors") val mainActors: List<MainActor>
 ){
-    fun getBackgroundImage(): String? {
+    fun getBackgroundImageId(): String? {
         this.images.forEach {
             if (it.type == "background") {
+                return it.filename
+            }
+        }
+        return null
+    }
+    fun getPosterImageId(): String? {
+        this.images.forEach {
+            if (it.type == "poster") {
                 return it.filename
             }
         }

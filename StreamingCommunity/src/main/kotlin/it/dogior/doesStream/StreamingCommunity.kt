@@ -4,29 +4,29 @@ package it.dogior.doesStream
 
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.APIHolder.capitalize
-import com.lagradost.cloudstream3.Actor
-import com.lagradost.cloudstream3.ActorData
 import com.lagradost.cloudstream3.Episode
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
+import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
+import com.lagradost.cloudstream3.LoadResponse.Companion.addDuration
 import com.lagradost.cloudstream3.LoadResponse.Companion.addImdbId
+import com.lagradost.cloudstream3.LoadResponse.Companion.addRating
 import com.lagradost.cloudstream3.LoadResponse.Companion.addTMDbId
 import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
-import com.lagradost.cloudstream3.MovieLoadResponse
 import com.lagradost.cloudstream3.MovieSearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
-import com.lagradost.cloudstream3.TrailerData
-import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import com.lagradost.cloudstream3.TvSeriesSearchResponse
 import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.addPoster
 import com.lagradost.cloudstream3.app
 
 import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newHomePageResponse
+import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -185,62 +185,55 @@ class StreamingCommunity : MainAPI() {
         val title = props.title!!
         val genres = title.genres.map { it.name.capitalize() }
         val domain = mainUrl.substringAfter("://")
-        val tags = listOf("IMDB: ${title.score}") + genres
-        val actors = title.mainActors.map { ac -> ActorData(actor = Actor(ac.name)) }
         val year = title.releaseDate.substringBefore('-').toIntOrNull()
         val related = props.sliders?.get(0)
+        val trailers = title.trailers?.mapNotNull { it.getYoutubeUrl() }
 //        Log.d(TAG, "Trailer List: $trailers")
         if (title.type == "tv") {
             val episodes: List<Episode> = getEpisodes(props)
             Log.d(TAG, "Episode List: $episodes")
 
-//            val tvShow = TvSeriesLoadResponse(
-//                name = title.name,
-//                url = url,
-//                type = TvType.TvSeries,
-//                apiName = this.name,
-//                plot = title.plot,
-//                posterUrl = "https://cdn.$domain/images/" + title.getBackgroundImage(),
-//                tags = tags,
-//                episodes = episodes,
-//                actors = actors,
-//                year = year,
-//                recommendations = related?.titles?.let { searchResponseBuilder(it) },
-//            )
-//            tvShow.addImdbId(title.imdbId)
-//            tvShow.addTMDbId(title.tmdbId.toString())
-//            tvShow.addTrailer(title.trailers.firstOrNull{it.youtubeId != null}?.getYoutubeUrl())
             val tvShow = newTvSeriesLoadResponse(title.name, url, TvType.TvSeries, episodes) {
-                this.posterUrl = "https://cdn.$domain/images/" + title.getBackgroundImage()
-                this.tags = tags
+                this.posterUrl = "https://cdn.$domain/images/" + title.getPosterImageId()
+                this.backgroundPosterUrl = "https://cdn.$domain/images/" + title.getBackgroundImageId()
+                this.tags = genres
                 this.episodes = episodes
-                this.actors = actors
                 this.year = year
+                this.plot = title.plot
                 this.recommendations = related?.titles?.let { searchResponseBuilder(it) }
                 this.addImdbId(title.imdbId)
                 this.addTMDbId(title.tmdbId.toString())
-                this.addTrailer(title.trailers.firstOrNull{it.youtubeId != null}?.getYoutubeUrl())
+                this.addActors(title.mainActors.map { it.name })
+                this.addRating(title.score)
+                if (trailers != null) {
+                    if(trailers.isNotEmpty()){
+                        addTrailer(trailers)
+                    }
+                }
+
             }
             Log.d(TAG, "TV Show: $tvShow")
             return tvShow
         } else {
-            val movie = MovieLoadResponse(
-                name = title.name,
-                url = url,
-                dataUrl = "$mainUrl/iframe/${title.id}&canPlayFHD=1",
-                type = TvType.Movie,
-                apiName = this.name,
-                plot = title.plot,
-                posterUrl = "https://cdn.$domain/images/" + title.getBackgroundImage(),
-                tags = tags,
-                actors = actors,
-                year = year,
-//                comingSoon = title.status == "Post Production",
-                recommendations = related?.titles?.let { searchResponseBuilder(it) },
-            )
-            movie.addTrailer(title.trailers.firstOrNull{it.youtubeId != null}?.getYoutubeUrl())
-            movie.addImdbId(title.imdbId)
-            movie.addTMDbId(title.tmdbId.toString())
+            val movie = newMovieLoadResponse(title.name, url, TvType.Movie, dataUrl = "$mainUrl/iframe/${title.id}&canPlayFHD=1") {
+                this.posterUrl = "https://cdn.$domain/images/" + title.getPosterImageId()
+                this.backgroundPosterUrl = "https://cdn.$domain/images/" + title.getBackgroundImageId()
+                this.tags = genres
+                this.year = year
+                this.plot = title.plot
+                this.recommendations = related?.titles?.let { searchResponseBuilder(it) }
+                this.addActors(title.mainActors.map { it.name })
+                this.addRating(title.score)
+                this.addImdbId(title.imdbId)
+                this.addTMDbId(title.tmdbId.toString())
+
+                title.runtime?.let { this.addDuration("$it")}
+                if (trailers != null) {
+                    if(trailers.isNotEmpty()){
+                        addTrailer(trailers)
+                    }
+                }
+            }
             Log.d(TAG, "Movie: $movie")
             return movie
         }
