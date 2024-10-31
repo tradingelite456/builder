@@ -194,16 +194,15 @@ class StreamingCommunity : MainAPI() {
             Log.d(TAG, "Episode List: $episodes")
 
             val tvShow = newTvSeriesLoadResponse(title.name, url, TvType.TvSeries, episodes) {
-                this.addPoster("https://cdn.$domain/images/" + title.getPosterImageId())
-                this.backgroundPosterUrl = "https://cdn.$domain/images/" + title.getBackgroundImageId()
+                this.posterUrl = "https://cdn.$domain/images/" + title.getBackgroundImageId()
                 this.tags = genres
                 this.episodes = episodes
                 this.year = year
                 this.plot = title.plot
                 this.recommendations = related?.titles?.let { searchResponseBuilder(it) }
-                this.addImdbId(title.imdbId)
-                this.addTMDbId(title.tmdbId.toString())
-                this.addActors(title.mainActors.map { it.name })
+                title.imdbId?.let { this.addImdbId(it) }
+                title.tmdbId?.let { this.addTMDbId(it.toString()) }
+                this.addActors(title.mainActors?.map { it.name })
                 this.addRating(title.score)
                 if (trailers != null) {
                     if(trailers.isNotEmpty()){
@@ -216,16 +215,17 @@ class StreamingCommunity : MainAPI() {
             return tvShow
         } else {
             val movie = newMovieLoadResponse(title.name, url, TvType.Movie, dataUrl = "$mainUrl/iframe/${title.id}&canPlayFHD=1") {
-                this.backgroundPosterUrl = "https://cdn.$domain/images/" + title.getBackgroundImageId()
+//                this.backgroundPosterUrl = "https://cdn.$domain/images/" + title.getBackgroundImageId()
+                this.posterUrl ="https://cdn.$domain/images/" + title.getBackgroundImageId()
                 this.tags = genres
                 this.year = year
                 this.plot = title.plot
-                this.addPoster("https://cdn.$domain/images/" + title.getPosterImageId())
                 this.recommendations = related?.titles?.let { searchResponseBuilder(it) }
-                this.addActors(title.mainActors.map { it.name })
+                this.addActors(title.mainActors?.map { it.name })
                 this.addRating(title.score)
-                this.addImdbId(title.imdbId)
-                this.addTMDbId(title.tmdbId.toString())
+
+                title.imdbId?.let { this.addImdbId(it) }
+                title.tmdbId?.let { this.addTMDbId(it.toString()) }
 
                 title.runtime?.let { this.duration = it}
                 if (trailers != null) {
