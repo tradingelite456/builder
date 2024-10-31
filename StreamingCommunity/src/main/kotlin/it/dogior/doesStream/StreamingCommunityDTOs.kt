@@ -25,27 +25,6 @@ data class Title(
     }
 }
 
-data class TitlePreview(
-    @JsonProperty("id") val id: Int,
-    @JsonProperty("type") val type: String,
-    @JsonProperty("runtime") val runtime: Int,
-    @JsonProperty("release_date") val releaseDate: String,
-    @JsonProperty("quality") val quality: String,
-    @JsonProperty("plot") val plot: String,
-    @JsonProperty("seasons_count") val seasonsCount: Int,
-    @JsonProperty("genres") val genres: List<Genre>,
-    @JsonProperty("images") val images: List<PosterImage>
-) {
-    fun getBackgroundImage(): String? {
-        this.images.forEach {
-            if (it.type == "background") {
-                return it.filename
-            }
-        }
-        return null
-    }
-}
-
 
 data class PosterImage(
     @JsonProperty("filename") val filename: String,
@@ -96,7 +75,7 @@ data class Episode(
     @JsonProperty("number") val number: Int,
     @JsonProperty("name") val name: String,
     @JsonProperty("plot") val plot: String?,
-    @JsonProperty("duration") val duration: Int,
+    @JsonProperty("duration") val duration: Int?,
     @JsonProperty("scws_id") val scwsId: Int,
     @JsonProperty("season_id") val seasonId: Int,
     @JsonProperty("images") val images: List<PosterImage>

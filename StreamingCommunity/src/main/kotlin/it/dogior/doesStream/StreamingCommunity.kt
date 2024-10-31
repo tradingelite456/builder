@@ -194,7 +194,7 @@ class StreamingCommunity : MainAPI() {
             Log.d(TAG, "Episode List: $episodes")
 
             val tvShow = newTvSeriesLoadResponse(title.name, url, TvType.TvSeries, episodes) {
-                this.posterUrl = "https://cdn.$domain/images/" + title.getPosterImageId()
+                this.addPoster("https://cdn.$domain/images/" + title.getPosterImageId())
                 this.backgroundPosterUrl = "https://cdn.$domain/images/" + title.getBackgroundImageId()
                 this.tags = genres
                 this.episodes = episodes
@@ -216,18 +216,18 @@ class StreamingCommunity : MainAPI() {
             return tvShow
         } else {
             val movie = newMovieLoadResponse(title.name, url, TvType.Movie, dataUrl = "$mainUrl/iframe/${title.id}&canPlayFHD=1") {
-                this.posterUrl = "https://cdn.$domain/images/" + title.getPosterImageId()
                 this.backgroundPosterUrl = "https://cdn.$domain/images/" + title.getBackgroundImageId()
                 this.tags = genres
                 this.year = year
                 this.plot = title.plot
+                this.addPoster("https://cdn.$domain/images/" + title.getPosterImageId())
                 this.recommendations = related?.titles?.let { searchResponseBuilder(it) }
                 this.addActors(title.mainActors.map { it.name })
                 this.addRating(title.score)
                 this.addImdbId(title.imdbId)
                 this.addTMDbId(title.tmdbId.toString())
 
-                title.runtime?.let { this.addDuration("$it")}
+                title.runtime?.let { this.duration = it}
                 if (trailers != null) {
                     if(trailers.isNotEmpty()){
                         addTrailer(trailers)
@@ -260,6 +260,7 @@ class StreamingCommunity : MainAPI() {
                 responseEpisodes.addAll(obj.props.loadedSeason?.episodes!!)
             }
             responseEpisodes.forEach { ep ->
+
                 episodeList.add(
                     Episode(
                         data = "$mainUrl/iframe/${title.id}?episode_id=${ep.id}&canPlayFHD=1",
@@ -267,7 +268,8 @@ class StreamingCommunity : MainAPI() {
                         posterUrl = props.cdnUrl + "/images/" + ep.getCover(),
                         description = ep.plot,
                         episode = ep.number,
-                        season = season.number
+                        season = season.number,
+                        runTime = ep.duration
                     )
                 )
             }
