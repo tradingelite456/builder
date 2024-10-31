@@ -30,14 +30,15 @@ class StreamedExtractor : ExtractorApi() {
                 val source = parseJson<List<Streamed.Source>>(rawSource)
                 val serverDomain = "https://rr.vipstreams.in"
                 if (source.isNotEmpty()) {
-                    source.forEach{ s ->
+                    source.forEachIndexed{ index, s ->
                         val isHdString = if(s.isHD) "HD" else "SD"
                         val contentUrl = "$serverDomain/${s.source}/js/${s.id}/${s.streamNumber}/playlist.m3u8"
 //                        Log.d(TAG, "Content URL: $contentUrl")
+                        val sourceName = "$index. \t ${s.source!!.capitalize()} $isHdString \t ${s.language}"
                         callback.invoke(
                             ExtractorLink(
-                                source = s.source!!,
-                                name = "${s.source.capitalize()} $isHdString \t ${s.language}",
+                                source = sourceName,
+                                name = sourceName,
                                 url = contentUrl,
                                 referer = referer!!,
                                 isM3u8 = true,

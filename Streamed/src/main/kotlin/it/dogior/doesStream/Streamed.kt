@@ -117,7 +117,7 @@ class Streamed : MainAPI() {
             HomePageList(
                 name = request.name,
                 list = list,
-                isHorizontalImages = false
+                isHorizontalImages = true
             ), false
         )
     }
