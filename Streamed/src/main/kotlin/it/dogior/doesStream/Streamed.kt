@@ -26,6 +26,12 @@ import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import java.text.DateFormat
+import java.text.SimpleDateFormat
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.util.Date
+import java.util.Locale
 
 
 class Streamed : MainAPI() {
@@ -93,7 +99,7 @@ class Streamed : MainAPI() {
      */
     private suspend fun Match.getSources(): Map<String, List<Source>> {
 
-        var sourceObjectList: LinkedHashMap<String, List<Source>> = linkedMapOf()
+        val sourceObjectList: LinkedHashMap<String, List<Source>> = linkedMapOf()
         this.matchSources.forEach { (source, id) ->
             sourceObjectList[source] =
                 parseJson<List<Source>>(app.get("$mainUrl/api/stream/${source}/$id").body.string())
@@ -116,7 +122,7 @@ class Streamed : MainAPI() {
             }
         }
 
-        Log.d(TAG, "Element List: ${listJson}")
+        Log.d(TAG, "Element List: $listJson")
         if (listJson.isNotEmpty()) {
             Log.d(TAG, "Element: ${listJson[0]}")
             Log.d(TAG, "Teams: ${listJson[0].teams}")
@@ -179,7 +185,7 @@ class Streamed : MainAPI() {
             ?: throw ErrorLoadingException("Error loading match from cache")
 
         val elementName = match.title
-        val elementPlot = match.title
+        var elementPlot = match.title
         val elementPoster = "$mainUrl${match.posterPath ?: "/api/images/poster/fallback.webp"}"
         val elementTags = arrayListOf(match.category.capitalize())
 
@@ -195,13 +201,23 @@ class Streamed : MainAPI() {
             val data = parseJson<List<Source>>(rawJson)
             Log.d(TAG, "Sources: $data")
 
-            if (data.isNotEmpty()) {
+            if (data.isNotEmpty() && match.isoDateTime!! < Date().time) {
                 comingSoon = false
             }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to load sources: $e")
         }
+        if (match.isoDateTime!! > Date().time) {
 
+            val formatter =
+                DateFormat.getDateTimeInstance(
+                    DateFormat.DEFAULT,
+                    DateFormat.SHORT,
+                    Locale.getDefault()
+                )
+            val date = formatter.format(Date(match.isoDateTime))
+            elementPlot += " | This stream is scheduled for $date"
+        }
         return LiveStreamLoadResponse(
             name = elementName,
             url = trueUrl,
