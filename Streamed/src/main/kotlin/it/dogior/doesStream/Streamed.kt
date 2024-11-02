@@ -26,8 +26,8 @@ import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import java.text.DateFormat
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -180,7 +180,7 @@ class Streamed : MainAPI() {
             ?: throw ErrorLoadingException("Error loading match from cache")
 
         val elementName = match.title
-        var elementPlot = match.title
+        val elementPlot = match.title
         val elementPoster = "$mainUrl${match.posterPath ?: "/api/images/poster/fallback.webp"}"
         val elementTags = arrayListOf(match.category.capitalize())
 
@@ -191,7 +191,17 @@ class Streamed : MainAPI() {
             val data = parseJson<List<Source>>(rawJson)
             Log.d(TAG, "Sources: $data")
 
-            if (match.isoDateTime!! < Date().time && data.isNotEmpty()) {
+            match.isoDateTime?.let {
+                val calendar = Calendar.getInstance()
+                calendar.time = Date(it)
+                calendar.add(Calendar.MINUTE, -15)
+                val matchTimeMinus15 = calendar.time.time
+
+                if (matchTimeMinus15 <= Date().time && data.isNotEmpty()) {
+                    comingSoon = false
+                }
+            }
+            if (match.isoDateTime == null && data.isNotEmpty()) {
                 comingSoon = false
             }
         } catch (e: Exception) {
