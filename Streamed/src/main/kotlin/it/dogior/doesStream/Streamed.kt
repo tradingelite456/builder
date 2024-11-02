@@ -2,9 +2,11 @@
 
 package it.dogior.doesStream
 
+import android.content.Context
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.APIHolder.capitalize
+import com.lagradost.cloudstream3.CommonActivity.activity
 import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.HomePageList
@@ -21,7 +23,9 @@ import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
+import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 
 class Streamed : MainAPI() {
@@ -31,6 +35,8 @@ class Streamed : MainAPI() {
     override var lang = "it"
     override val hasMainPage = true
     override val hasDownloadSupport = false
+    private val sharedPref = activity?.getPreferences(Context.MODE_PRIVATE)
+
 
     companion object {
         val mainUrl = "https://streamed.su"
@@ -69,14 +75,14 @@ class Streamed : MainAPI() {
                 val id = match.matchSources[0].id
                 url = "$mainUrl/api/stream/$sourceName/$id"
             }
-
+            url += "/${match.id}"
             LiveSearchResponse(
                 name = match.title,
                 url = url,
                 apiName = this@Streamed.name,
                 posterUrl = "$mainUrl${match.posterPath ?: "/api/images/poster/fallback.png"}"
             )
-        }
+        }.filter { it.url.count { char -> char == '/' } > 1 }
     }
 
     /**
@@ -98,11 +104,17 @@ class Streamed : MainAPI() {
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val TAG = "STREAMED:MainPage"
         Log.d(TAG, "Url:${request.data}")
-        val rawList = app.get(request.data).body.string()
+        val rawList = app.get(request.data).text
         val listJson = parseJson<List<Match>>(rawList)
+        listJson.forEach {
+            with(sharedPref?.edit()) {
+                this?.putString("${it.id}", it.toJson())
+                this?.apply()
+            }
+        }
 
         Log.d(TAG, "Element List: ${listJson}")
-        if (listJson.isNotEmpty()){
+        if (listJson.isNotEmpty()) {
             Log.d(TAG, "Element: ${listJson[0]}")
             Log.d(TAG, "Teams: ${listJson[0].teams}")
             Log.d(TAG, "Sources: ${listJson[0].getSources().values}")
@@ -151,56 +163,51 @@ class Streamed : MainAPI() {
     override suspend fun load(url: String): LoadResponse {
         val TAG = "STREAMED:Item"
 
-        Log.d(TAG, "URL: $url")
-        if (url == "null") {
+        val matchId = url.substringAfterLast('/')
+        val trueUrl = url.substringBeforeLast('/')
+
+        if (trueUrl.toHttpUrlOrNull() == null) {
             throw ErrorLoadingException("The stream is not available")
         }
-        val request = app.get(url)
-        if (!request.isSuccessful) {
-            Log.d(TAG, "CODE: ${request.code}")
+        val response = app.get(trueUrl)
+        if (!response.isSuccessful) {
+            Log.d(TAG, "CODE: ${response.code}")
             throw ErrorLoadingException("Cannot get info from the API")
         }
 
-        val rawJson = request.body.string()
-        Log.d(TAG, "Response: ${app.get(url)}")
+        val rawJson = response.body.string()
         val data = parseJson<List<Source>>(rawJson)
 
-        var elementName = "No Info Yet"
-        var elementPlot: String? = null
-        var elementPoster: String? = null
-        var elementTags: ArrayList<String> = arrayListOf()
-        if (data.isNotEmpty()) {
-            val sourceID = url.substringAfterLast('/')
-            Log.d(TAG, "Source ID: $sourceID")
-            val relatedMatch = data[0].getMatch(sourceID)
-            if (relatedMatch != null) {
-                val isHD = if (data[0].isHD) "HD" else ""
-                elementName = relatedMatch.title
-                elementPlot = "${relatedMatch.title}      $isHD"
-                elementPoster =
-                    "$mainUrl${relatedMatch.posterPath ?: "/api/images/poster/fallback.png"}"
-                elementTags = arrayListOf(relatedMatch.category.capitalize())
-                val teams = relatedMatch.teams?.values?.mapNotNull { it!!.name!! }
-                if (teams != null) {
-                    elementTags.addAll(teams)
-                }
-            } else {
-                elementName = data[0].id.toString()
-            }
+        val match = sharedPref?.getString(matchId, null)?.let { parseJson<Match>(it) }
+            ?: throw ErrorLoadingException("Error loading match from cache")
+
+        val elementName = match.title
+        val elementPlot = match.title
+        val elementPoster = "$mainUrl${match.posterPath ?: "/api/images/poster/fallback.png"}"
+        val elementTags = arrayListOf(match.category.capitalize())
+
+        val teams = match.teams?.values?.mapNotNull { it!!.name!! }
+        if (teams != null) {
+            elementTags.addAll(teams)
         }
 
+        var comingSoon = true
+        val sourceID = trueUrl.substringAfterLast('/')
+        Log.d(TAG, "Source ID: $sourceID")
+        if (data.isNotEmpty()) {
+            comingSoon = false
+        }
 
-        val liveStream = LiveStreamLoadResponse(
+        return LiveStreamLoadResponse(
             name = elementName,
-            url = url,
+            url = trueUrl,
             apiName = this.name,
-            dataUrl = url,
+            dataUrl = trueUrl,
             plot = elementPlot,
             posterUrl = elementPoster,
-            tags = elementTags
+            tags = elementTags,
+            comingSoon = comingSoon
         )
-        Log.d(TAG, "LiveStream: $liveStream")
-        return liveStream
     }
 
     // This function is how you load the links
