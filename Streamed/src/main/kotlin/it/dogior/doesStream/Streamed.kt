@@ -64,16 +64,19 @@ class Streamed : MainAPI() {
 
     override val mainPage = sectionNamesList
 
-    private fun searchResponseBuilder(
+    private suspend fun searchResponseBuilder(
         listJson: List<Match>,
         filter: (Match) -> Boolean
     ): List<LiveSearchResponse> {
         return listJson.filter(filter).map { match ->
-            var url = "null"
+            var url = ""
             if (match.matchSources.isNotEmpty()) {
                 val sourceName = match.matchSources[0].sourceName
                 val id = match.matchSources[0].id
                 url = "$mainUrl/api/stream/$sourceName/$id"
+                if (!app.get(url).isSuccessful) {
+                    url = ""
+                }
             }
             url += "/${match.id}"
             LiveSearchResponse(
@@ -166,17 +169,11 @@ class Streamed : MainAPI() {
         val matchId = url.substringAfterLast('/')
         val trueUrl = url.substringBeforeLast('/')
 
+        var comingSoon = true
+
         if (trueUrl.toHttpUrlOrNull() == null) {
             throw ErrorLoadingException("The stream is not available")
         }
-        val response = app.get(trueUrl)
-        if (!response.isSuccessful) {
-            Log.d(TAG, "CODE: ${response.code}")
-            throw ErrorLoadingException("Cannot get info from the API")
-        }
-
-        val rawJson = response.body.string()
-        val data = parseJson<List<Source>>(rawJson)
 
         val match = sharedPref?.getString(matchId, null)?.let { parseJson<Match>(it) }
             ?: throw ErrorLoadingException("Error loading match from cache")
@@ -191,11 +188,18 @@ class Streamed : MainAPI() {
             elementTags.addAll(teams)
         }
 
-        var comingSoon = true
-        val sourceID = trueUrl.substringAfterLast('/')
-        Log.d(TAG, "Source ID: $sourceID")
-        if (data.isNotEmpty()) {
-            comingSoon = false
+        try {
+            val response = app.get(trueUrl)
+
+            val rawJson = response.body.string()
+            val data = parseJson<List<Source>>(rawJson)
+            Log.d(TAG, "Sources: $data")
+
+            if (data.isNotEmpty()) {
+                comingSoon = false
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to load sources: $e")
         }
 
         return LiveStreamLoadResponse(
