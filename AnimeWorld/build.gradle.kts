@@ -9,6 +9,8 @@ cloudstream {
     // description = "Lorem Ipsum"
      authors = listOf("Gian-Fr", "doGior")
 
+    description = "Anime from AnimeWorld. This plugin is forked from the AnimeWorld plugin in the ItalianProvider repo"
+
     /**
      * Status int as the following:
      * 0: Down
