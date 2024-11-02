@@ -36,7 +36,7 @@ class Streamed : MainAPI() {
     override var mainUrl = Companion.mainUrl
     override var name = Companion.name
     override var supportedTypes = setOf(TvType.Live)
-    override var lang = "it"
+    override var lang = "en"
     override val hasMainPage = true
     override val hasDownloadSupport = false
     private val sharedPref = activity?.getPreferences(Context.MODE_PRIVATE)
