@@ -31,8 +31,13 @@ import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import kotlinx.coroutines.Dispatchers
 import org.json.JSONObject
 import java.util.Locale
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 
 typealias Str = BooleanOrString.AsString
 typealias Bool = BooleanOrString.AsBoolean
@@ -62,7 +67,7 @@ class AnimeUnity : MainAPI() {
         "$mainUrl/archivio/" to "In Corso",
         "$mainUrl/archivio/" to "Popolari",
         "$mainUrl/archivio/" to "I migliori",
-        "$mainUrl/archivio/" to "In Uscita",
+        "$mainUrl/archivio/" to "In Arrivo",
 //        "$mainUrl/archivio/" to "In Corso doppiati",
 //        "$mainUrl/archivio/" to "Popolari doppiati",
 //        "$mainUrl/archivio/" to "I migliori doppiati",
@@ -95,25 +100,29 @@ class AnimeUnity : MainAPI() {
 
     private suspend fun searchResponseBuilder(objectList: List<Anime>): List<SearchResponse> {
         val list = objectList.map {
-            with(sharedPref?.edit()) {
-                this?.putString("${it.id}-${it.slug}", it.toJson())
-                this?.apply()
-            }
-            val title = it.titleIt ?: it.titleEng ?: it.title!!
-            val poster = getImage(it.imageUrl) ?: getAnilistPoster(it.anilistId)
-            newAnimeSearchResponse(
-                name = title.replace(" (ITA)", ""),
-                url = "$mainUrl/anime/${it.id}-${it.slug}",
-                type = if (it.type == "TV") TvType.Anime
-                else if (it.type == "Movie" || it.episodesCount == 1) TvType.AnimeMovie
-                else TvType.OVA
-            ) {
-                addDubStatus(it.dub == 1)
-                addPoster(poster)
+            withContext(Dispatchers.Main) {
+                async {
+                    with(sharedPref?.edit()) {
+                        this?.putString("${it.id}-${it.slug}", it.toJson())
+                        this?.apply()
+                    }
+                    val title = it.titleIt ?: it.titleEng ?: it.title!!
+                    val poster = getImage(it.imageUrl) ?: getAnilistPoster(it.anilistId)
+                    newAnimeSearchResponse(
+                        name = title.replace(" (ITA)", ""),
+                        url = "$mainUrl/anime/${it.id}-${it.slug}",
+                        type = if (it.type == "TV") TvType.Anime
+                        else if (it.type == "Movie" || it.episodesCount == 1) TvType.AnimeMovie
+                        else TvType.OVA
+                    ) {
+                        addDubStatus(it.dub == 1)
+                        addPoster(poster)
+                    }
+                }
             }
         }
 
-        return list
+        return list.awaitAll()
     }
 
     private suspend fun getAnilistPoster(anilistId: Int): String {
@@ -150,13 +159,12 @@ class AnimeUnity : MainAPI() {
             setupHeadersAndCookies()
         }
 
-        Log.d(localTag, "Sezione: ${request.name}")
         val requestData = getDataPerHomeSection(request.name)
 
         val offset = (page - 1) * 30
         requestData.offset = offset
 
-        Log.d(localTag, "Page: $page \t Offset: $offset \t Request offset: ${requestData.offset}")
+        Log.d(localTag, "Sezione: ${request.name} \tPage: $page \t Offset: $offset \t Request offset: ${requestData.offset}")
         val requestBody = requestData.toRequestBody()
 
 
@@ -166,7 +174,7 @@ class AnimeUnity : MainAPI() {
 //        Log.d(localTag, "Cookies: ${response.cookies}")
         val responseObject = parseJson<ApiResponse>(response.text)
         val titles = responseObject.titles
-        Log.d(localTag, "Titles: $titles")
+//        Log.d(localTag, "Titles: $titles")
 
         val hasNextPage = requestData.offset
             ?.let { it < 177 } ?: true && titles?.size == 30
@@ -184,7 +192,7 @@ class AnimeUnity : MainAPI() {
             RequestData(orderBy = Str("Popolarità"), dubbed = 0)
         }
 
-        "In Uscita" -> {
+        "In Arrivo" -> {
             RequestData(status = Str("In Uscita"), dubbed = 0)
         }
 

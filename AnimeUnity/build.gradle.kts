@@ -1,7 +1,7 @@
 @file:Suppress("UnstableApiUsage")
 
 // use an integer for version numbers
-version = 1
+version = 2
 
 
 cloudstream {
@@ -28,4 +28,8 @@ cloudstream {
     requiresResources = false
 
     iconUrl = "https://www.animeunity.to/apple-touch-icon.png"
+}
+
+dependencies{
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
 }
