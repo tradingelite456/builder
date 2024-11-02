@@ -27,6 +27,7 @@ import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.text.DateFormat
+import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
@@ -183,11 +184,6 @@ class Streamed : MainAPI() {
         val elementPoster = "$mainUrl${match.posterPath ?: "/api/images/poster/fallback.webp"}"
         val elementTags = arrayListOf(match.category.capitalize())
 
-        val teams = match.teams?.values?.mapNotNull { it!!.name!! }
-        if (teams != null) {
-            elementTags.addAll(teams)
-        }
-
         try {
             val response = app.get(trueUrl)
 
@@ -203,14 +199,13 @@ class Streamed : MainAPI() {
         }
 
         match.isoDateTime?.let {
-            val formatter =
-                DateFormat.getDateTimeInstance(
-                    DateFormat.DEFAULT,
-                    DateFormat.SHORT,
-                    Locale.getDefault()
-                )
+            val formatter = SimpleDateFormat("dd MMM yyyy 'at' HH:mm", Locale.getDefault())
             val date = formatter.format(Date(it))
-            elementPlot += " | This stream is scheduled for $date"
+            elementTags.add(date)
+        }
+        val teams = match.teams?.values?.mapNotNull { it!!.name!! }
+        if (teams != null) {
+            elementTags.addAll(teams)
         }
 
         return LiveStreamLoadResponse(
