@@ -33,7 +33,7 @@ data class RequestData(
     val genres: BooleanOrString = BooleanOrString.AsBoolean(false),
     /*** Inverno, Primavera, Estate, Autunno ***/
     val season: BooleanOrString = BooleanOrString.AsBoolean(false),
-    var offset: Int = 0,
+    var offset: Int? = 0,
     val dubbed: Int = 1,
 ){
     private fun toJson(): JSONObject {
@@ -153,5 +153,23 @@ data class SourceFile(
     val created_at_diff: String
 )
 
+data class AnilistResponse(
+    @JsonProperty("data") val data: AnilistData
+)
 
+data class AnilistData(
+    @JsonProperty("Media") val media: AnilistMedia
+)
+
+data class AnilistMedia(
+    @JsonProperty("id") val id: Int,
+    @JsonProperty("coverImage") val coverImage: AnilistCoverImage?,
+    @JsonProperty("duration") val duration: Int?
+)
+
+data class AnilistCoverImage(
+    @JsonProperty("medium") val medium: String?,
+    @JsonProperty("large") val large: String?,
+    @JsonProperty("extraLarge") val extraLarge: String?
+)
 

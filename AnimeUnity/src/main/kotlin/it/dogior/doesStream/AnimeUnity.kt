@@ -31,6 +31,7 @@ import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import org.json.JSONObject
 import java.util.Locale
 
 typealias Str = BooleanOrString.AsString
@@ -46,7 +47,7 @@ class AnimeUnity : MainAPI() {
     override val hasMainPage = true
     override val hasQuickSearch: Boolean = true
     override var sequentialMainPage = true
-    val sharedPref = activity?.getPreferences(Context.MODE_PRIVATE)
+    private val sharedPref = activity?.getPreferences(Context.MODE_PRIVATE)
 
     companion object {
         val mainUrl = "https://www.animeunity.to"
@@ -58,10 +59,13 @@ class AnimeUnity : MainAPI() {
     }
 
     private val sectionNamesList = mainPageOf(
+        "$mainUrl/archivio/" to "In Corso",
         "$mainUrl/archivio/" to "Popolari",
         "$mainUrl/archivio/" to "I migliori",
-        "$mainUrl/archivio/" to "Popolari doppiati",
-        "$mainUrl/archivio/" to "I migliori doppiati",
+        "$mainUrl/archivio/" to "In Uscita",
+//        "$mainUrl/archivio/" to "In Corso doppiati",
+//        "$mainUrl/archivio/" to "Popolari doppiati",
+//        "$mainUrl/archivio/" to "I migliori doppiati",
     )
     override val mainPage = sectionNamesList
 
@@ -89,13 +93,14 @@ class AnimeUnity : MainAPI() {
         cookies = emptyMap()
     }
 
-    private fun searchResponseBuilder(objectList: List<Anime>): List<SearchResponse> {
+    private suspend fun searchResponseBuilder(objectList: List<Anime>): List<SearchResponse> {
         val list = objectList.map {
             with(sharedPref?.edit()) {
                 this?.putString("${it.id}-${it.slug}", it.toJson())
                 this?.apply()
             }
             val title = it.titleIt ?: it.titleEng ?: it.title!!
+            val poster = getImage(it.imageUrl) ?: getAnilistPoster(it.anilistId)
             newAnimeSearchResponse(
                 name = title.replace(" (ITA)", ""),
                 url = "$mainUrl/anime/${it.id}-${it.slug}",
@@ -104,10 +109,35 @@ class AnimeUnity : MainAPI() {
                 else TvType.OVA
             ) {
                 addDubStatus(it.dub == 1)
-                addPoster(it.imageUrl)
+                addPoster(poster)
             }
         }
+
         return list
+    }
+
+    private suspend fun getAnilistPoster(anilistId: Int): String {
+        val query = """
+        query (${"$"}id: Int) {
+          Media(id: ${"$"}id, type: ANIME) {
+            coverImage {
+              extraLarge
+              large
+              medium
+            }
+          }
+        }
+    """
+        val queryVariables = JSONObject().apply { put("id", anilistId) }
+        val body = mapOf(
+            "query" to query,
+            "variables" to queryVariables.toString()
+        )
+        val response = app.post("https://graphql.anilist.co", data = body)
+        val anilistObj = parseJson<AnilistResponse>(response.text)
+
+        val image = anilistObj.data.media.coverImage!!
+        return image.large ?: image.medium!!
     }
 
     //Get the Homepage
@@ -138,30 +168,32 @@ class AnimeUnity : MainAPI() {
         val titles = responseObject.titles
         Log.d(localTag, "Titles: $titles")
 
+        val hasNextPage = requestData.offset
+            ?.let { it < 177 } ?: true && titles?.size == 30
         return newHomePageResponse(
             HomePageList(
                 name = request.name,
                 list = titles?.let { searchResponseBuilder(it) } ?: emptyList(),
                 isHorizontalImages = false
-            ), false
+            ), hasNextPage
         )
     }
 
     private fun getDataPerHomeSection(section: String) = when (section) {
-        "Popolari doppiati" -> {
-            RequestData(orderBy = Str("Popolarità"))
-        }
-
-        "I migliori doppiati" -> {
-            RequestData(orderBy = Str("Valutazione"))
-        }
-
         "Popolari" -> {
             RequestData(orderBy = Str("Popolarità"), dubbed = 0)
         }
 
+        "In Uscita" -> {
+            RequestData(status = Str("In Uscita"), dubbed = 0)
+        }
+
         "I migliori" -> {
             RequestData(orderBy = Str("Valutazione"), dubbed = 0)
+        }
+
+        "In Corso" -> {
+            RequestData(orderBy = Str("Popolarità"), status = Str("In Corso"), dubbed = 0)
         }
 
         else -> {
@@ -201,39 +233,49 @@ class AnimeUnity : MainAPI() {
 
         Log.d(localTag, "Pref key: $animeKey")
 
-//        val title =
-//            getAnimeElement(animeId, animeSlug) ?: throw ErrorLoadingException("Error loading API")
-
-        val title = sharedPref?.getString(animeKey, null)?.let { parseJson<Anime>(it) }
-            ?: throw ErrorLoadingException("Error loading API")
-        val episodes = title.episodes.map {
+        val anime = sharedPref?.getString(animeKey, null)?.let { parseJson<Anime>(it) }
+            ?: throw ErrorLoadingException("Error loading anime from cache")
+        val episodes = anime.episodes.map {
 //            Log.d(localTag, "Episodes: ${it.toJson()}")
             newEpisode("$url/${it.id}") {
                 this.episode = it.number.toIntOrNull()
             }
         }
-        val t = title.titleIt ?: title.titleEng ?: title.title!!
-        val anime = newAnimeLoadResponse(
-            name = t.replace(" (ITA)", ""),
+        val title = anime.titleIt ?: anime.titleEng ?: anime.title!!
+        val animeLoadResponse = newAnimeLoadResponse(
+            name = title.replace(" (ITA)", ""),
             url = url,
-            type = if (title.type == "TV") TvType.Anime
-            else if (title.type == "Movie" || title.episodesCount == 1) TvType.AnimeMovie
+            type = if (anime.type == "TV") TvType.Anime
+            else if (anime.type == "Movie" || anime.episodesCount == 1) TvType.AnimeMovie
             else TvType.OVA,
         ) {
-            addPoster(title.imageUrlCover ?: title.imageUrl)
-            addRating(title.score)
-            addDuration(title.episodesLength.toString() + " minuti")
-            val dub = if (title.dub == 1) DubStatus.Dubbed else DubStatus.Subbed
+            this.posterUrl =
+                getImage(anime.imageUrl) ?: getAnilistPoster(anime.anilistId)
+            this.backgroundPosterUrl = getImage(anime.cover)
+            addRating(anime.score)
+            addDuration(anime.episodesLength.toString() + " minuti")
+            val dub = if (anime.dub == 1) DubStatus.Dubbed else DubStatus.Subbed
             addEpisodes(dub, episodes)
 
-            addAniListId(title.anilistId)
-            addMalId(title.malId)
-            this.plot = title.plot
-            val doppiato = if (title.dub == 1) "\uD83C\uDDEE\uD83C\uDDF9  Italiano" else "\uD83C\uDDEF\uD83C\uDDF5  Giapponese"
-            this.tags = listOf(doppiato) + title.genres.map { it.name.capitalize(Locale.ITALIAN) }
+            addAniListId(anime.anilistId)
+            addMalId(anime.malId)
+            this.plot = anime.plot
+            val doppiato =
+                if (anime.dub == 1) "\uD83C\uDDEE\uD83C\uDDF9  Italiano" else "\uD83C\uDDEF\uD83C\uDDF5  Giapponese"
+            this.tags = listOf(doppiato) + anime.genres.map { genre ->
+                genre.name.replaceFirstChar {
+                if (it.isLowerCase()) it.titlecase(
+                    Locale.getDefault()
+                ) else it.toString()
+            } }
+            this.comingSoon = anime.status == "In uscita prossimamente"
         }
 
-        return anime
+        return animeLoadResponse
+    }
+
+    private suspend fun getImage(imageUrl: String?): String? {
+        return if (imageUrl == null || imageUrl == "" || app.get(imageUrl).code == 404) null else imageUrl
     }
 
 
