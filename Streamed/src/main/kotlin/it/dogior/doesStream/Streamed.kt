@@ -83,7 +83,7 @@ class Streamed : MainAPI() {
                 name = match.title,
                 url = url,
                 apiName = this@Streamed.name,
-                posterUrl = "$mainUrl${match.posterPath ?: "/api/images/poster/fallback.png"}"
+                posterUrl = "$mainUrl${match.posterPath ?: "/api/images/poster/fallback.webp"}"
             )
         }.filter { it.url.count { char -> char == '/' } > 1 }
     }
@@ -180,7 +180,7 @@ class Streamed : MainAPI() {
 
         val elementName = match.title
         val elementPlot = match.title
-        val elementPoster = "$mainUrl${match.posterPath ?: "/api/images/poster/fallback.png"}"
+        val elementPoster = "$mainUrl${match.posterPath ?: "/api/images/poster/fallback.webp"}"
         val elementTags = arrayListOf(match.category.capitalize())
 
         val teams = match.teams?.values?.mapNotNull { it!!.name!! }
