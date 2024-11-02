@@ -27,9 +27,6 @@ import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.text.DateFormat
-import java.text.SimpleDateFormat
-import java.time.ZoneId
-import java.time.ZonedDateTime
 import java.util.Date
 import java.util.Locale
 
@@ -70,7 +67,7 @@ class Streamed : MainAPI() {
 
     override val mainPage = sectionNamesList
 
-    private suspend fun searchResponseBuilder(
+    private fun searchResponseBuilder(
         listJson: List<Match>,
         filter: (Match) -> Boolean
     ): List<LiveSearchResponse> {
@@ -80,9 +77,6 @@ class Streamed : MainAPI() {
                 val sourceName = match.matchSources[0].sourceName
                 val id = match.matchSources[0].id
                 url = "$mainUrl/api/stream/$sourceName/$id"
-                if (!app.get(url).isSuccessful) {
-                    url = ""
-                }
             }
             url += "/${match.id}"
             LiveSearchResponse(
@@ -201,23 +195,24 @@ class Streamed : MainAPI() {
             val data = parseJson<List<Source>>(rawJson)
             Log.d(TAG, "Sources: $data")
 
-            if (data.isNotEmpty() && match.isoDateTime!! < Date().time) {
+            if (match.isoDateTime!! < Date().time && data.isNotEmpty()) {
                 comingSoon = false
             }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to load sources: $e")
         }
-        if (match.isoDateTime!! > Date().time) {
 
+        match.isoDateTime?.let {
             val formatter =
                 DateFormat.getDateTimeInstance(
                     DateFormat.DEFAULT,
                     DateFormat.SHORT,
                     Locale.getDefault()
                 )
-            val date = formatter.format(Date(match.isoDateTime))
+            val date = formatter.format(Date(it))
             elementPlot += " | This stream is scheduled for $date"
         }
+
         return LiveStreamLoadResponse(
             name = elementName,
             url = trueUrl,
