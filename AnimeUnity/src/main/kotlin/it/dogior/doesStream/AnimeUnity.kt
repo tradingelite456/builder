@@ -32,7 +32,6 @@ import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import kotlinx.coroutines.Dispatchers
-import org.json.JSONObject
 import java.util.Locale
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -99,54 +98,86 @@ class AnimeUnity : MainAPI() {
     }
 
     private suspend fun searchResponseBuilder(objectList: List<Anime>): List<SearchResponse> {
-        val list = objectList.map {
-            withContext(Dispatchers.Main) {
-                async {
-                    with(sharedPref?.edit()) {
-                        this?.putString("${it.id}-${it.slug}", it.toJson())
-                        this?.apply()
+        return coroutineScope {
+            // Process items in parallel but limit concurrent operations
+            objectList.map { anime ->
+                async(Dispatchers.IO) {
+                    // Cache anime data in shared preferences
+                    withContext(Dispatchers.IO) {
+                        sharedPref?.edit()?.apply {
+                            putString("${anime.id}-${anime.slug}", anime.toJson())
+                            apply()
+                        }
                     }
-                    val title = it.titleIt ?: it.titleEng ?: it.title!!
-                    val poster = getImage(it.imageUrl) ?: getAnilistPoster(it.anilistId)
+
+                    // Determine title
+                    val title = anime.titleIt ?: anime.titleEng ?: anime.title!!
+                        .replace(" (ITA)", "")
+
+                    // Get poster image efficiently
+                    val poster = getImage(anime.imageUrl, anime.anilistId)
+
+                    // Create search response
                     newAnimeSearchResponse(
-                        name = title.replace(" (ITA)", ""),
-                        url = "$mainUrl/anime/${it.id}-${it.slug}",
-                        type = if (it.type == "TV") TvType.Anime
-                        else if (it.type == "Movie" || it.episodesCount == 1) TvType.AnimeMovie
-                        else TvType.OVA
-                    ) {
-                        addDubStatus(it.dub == 1)
+                        name = title,
+                        url = "$mainUrl/anime/${anime.id}-${anime.slug}",
+                        type = when {
+                            anime.type == "TV" -> TvType.Anime
+                            anime.type == "Movie" || anime.episodesCount == 1 -> TvType.AnimeMovie
+                            else -> TvType.OVA
+                        }
+                    ).apply {
+                        addDubStatus(anime.dub == 1)
                         addPoster(poster)
                     }
                 }
+            }.awaitAll()
+        }
+    }
+
+    private suspend fun getImage(imageUrl: String?, anilistId: Int): String {
+        // First try the direct image URL if available
+        if (!imageUrl.isNullOrEmpty()) {
+            try {
+                val response = withContext(Dispatchers.IO) {
+                    app.get(imageUrl)
+                }
+                if (response.code == 200) {
+                    return imageUrl
+                }
+            } catch (_: Exception) {
+                // Fallback to Anilist if direct image fails
             }
         }
 
-        return list.awaitAll()
+        // Fallback to Anilist
+        return getAnilistPoster(anilistId)
     }
 
     private suspend fun getAnilistPoster(anilistId: Int): String {
         val query = """
-        query (${"$"}id: Int) {
-          Media(id: ${"$"}id, type: ANIME) {
-            coverImage {
-              extraLarge
-              large
-              medium
+        query (${'$'}id: Int) {
+            Media(id: ${'$'}id, type: ANIME) {
+                coverImage {
+                    large
+                    medium
+                }
             }
-          }
         }
-    """
-        val queryVariables = JSONObject().apply { put("id", anilistId) }
+    """.trimIndent()
+
         val body = mapOf(
             "query" to query,
-            "variables" to queryVariables.toString()
+            "variables" to """{"id":$anilistId}"""
         )
-        val response = app.post("https://graphql.anilist.co", data = body)
-        val anilistObj = parseJson<AnilistResponse>(response.text)
 
-        val image = anilistObj.data.media.coverImage!!
-        return image.large ?: image.medium!!
+        return withContext(Dispatchers.IO) {
+            val response = app.post("https://graphql.anilist.co", data = body)
+            val anilistObj = parseJson<AnilistResponse>(response.text)
+            anilistObj.data.media.coverImage?.let { coverImage ->
+                coverImage.large ?: coverImage.medium!!
+            } ?: throw IllegalStateException("No valid image found")
+        }
     }
 
     //Get the Homepage
@@ -258,8 +289,8 @@ class AnimeUnity : MainAPI() {
             else TvType.OVA,
         ) {
             this.posterUrl =
-                getImage(anime.imageUrl) ?: getAnilistPoster(anime.anilistId)
-            this.backgroundPosterUrl = getImage(anime.cover)
+                getImage(anime.imageUrl, anime.anilistId)
+            this.backgroundPosterUrl = getImage(anime.cover, anime.anilistId)
             addRating(anime.score)
             addDuration(anime.episodesLength.toString() + " minuti")
             val dub = if (anime.dub == 1) DubStatus.Dubbed else DubStatus.Subbed
@@ -280,10 +311,6 @@ class AnimeUnity : MainAPI() {
         }
 
         return animeLoadResponse
-    }
-
-    private suspend fun getImage(imageUrl: String?): String? {
-        return if (imageUrl == null || imageUrl == "" || app.get(imageUrl).code == 404) null else imageUrl
     }
 
 
