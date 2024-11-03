@@ -16,7 +16,6 @@ import com.lagradost.nicehttp.NiceResponse
 import org.jsoup.nodes.Element
 import java.text.SimpleDateFormat
 import java.util.Locale
-import java.util.TimeZone
 
 class AnimeWorldSub : MainAPI() {
     override var mainUrl = "https://www.animeworld.so"
