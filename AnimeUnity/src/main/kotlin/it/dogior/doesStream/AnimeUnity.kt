@@ -39,7 +39,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
 typealias Str = BooleanOrString.AsString
-typealias Bool = BooleanOrString.AsBoolean
+//typealias Bool = BooleanOrString.AsBoolean
 
 const val TAG = "AnimeUnity"
 
@@ -111,7 +111,7 @@ class AnimeUnity : MainAPI() {
                     }
 
                     // Determine title
-                    val title = anime.titleIt ?: anime.titleEng ?: anime.title!!
+                    val title = (anime.titleIt ?: anime.titleEng ?: anime.title!!)
                         .replace(" (ITA)", "")
 
                     // Get poster image efficiently
