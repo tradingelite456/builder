@@ -34,7 +34,7 @@ class StreamedExtractor : ExtractorApi() {
                         val isHdString = if(s.isHD) "HD" else "SD"
                         val contentUrl = "$serverDomain/${s.source}/js/${s.id}/${s.streamNumber}/playlist.m3u8"
 //                        Log.d(TAG, "Content URL: $contentUrl")
-                        val sourceName = "$index. \t ${s.source!!.capitalize()} $isHdString \t ${s.language}"
+                        val sourceName = "${index + 1}. \t ${s.source!!.capitalize()} $isHdString \t ${s.language}"
                         callback.invoke(
                             ExtractorLink(
                                 source = sourceName,
