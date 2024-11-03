@@ -8,5 +8,6 @@ include(
     "Streamed",
     "AnimeUnity",
     "StreamingCommunity",
-    "AnimeWorld"
+    "AnimeWorld",
+    "RojaDirecta"
 )
