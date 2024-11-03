@@ -292,9 +292,8 @@ class AnimeWorldSub : MainAPI() {
         Log.d("AnimeWorld:load", "NextAiring: $nextAiringDate $nextAiringTime")
 
         val nextAiringUnix = try {
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm", Locale.getDefault()).apply {
-                timeZone = TimeZone.getTimeZone("Europe/Paris")
-            }.parse(nextAiringDate + "T" + nextAiringTime)?.time?.div(1000)
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm", Locale.getDefault())
+                .parse(nextAiringDate + "T" + nextAiringTime)?.time?.div(1000)
         } catch (e: Exception) {
             null
         }

@@ -16,7 +16,6 @@ import com.lagradost.nicehttp.NiceResponse
 import org.jsoup.nodes.Element
 import java.text.SimpleDateFormat
 import java.util.Locale
-import java.util.TimeZone
 
 class AnimeWorldDub : MainAPI() {
     override var mainUrl = "https://www.animeworld.so"
@@ -290,9 +289,8 @@ class AnimeWorldDub : MainAPI() {
         Log.d("AnimeWorld:load", "NextAiring: $nextAiringDate $nextAiringTime")
 
         val nextAiringUnix = try {
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm", Locale.getDefault()).apply {
-                timeZone = TimeZone.getTimeZone("Europe/Paris")
-            }.parse(nextAiringDate + "T" + nextAiringTime)?.time?.div(1000)
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm", Locale.getDefault())
+                .parse(nextAiringDate + "T" + nextAiringTime)?.time?.div(1000)
         } catch (e: Exception) {
             null
         }
