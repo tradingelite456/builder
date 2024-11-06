@@ -21,5 +21,5 @@ cloudstream {
         "Live",
     )
 
-    iconUrl = "https://www.google.com/s2/favicons?domain=calciostreaming.live&sz=%size%"
+    iconUrl = "https://www.calciostreaming.mom/templates/calciostreaming1/images/icons/apple-touch-icon.png"
 }
