@@ -1,7 +1,8 @@
 package com.lagradost
 
-import com.lagradost.api.Log
+import android.content.Context
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.CommonActivity.activity
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -18,6 +19,8 @@ class CanaliTV : MainAPI() {
     override var sequentialMainPage = true
     override val supportedTypes = setOf(TvType.Live)
     private var playlist: Playlist? = null
+    private val sharedPref = activity?.getPreferences(Context.MODE_PRIVATE)
+
 
     private suspend fun getTVChannels(): List<TVChannel> {
         if (playlist == null) {
@@ -33,7 +36,16 @@ class CanaliTV : MainAPI() {
     ): HomePageResponse {
         val data = getTVChannels()
         val title = "Canali TV"
-        val show = data.map { it.toSearchResponse(apiName = this@CanaliTV.name) }
+        val show = data.map {
+            sharedPref?.edit()?.apply {
+                putString(it.url, it.toJson())
+                apply()
+            }
+            it.toSearchResponse(apiName = this@CanaliTV.name)
+        }
+
+
+
         return newHomePageResponse(
             HomePageList(
                 title,
@@ -57,14 +69,19 @@ class CanaliTV : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val data = parseJson<Data>(url)
-        Log.d("LOAD", "Data: $data")
+        val tvChannel = sharedPref?.getString(url, null)?.let { parseJson<TVChannel>(it) }
+            ?: throw ErrorLoadingException("Error loading channel from cache")
+
+        val streamUrl = tvChannel.url.toString()
+        val channelName = tvChannel.title ?: tvChannel.attributes["tvg-id"].toString()
+        val posterUrl = tvChannel.attributes["tvg-logo"].toString()
+
         return LiveStreamLoadResponse(
-            data.title,
-            data.url,
+            channelName,
+            streamUrl,
             this.name,
             url,
-            data.poster,
+            posterUrl
         )
     }
 
@@ -75,12 +92,11 @@ class CanaliTV : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
 
-        val loadData = parseJson<Data>(data)
         callback.invoke(
             ExtractorLink(
-                this.name,
-                loadData.title,
-                loadData.url,
+                "Free-TV",
+                "Free-TV",
+                data,
                 "",
                 Qualities.Unknown.value,
                 isM3u8 = true
@@ -89,13 +105,6 @@ class CanaliTV : MainAPI() {
         return true
     }
 }
-
-data class Data(
-    val url: String,
-    val title: String,
-    val poster: String,
-    val nation: String
-)
 
 data class Playlist(
     val items: List<TVChannel> = emptyList(),
@@ -114,7 +123,7 @@ data class TVChannel(
         val posterUrl = attributes["tvg-logo"].toString()
         return LiveSearchResponse(
             channelName,
-            Data(streamUrl, channelName, posterUrl, "").toJson(),
+            streamUrl,
             apiName,
             TvType.Live,
             posterUrl,
