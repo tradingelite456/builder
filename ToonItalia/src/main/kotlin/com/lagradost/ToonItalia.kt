@@ -1,5 +1,6 @@
 package com.lagradost
 
+import android.util.Log
 import com.lagradost.cloudstream3.Episode
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
@@ -177,8 +178,12 @@ class ToonItalia :
             val link = it.attr("href")
             val url = if (link.contains("uprot")) bypassUprot(link) else link
             if (url != "something went wrong") {
-//                Log.d("ToonItalia:loadLinks", "Url: $url")
-                loadExtractor(url, subtitleCallback, callback)
+                Log.d("ToonItalia:loadLinks", "Url: $url")
+                if (url.contains("streamtape")) {
+                    StreamTapeExtractor().getUrl(url, null, subtitleCallback, callback)
+                } else {
+                    loadExtractor(url, subtitleCallback, callback)
+                }
             }
         }
 
