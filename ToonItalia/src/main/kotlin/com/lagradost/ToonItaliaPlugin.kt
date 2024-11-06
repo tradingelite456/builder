@@ -9,5 +9,6 @@ class ToonItaliaPlugin: Plugin() {
     override fun load(context: Context) {
         // All providers should be added in this manner
         registerMainAPI(ToonItalia())
+        registerExtractorAPI(StreamTapeExtractor())
     }
 }

@@ -1,6 +1,5 @@
 package com.lagradost
 
-import android.util.Log
 import com.lagradost.cloudstream3.Episode
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
@@ -12,8 +11,6 @@ import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.app
-import com.lagradost.cloudstream3.extractors.Maxstream
-import com.lagradost.cloudstream3.extractors.StreamTape
 import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
@@ -23,11 +20,8 @@ import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.newTvSeriesSearchResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
-import com.lagradost.nicehttp.NiceFile
-import com.lagradost.nicehttp.NiceResponse
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
-import org.jsoup.select.Elements
 
 class ToonItalia :
     MainAPI() { // all providers must be an intstance of MainAPI
@@ -102,9 +96,9 @@ class ToonItalia :
         val plot = response.select(".entry-content > p:nth-child(2)").text().trim()
         val poster = response.select(".attachment-post-thumbnail").attr("src")
         val typeFooter = response.select(".cat-links > a:nth-child(1)").text()
-        val type = if(typeFooter == "") {
+        val type = if (typeFooter == "") {
             TvType.Movie
-        } else{
+        } else {
             TvType.TvSeries
         }
         return if (type == TvType.TvSeries) {
@@ -152,11 +146,11 @@ class ToonItalia :
         val episodes: List<Episode> = rows.mapNotNull {
             if (it.childrenSize() == 0) {
                 null
-            }else if(it.childrenSize() == 1){
+            } else if (it.childrenSize() == 1) {
                 val seasonText = it.select("td:nth-child(1)").text()
                 season = Regex("""\d+""").find(seasonText)?.value?.toInt()
                 null
-            }else {
+            } else {
                 val title = it.select("td:nth-child(1)").text()
                 newEpisode("$url€${it.select("a")}") {
                     name = title
@@ -181,12 +175,10 @@ class ToonItalia :
         val soup = Jsoup.parse(episodeLinks)
         soup.select("a").forEach {
             val link = it.attr("href")
-            val url = if(link.contains("uprot")) bypassUprot(link) else link
-//            Log.d("ToonItalia:loadLinks", "Url: $url")
-            if(url.contains("streamtape")) {
-                StreamTape().getUrl(url)
-            } else if(url.contains("maxstream")){
-                Maxstream().getUrl(url)
+            val url = if (link.contains("uprot")) bypassUprot(link) else link
+            if (url != "something went wrong") {
+//                Log.d("ToonItalia:loadLinks", "Url: $url")
+                loadExtractor(url, subtitleCallback, callback)
             }
         }
 
@@ -200,7 +192,10 @@ class ToonItalia :
             .map { it.groupValues[1] }
             .toList()
             .forEach { link ->
-                if (link.contains("https://maxstream.video") || link.contains("https://uprot.net") || link.contains("https://streamtape") || link.contains("https://voe") && link != url) {
+                if (link.contains("https://maxstream.video") || link.contains("https://uprot.net") || link.contains(
+                        "https://streamtape"
+                    ) || link.contains("https://voe") && link != url
+                ) {
                     return link
                 }
             }
