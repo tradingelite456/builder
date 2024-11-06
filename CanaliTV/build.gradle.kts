@@ -1,12 +1,12 @@
 // use an integer for version numbers
-version = 0
+version = 1
 
 
 cloudstream {
     // All of these properties are optional, you can safely remove them
 
-    description = "WORK IN PROGRESS | Sports Streams from RojaDirecta.eu (You might need a VPN)"
-    authors = listOf("doGior")
+    description = "Live streams from the Free TV github repository. Forked from the Free-TV plugin in the ItalianProvider repo"
+    authors = listOf("Gian-Fr","Adippe","doGior")
 
     /**
     * Status int as the following:
@@ -15,13 +15,13 @@ cloudstream {
     * 2: Slow
     * 3: Beta only
     * */
-    status = 0
+    status = 1
 
     tvTypes = listOf("Live")
 
     requiresResources = true
-    language = "en"
+    language = "it"
 
     // random cc logo i found
-    iconUrl = "http://www.rojadirecta.eu/static/favicon.ico"
+    iconUrl = "https://avatars.githubusercontent.com/u/55937028?s=200&v=4"
 }

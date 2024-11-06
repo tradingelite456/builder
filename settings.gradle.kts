@@ -9,5 +9,5 @@ include(
     "AnimeUnity",
     "StreamingCommunity",
     "AnimeWorld",
-    "RojaDirecta"
+    "CanaliTV"
 )
