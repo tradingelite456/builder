@@ -10,5 +10,6 @@ include(
     "StreamingCommunity",
     "AnimeWorld",
     "CanaliTV",
-    "CalcioStreaming"
+    "CalcioStreaming",
+    "ToonItalia"
 )
