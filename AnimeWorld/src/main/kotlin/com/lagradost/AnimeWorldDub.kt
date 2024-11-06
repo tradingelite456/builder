@@ -228,7 +228,6 @@ class AnimeWorldDub : MainAPI() {
         }
     }
 
-    @SuppressLint("NewApi")
     override suspend fun load(url: String): LoadResponse {
         val document = request(url).document
         Log.d("AnimeWorld:load", "Url: $url")
