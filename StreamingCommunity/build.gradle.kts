@@ -19,6 +19,7 @@ cloudstream {
     tvTypes = listOf(
         "TvSeries",
         "Movie",
+        "Cartoon"
     )
 
 
