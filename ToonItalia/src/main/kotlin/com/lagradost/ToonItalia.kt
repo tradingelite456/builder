@@ -30,7 +30,7 @@ class ToonItalia :
     override var name = "ToonItalia"
     override var lang = "it"
     override val supportedTypes =
-        setOf(TvType.TvSeries, TvType.Movie, TvType.Anime, TvType.AnimeMovie)
+        setOf(TvType.TvSeries, TvType.Movie, TvType.Anime, TvType.AnimeMovie, TvType.Cartoon)
     override val hasMainPage = true
 
     override val mainPage = mainPageOf(
