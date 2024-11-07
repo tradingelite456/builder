@@ -1,6 +1,6 @@
-# [doGior](https://github.com/doGior) Does Stream
+# [doGior](https://github.com/doGior)'s Had Enough
 
-Hi, I'm doGior and I do stream, but sometimes what I need is broken or unmantained so I decided to make my own repo. These are the plugins available at the moment
+Hi, I'm doGior, and I've had enough of searching for Cloudstream plugins that end up broken or abandoned, so I decided to create my own repository. These are the plugins available at the moment:
 
 ### Current plugins
 
