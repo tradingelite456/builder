@@ -35,7 +35,7 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 class StreamingCommunity : MainAPI() {
     override var mainUrl = Companion.mainUrl
     override var name = Companion.name
-    override var supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
+    override var supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Cartoon)
     override var lang = "it"
     override val hasMainPage = true
     private var inertiaVersion = ""
