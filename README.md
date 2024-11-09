@@ -1,12 +1,13 @@
 # [doGior](https://github.com/doGior)'s Had Enough
 
-Hi, I'm doGior, and I've had enough of searching for Cloudstream plugins that end up broken or abandoned, so I decided to create my own repository. These are the plugins available at the moment:
+Hi, I'm doGior, and I've had enough of searching for Cloudstream plugins that end up broken or
+abandoned, so I decided to create my own repository. These are the plugins available at the moment:
 
 ### Current plugins
 
 | **Plugin**         | **Website**                                                               |        **Content**        | **Language** | **Working** | **Notes**                                                                 |
 |--------------------|---------------------------------------------------------------------------|:-------------------------:|:------------:|:-----------:|---------------------------------------------------------------------------|  
-| Streamed           | https://streamed.su                                                       |        Live Sports        |  🇮🇹  🇬🇧  |      ✅      |                                                                           |
+| Streamed           | https://streamed.su                                                       |        Live Sports        |  🇮🇹  🇬🇧  |      ❌      | The website updated their security measures. I'm trying to fix it         |
 | StreamingCommunity | https://streamingcommunity.computer                                       |     Movies, TV Shows      |     🇮🇹     |      ✅      |                                                                           |
 | ToonItalia         | https://toonitalia.green/                                                 | Cartoons, Anime, TV Shows |     🇮🇹     |      ✅      | The website has 4 servers but the app implements only 1 (StreamTape)      |
 | AnimeUnity         | https://www.animeunity.to                                                 |           Anime           |     🇮🇹     |      ✅      |                                                                           |
