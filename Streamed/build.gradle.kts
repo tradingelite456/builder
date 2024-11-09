@@ -20,7 +20,11 @@ cloudstream {
 
 
     requiresResources = false
-    language = "en"
+    language = "uni"
 
     iconUrl = "https://streamed.su/favicon.png"
+}
+
+dependencies {
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
 }
