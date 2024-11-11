@@ -21,12 +21,17 @@ import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.app
 
 import com.lagradost.cloudstream3.mainPageOf
+import com.lagradost.cloudstream3.network.WebViewResolver
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.loadExtractor
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.Interceptor
+import okhttp3.Response
 import java.text.SimpleDateFormat
+import java.util.Base64
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -251,7 +256,7 @@ class Streamed : MainAPI() {
 
         match?.matchSources?.forEach { matchSource ->
             Log.d(TAG, "URLS: $mainUrl/api/stream/${matchSource.sourceName}/${matchSource.id}")
-            StreamedExtractor().getUrl(
+            loadExtractor(
                 url = "$mainUrl/api/stream/${matchSource.sourceName}/${matchSource.id}",
                 referer = "https://embedme.top/",
                 subtitleCallback = subtitleCallback,
@@ -260,6 +265,7 @@ class Streamed : MainAPI() {
         }
         return true
     }
+
 
     data class Match(
         @JsonProperty("id") val id: String? = null,
