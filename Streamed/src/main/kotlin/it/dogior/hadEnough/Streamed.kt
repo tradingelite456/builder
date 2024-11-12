@@ -273,6 +273,9 @@ class Streamed : MainAPI() {
 
                     val newRequest = request.newBuilder().url(newUrl).build()
                     if (isLimited){
+if(url.contains("?id=")){
+                      return chain.proceed(request.newBuilder().url(url).build())
+                    }
                         return Response.Builder()
                             .code(429)
                             .message("Rate Limited")
