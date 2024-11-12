@@ -32,17 +32,19 @@ class StreamedExtractor : ExtractorApi() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ) {
+        Streamed.canShowToast = true
         if (url.isNotEmpty()) {
             val rawSource = app.get(url).body.string()
 //            Log.d(TAG, "Body: $rawSource")
             val source = parseJson<List<Source>>(rawSource)
 
             if (source.isNotEmpty()) {
-                // TODO: remove [0].let and put amap
-                source[0].let { s ->
+                source.forEach { s ->
                     val path = "/${s.source}/js/${s.id}/${s.streamNumber}/playlist.m3u8"
 
-//                    val contentUrl = getContentUrl(serverDomain, path)
+                    val serverDomain = "https://rr.vipstreams.in"
+                    val contentUrl = "$serverDomain$path"
+
 //                    Log.d(TAG, contentUrl)
 
                     val isHdString = if (s.isHD) "HD" else "SD"
@@ -54,18 +56,19 @@ class StreamedExtractor : ExtractorApi() {
 //                        sourceName
 //                    )
 
-                    callback(ExtractorLink(
-                        source = name,
-                        name = sourceName,
-                        url = getContentUrl(path),
-                        referer = referer!!,
-                        headers = mapOf(
-                            "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
-                            "Cache-Control" to "no-cache"
-                        ),
-                        isM3u8 = true,
-                        quality = Qualities.Unknown.value
-                    ))
+                    callback(
+                        ExtractorLink(
+                            source = name,
+                            name = sourceName,
+                            url = contentUrl,
+                            referer = referer!!,
+                            headers = mapOf(
+                                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
+                            ),
+                            isM3u8 = true,
+                            quality = Qualities.Unknown.value
+                        )
+                    )
                 }
 
             }
@@ -73,64 +76,64 @@ class StreamedExtractor : ExtractorApi() {
         }
 
     }
+}
 
-    private suspend fun getContentUrl(
-        path: String
-    ): String {
-        val serverDomain = "https://rr.vipstreams.in"
-        var contentUrl = "$serverDomain$path"
+/** Gets url with security token provided as id parameter
+ * Don't call it in the Extractor or you'll get rate limited really fast */
+suspend fun getContentUrl(
+    path: String,
+    rateLimitCallback: () -> Unit = {}
+): String {
+    val serverDomain = "https://rr.vipstreams.in"
+    var contentUrl = "$serverDomain$path"
 
-        val securityData = getSecurityData(path)
-        securityData?.let {
-            contentUrl += "?id=${it.id}"
-        }
-
-//        val playlist = app.get(
-//            contentUrl,
-//            headers = mapOf(
-//                "Referer" to referer!!,
-//                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0"
-//            )
-//        )
-//        Log.d(TAG, "Playlist: ${playlist.body.string()}")
-        return contentUrl
+    val securityData = getSecurityData(path, rateLimitCallback)
+    securityData?.let {
+        contentUrl += "?id=${it.id}"
     }
 
+    return contentUrl
+}
 
-    private suspend fun getSecurityData(path: String): SecurityResponse? {
-        val targetUrl = "https://secure.bigcoolersonline.top/init-session"
-        val headers = mapOf(
-            "Referer" to "https://embedme.top/",
-            "Content-Type" to "application/json",
-            "Host" to targetUrl.toHttpUrl().host,
-            "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0"
-        )
+/** Gets and refreshes security token */
+private suspend fun getSecurityData(path: String, rateLimitCallback: () -> Unit = {}): SecurityResponse? {
+    val targetUrl = "https://secure.bigcoolersonline.top/init-session"
+    val headers = mapOf(
+        "Referer" to "https://embedme.top/",
+        "Content-Type" to "application/json",
+        "Host" to targetUrl.toHttpUrl().host,
+        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0"
+    )
 
-        val requestBody =
-            "{\"path\":\"$path\"}"
-                .toRequestBody("application/json".toMediaType())
+    val requestBody =
+        "{\"path\":\"$path\"}"
+            .toRequestBody("application/json".toMediaType())
 
-        val securityResponse = app.post(
-            targetUrl,
-            headers = headers,
-            requestBody = requestBody
-        )
-        val responseBodyStr = securityResponse.body.string()
-        val securityData = tryParseJson<SecurityResponse>(responseBodyStr)
+    val securityResponse = app.post(
+        targetUrl,
+        headers = headers,
+        requestBody = requestBody
+    )
+    val responseBodyStr = securityResponse.body.string()
+    val securityData = tryParseJson<SecurityResponse>(responseBodyStr)
 
 //        Log.d(
 //            TAG,
 //            "Headers: ${securityResponse.headers}"
 //        )
-        Log.d(
-            TAG,
-            "Response: $responseBodyStr"
-        )
-        return securityData
+
+    if (securityResponse.code == 429){
+        rateLimitCallback()
+        Log.d("STREAMED:Interceptor", "Rate Limited")
+        return null
     }
 
+    Log.d(
+        TAG,
+        "Response: $responseBodyStr"
+    )
+    return securityData
 }
-
 
 /** For debugging purposes */
 fun RequestBody.convertToString(): String {

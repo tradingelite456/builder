@@ -7,7 +7,7 @@ abandoned, so I decided to create my own repository. These are the plugins avail
 
 | **Plugin**         | **Website**                                                               |        **Content**        | **Language** | **Working** | **Notes**                                                                 |
 |--------------------|---------------------------------------------------------------------------|:-------------------------:|:------------:|:-----------:|---------------------------------------------------------------------------|  
-| Streamed           | https://streamed.su                                                       |        Live Sports        |  🇮🇹  🇬🇧  |      ❌      | The website updated their security measures. I'm trying to fix it         |
+| Streamed           | https://streamed.su                                                       |        Live Sports        |     🇺🇳     |      ❌      | It kinda works. It just triggers the rate limit very often                |
 | StreamingCommunity | https://streamingcommunity.computer                                       |     Movies, TV Shows      |     🇮🇹     |      ✅      |                                                                           |
 | ToonItalia         | https://toonitalia.green/                                                 | Cartoons, Anime, TV Shows |     🇮🇹     |      ✅      | The website has 4 servers but the app implements only 1 (StreamTape)      |
 | AnimeUnity         | https://www.animeunity.to                                                 |           Anime           |     🇮🇹     |      ✅      |                                                                           |

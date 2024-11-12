@@ -3,10 +3,12 @@
 package it.dogior.hadEnough
 
 import android.content.Context
+import android.widget.Toast
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.APIHolder.capitalize
 import com.lagradost.cloudstream3.CommonActivity.activity
+import com.lagradost.cloudstream3.CommonActivity.showToast
 import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.HomePageList
@@ -28,6 +30,8 @@ import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import okhttp3.Response
@@ -45,7 +49,6 @@ class Streamed : MainAPI() {
     override val hasMainPage = true
     override val hasDownloadSupport = false
     private val sharedPref = activity?.getPreferences(Context.MODE_PRIVATE)
-
     init {
         val editor = sharedPref?.edit()
         editor?.clear()
@@ -53,6 +56,7 @@ class Streamed : MainAPI() {
     }
 
     companion object {
+        var canShowToast = true
         const val MAIN_URL = "https://streamed.su"
         const val NAME = "Streamed"
     }
@@ -150,7 +154,6 @@ class Streamed : MainAPI() {
 
     // This function gets called when you enter the page/show
     override suspend fun load(url: String): LoadResponse {
-
         val matchId = url.substringAfterLast('/')
         val trueUrl = url.substringBeforeLast('/')
 
@@ -221,7 +224,6 @@ class Streamed : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-
         val rawJson = app.get(data).body.string()
         val source = parseJson<List<Source>>(rawJson)[0]
 
@@ -229,7 +231,7 @@ class Streamed : MainAPI() {
 
         val match = source.getMatch(sourceUrlID)
 
-        match?.matchSources?.amap { matchSource ->
+        match?.matchSources?.forEach { matchSource ->
 //            Log.d(
 //                "STREAMED:loadLinks",
 //                "URLS: $mainUrl/api/stream/${matchSource.sourceName}/${matchSource.id}"
@@ -245,22 +247,53 @@ class Streamed : MainAPI() {
     }
 
     @Suppress("ObjectLiteralToLambda")
-    override fun getVideoInterceptor(extractorLink: ExtractorLink): Interceptor? {
+    override fun getVideoInterceptor(extractorLink: ExtractorLink): Interceptor {
         return object : Interceptor {
             override fun intercept(chain: Interceptor.Chain): Response {
                 val request = chain.request()
-                Log.d("STREAMED:Interceptor", "Request Headers: ${request.headers}")
+//                Log.d("STREAMED:Interceptor", "Request Headers: ${request.headers}")
                 val response = chain.proceed(request)
-                val responseHeaders = response.headers
-                Log.d("STREAMED:Interceptor", "Response Headers: $responseHeaders")
-                Log.d("STREAMED:Interceptor", "Response: $response")
-//                Log.d("STREAMED:Interceptor", "Response Body: ${response.body.string()}")
+
+//                Log.d("STREAMED:Interceptor", "Response Headers: ${response.headers}")
+//                Log.d("STREAMED:Interceptor", "Response: $response")
+
+                val url = response.request.url.toString()
+                val path = url.substringAfterLast(url.toHttpUrl().host).substringBeforeLast("?id=")
+                var isLimited = false
+                if (response.code != 200 || !url.contains("?id=")) {
+                    val newUrl = runBlocking {
+                        getContentUrl(path) {
+                            // This code executes only when the response code is 429
+                            showToastOnce("You reached the limit of request for this session.")
+                            isLimited = true
+                            return@getContentUrl
+                        }
+                    }
+                    Log.d("STREAMED:Interceptor", "Response body: ${response.body.string()}")
+
+                    val newRequest = request.newBuilder().url(newUrl).build()
+                    if (isLimited){
+                        return Response.Builder()
+                            .code(429)
+                            .message("Rate Limited")
+                            .protocol(okhttp3.Protocol.HTTP_1_1)
+                            .request(newRequest)
+                            .build()
+                    }
+                    return chain.proceed(newRequest)
+                }
 
                 return response
             }
         }
     }
 
+    fun showToastOnce(message: String) {
+        if (canShowToast){
+            showToast(message, Toast.LENGTH_LONG)
+            canShowToast = false
+        }
+    }
 
     data class Match(
         @JsonProperty("id") val id: String? = null,
