@@ -25,14 +25,19 @@ import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
+import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import okio.Buffer
+import java.nio.charset.Charset
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -47,6 +52,7 @@ class Streamed : MainAPI() {
     override val hasMainPage = true
     override val hasDownloadSupport = false
     private val sharedPref = activity?.getSharedPreferences("Streamed", Context.MODE_PRIVATE)
+
     init {
         val editor = sharedPref?.edit()
         editor?.clear()
@@ -249,16 +255,30 @@ class Streamed : MainAPI() {
         return object : Interceptor {
             override fun intercept(chain: Interceptor.Chain): Response {
                 val request = chain.request()
-//                Log.d("STREAMED:Interceptor", "Request Headers: ${request.headers}")
+
+                val url = request.url.toString()
+                if (url.contains("?id=")) {
+                    return chain.proceed(request)
+                }
+
+                val path = url.substringAfterLast(url.toHttpUrl().host).substringBeforeLast("?id=")
                 val response = chain.proceed(request)
 
-//                Log.d("STREAMED:Interceptor", "Response Headers: ${response.headers}")
-//                Log.d("STREAMED:Interceptor", "Response: $response")
-
-                val url = response.request.url.toString()
-                val path = url.substringAfterLast(url.toHttpUrl().host).substringBeforeLast("?id=")
                 var isLimited = false
-                if (response.code != 200 || !url.contains("?id=")) {
+
+                if (response.code != 200) {
+                    Log.d("STREAMED:Interceptor", "Request URL: $url")
+                    Log.d(
+                        "STREAMED:Interceptor",
+                        "Response headers: ${response.headers}"
+                    )
+                    Log.d(
+                        "STREAMED:Interceptor",
+                        "Response body: ${response.peekBody(1024).string()}"
+                    )
+                }
+
+                if (url.endsWith(".m3u8")) {
                     val newUrl = runBlocking {
                         getContentUrl(path) {
                             // This code executes only when the response code is 429
@@ -267,13 +287,11 @@ class Streamed : MainAPI() {
                             return@getContentUrl
                         }
                     }
-                    Log.d("STREAMED:Interceptor", "Response body: ${response.body.string()}")
 
+                    response.close()
                     val newRequest = request.newBuilder().url(newUrl).build()
-                    if (isLimited){
-if(url.contains("?id=")){
-                      return chain.proceed(request.newBuilder().url(url).build())
-                    }
+
+                    if (isLimited) {
                         return Response.Builder()
                             .code(429)
                             .message("Rate Limited")
@@ -283,18 +301,91 @@ if(url.contains("?id=")){
                     }
                     return chain.proceed(newRequest)
                 }
-
                 return response
             }
         }
     }
 
     fun showToastOnce(message: String) {
-        if (canShowToast){
+        if (canShowToast) {
             showToast(message, Toast.LENGTH_LONG)
             canShowToast = false
         }
     }
+
+
+    /** Gets url with security token provided as id parameter
+     * Don't call it in the Extractor or you'll get rate limited really fast */
+    suspend fun getContentUrl(
+        path: String,
+        rateLimitCallback: () -> Unit = {}
+    ): String {
+        val serverDomain = "https://rr.vipstreams.in"
+        var contentUrl = "$serverDomain$path"
+
+        val securityData = getSecurityData(path, rateLimitCallback)
+        securityData?.let {
+            contentUrl += "?id=${it.id}"
+        }
+
+        return contentUrl
+    }
+
+    /** Gets and refreshes security token */
+    private suspend fun getSecurityData(
+        path: String,
+        rateLimitCallback: () -> Unit = {}
+    ): SecurityResponse? {
+        val targetUrl = "https://secure.bigcoolersonline.top/init-session"
+        val headers = mapOf(
+            "Referer" to "https://embedme.top/",
+            "Content-Type" to "application/json",
+            "Host" to targetUrl.toHttpUrl().host,
+            "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0"
+        )
+
+        val requestBody =
+            "{\"path\":\"$path\"}"
+                .toRequestBody("application/json".toMediaType())
+
+        val securityResponse = app.post(
+            targetUrl,
+            headers = headers,
+            requestBody = requestBody
+        )
+        val responseBodyStr = securityResponse.body.string()
+        val securityData = tryParseJson<SecurityResponse>(responseBodyStr)
+
+//        Log.d(
+//            TAG,
+//            "Headers: ${securityResponse.headers}"
+//        )
+
+        if (securityResponse.code == 429) {
+            rateLimitCallback()
+            android.util.Log.d("STREAMED:Interceptor", "Rate Limited")
+            return null
+        }
+
+        android.util.Log.d(
+            TAG,
+            "Security Data: $responseBodyStr"
+        )
+        return securityData
+    }
+
+    /** For debugging purposes */
+    fun RequestBody.convertToString(): String {
+        val buffer = Buffer()
+        writeTo(buffer)
+        return buffer.readString(Charset.defaultCharset())
+    }
+
+    /** Example {"expiry":1731135300863,"id":"H7X8vD9QDXkc4kQlJ9qgu"} */
+    data class SecurityResponse(
+        @JsonProperty("expiry") val expiry: Long,
+        @JsonProperty("id") val id: String
+    )
 
     data class Match(
         @JsonProperty("id") val id: String? = null,
