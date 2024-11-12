@@ -1,5 +1,3 @@
-@file:Suppress("PackageName")
-
 package it.dogior.hadEnough
 
 import android.content.Context
@@ -22,6 +20,7 @@ import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.addDubStatus
 import com.lagradost.cloudstream3.addEpisodes
 import com.lagradost.cloudstream3.addPoster
+import com.lagradost.cloudstream3.amap
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newAnimeLoadResponse
@@ -33,9 +32,6 @@ import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import kotlinx.coroutines.Dispatchers
 import java.util.Locale
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
 typealias Str = BooleanOrString.AsString
@@ -51,7 +47,7 @@ class AnimeUnity : MainAPI() {
     override val hasMainPage = true
     override val hasQuickSearch: Boolean = true
     override var sequentialMainPage = true
-    private val sharedPref = activity?.getPreferences(Context.MODE_PRIVATE)
+    private val sharedPref = activity?.getSharedPreferences("AnimeUnity", Context.MODE_PRIVATE)
 
     companion object {
         val mainUrl = "https://www.animeunity.to"
@@ -62,11 +58,11 @@ class AnimeUnity : MainAPI() {
         var cookies = emptyMap<String, String>()
     }
 
-    init {
-        val editor = sharedPref?.edit()
-        editor?.clear()
-        editor?.apply()
-    }
+//    init {
+//        val editor = sharedPref?.edit()
+//        editor?.clear()
+//        editor?.apply()
+//    }
 
     private val sectionNamesList = mainPageOf(
         "$mainUrl/archivio/" to "In Corso",
@@ -104,40 +100,35 @@ class AnimeUnity : MainAPI() {
     }
 
     private suspend fun searchResponseBuilder(objectList: List<Anime>): List<SearchResponse> {
-        return coroutineScope {
-            // Process items in parallel but limit concurrent operations
-            objectList.map { anime ->
-                async(Dispatchers.IO) {
-                    // Cache anime data in shared preferences
-                    withContext(Dispatchers.IO) {
-                        sharedPref?.edit()?.apply {
-                            putString("${anime.id}-${anime.slug}", anime.toJson())
-                            apply()
-                        }
-                    }
-
-                    // Determine title
-                    val title = (anime.titleIt ?: anime.titleEng ?: anime.title!!)
-                        .replace(" (ITA)", "")
-
-                    // Get poster image efficiently
-                    val poster = getImage(anime.imageUrl, anime.anilistId)
-
-                    // Create search response
-                    newAnimeSearchResponse(
-                        name = title,
-                        url = "$mainUrl/anime/${anime.id}-${anime.slug}",
-                        type = when {
-                            anime.type == "TV" -> TvType.Anime
-                            anime.type == "Movie" || anime.episodesCount == 1 -> TvType.AnimeMovie
-                            else -> TvType.OVA
-                        }
-                    ).apply {
-                        addDubStatus(anime.dub == 1)
-                        addPoster(poster)
-                    }
+        return objectList.amap { anime ->
+            // Cache anime data in shared preferences
+            withContext(Dispatchers.IO) {
+                sharedPref?.edit()?.apply {
+                    putString("${anime.id}-${anime.slug}", anime.toJson())
+                    apply()
                 }
-            }.awaitAll()
+
+                // Determine title
+                val title = (anime.titleIt ?: anime.titleEng ?: anime.title!!)
+                    .replace(" (ITA)", "")
+
+                // Get poster image efficiently
+                val poster = getImage(anime.imageUrl, anime.anilistId)
+
+                // Create search response
+                newAnimeSearchResponse(
+                    name = title,
+                    url = "$mainUrl/anime/${anime.id}-${anime.slug}",
+                    type = when {
+                        anime.type == "TV" -> TvType.Anime
+                        anime.type == "Movie" || anime.episodesCount == 1 -> TvType.AnimeMovie
+                        else -> TvType.OVA
+                    }
+                ).apply {
+                    addDubStatus(anime.dub == 1)
+                    addPoster(poster)
+                }
+            }
         }
     }
 
@@ -201,7 +192,10 @@ class AnimeUnity : MainAPI() {
         val offset = (page - 1) * 30
         requestData.offset = offset
 
-        Log.d(localTag, "Sezione: ${request.name} \tPage: $page \t Offset: $offset \t Request offset: ${requestData.offset}")
+        Log.d(
+            localTag,
+            "Sezione: ${request.name} \tPage: $page \t Offset: $offset \t Request offset: ${requestData.offset}"
+        )
         val requestBody = requestData.toRequestBody()
 
 
@@ -309,10 +303,11 @@ class AnimeUnity : MainAPI() {
                 if (anime.dub == 1) "\uD83C\uDDEE\uD83C\uDDF9  Italiano" else "\uD83C\uDDEF\uD83C\uDDF5  Giapponese"
             this.tags = listOf(doppiato) + anime.genres.map { genre ->
                 genre.name.replaceFirstChar {
-                if (it.isLowerCase()) it.titlecase(
-                    Locale.getDefault()
-                ) else it.toString()
-            } }
+                    if (it.isLowerCase()) it.titlecase(
+                        Locale.getDefault()
+                    ) else it.toString()
+                }
+            }
             this.comingSoon = anime.status == "In uscita prossimamente"
         }
 
