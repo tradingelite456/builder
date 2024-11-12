@@ -1,5 +1,3 @@
-@file:Suppress("PackageName")
-
 package it.dogior.hadEnough
 
 import android.content.Context
@@ -48,7 +46,7 @@ class Streamed : MainAPI() {
     override var lang = "uni"
     override val hasMainPage = true
     override val hasDownloadSupport = false
-    private val sharedPref = activity?.getPreferences(Context.MODE_PRIVATE)
+    private val sharedPref = activity?.getSharedPreferences("Streamed", Context.MODE_PRIVATE)
     init {
         val editor = sharedPref?.edit()
         editor?.clear()

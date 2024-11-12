@@ -1,5 +1,3 @@
-@file:Suppress("PackageName")
-
 package it.dogior.hadEnough
 
 import com.lagradost.api.Log
