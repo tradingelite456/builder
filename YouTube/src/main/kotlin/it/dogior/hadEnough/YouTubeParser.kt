@@ -1,5 +1,6 @@
 package it.dogior.hadEnough
 
+import android.util.Log
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MovieLoadResponse
 import com.lagradost.cloudstream3.MovieSearchResponse
@@ -8,8 +9,15 @@ import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.amap
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
+import it.dogior.hadEnough.YouTubeProvider.Companion.MAIN_URL
 import org.json.JSONArray
 import org.json.JSONObject
+import org.schabi.newpipe.extractor.ListExtractor
+import org.schabi.newpipe.extractor.ServiceList
+import org.schabi.newpipe.extractor.StreamingService
+import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler
+import org.schabi.newpipe.extractor.search.SearchExtractor
+import org.schabi.newpipe.extractor.services.youtube.YoutubeService
 import org.schabi.newpipe.extractor.stream.StreamInfo
 
 class YouTubeParser(private val apiName: String) {
@@ -51,7 +59,8 @@ class YouTubeParser(private val apiName: String) {
 
     fun videoToLoadResponse(videoUrl: String): LoadResponse {
         val videoInfo = StreamInfo.getInfo(videoUrl)
-
+        val views = "Views: ${videoInfo.viewCount}"
+        val likes = "Likes: ${videoInfo.likeCount}"
         return MovieLoadResponse(
             name = videoInfo.name,
             url = videoUrl,
@@ -59,9 +68,8 @@ class YouTubeParser(private val apiName: String) {
             posterUrl = videoInfo.thumbnails[0].url,
             plot = videoInfo.description.content,
             type = TvType.Others,
+            tags = listOf(videoInfo.uploaderName, views, likes),
             apiName = apiName
         )
     }
-
-
 }

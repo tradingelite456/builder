@@ -19,7 +19,7 @@ import org.schabi.newpipe.extractor.NewPipe
 
 class YouTubeProvider(val context: Context) : MainAPI() {
     // all providers must be an intstance of MainAPI
-    override var mainUrl = "https://www.youtube.com"
+    override var mainUrl = MAIN_URL
     override var name = "YouTube"
     override val supportedTypes = setOf(TvType.Others)
     override val hasMainPage = true
@@ -27,6 +27,9 @@ class YouTubeProvider(val context: Context) : MainAPI() {
 
     private val ytParser = YouTubeParser(this.name)
 
+    companion object{
+        const val MAIN_URL = "https://www.youtube.com"
+    }
     init {
         NewPipe.init(DownloaderTestImpl.getInstance())
     }
@@ -68,7 +71,7 @@ class YouTubeProvider(val context: Context) : MainAPI() {
         callback: (ExtractorLink) -> Unit,
     ): Boolean {
 
-        loadExtractor(data, subtitleCallback, callback)
+        YoutubeExtractor().getUrl(data, "", subtitleCallback, callback)
         return true
     }
 }

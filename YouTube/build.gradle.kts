@@ -25,5 +25,5 @@ cloudstream {
 }
 
 dependencies {
-    implementation("com.github.teamnewpipe:NewPipeExtractor:v0.24.2")
+    implementation("com.github.teamnewpipe:NewPipeExtractor:v0.24.3")
 }
