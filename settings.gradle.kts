@@ -11,5 +11,6 @@ include(
     "AnimeWorld",
     "CanaliTV",
     "CalcioStreaming",
-    "ToonItalia"
+    "ToonItalia",
+    "YouTube"
 )
