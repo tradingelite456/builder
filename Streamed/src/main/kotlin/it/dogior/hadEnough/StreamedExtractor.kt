@@ -54,6 +54,9 @@ class StreamedExtractor : ExtractorApi() {
                             referer = referer!!,
                             headers = mapOf(
                                 "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
+                                "Connection" to "keep-alive",
+                                "Origin" to referer,
+                                "Cache-Control" to "no-cache",
                             ),
                             isM3u8 = true,
                             quality = Qualities.Unknown.value

@@ -36,6 +36,8 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import okhttp3.ResponseBody
+import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.Buffer
 import java.nio.charset.Charset
 import java.text.SimpleDateFormat
@@ -240,7 +242,7 @@ class Streamed : MainAPI() {
 //                "STREAMED:loadLinks",
 //                "URLS: $mainUrl/api/stream/${matchSource.sourceName}/${matchSource.id}"
 //            )
-            loadExtractor(
+            StreamedExtractor().getUrl(
                 url = "$mainUrl/api/stream/${matchSource.sourceName}/${matchSource.id}",
                 referer = "https://embedme.top/",
                 subtitleCallback = subtitleCallback,
@@ -257,39 +259,26 @@ class Streamed : MainAPI() {
                 val request = chain.request()
 
                 val url = request.url.toString()
-                if (url.contains("?id=")) {
-                    return chain.proceed(request)
-                }
-
-                val path = url.substringAfterLast(url.toHttpUrl().host).substringBeforeLast("?id=")
-                val response = chain.proceed(request)
-
                 var isLimited = false
+                if (url.contains(".m3u8")) {
+                    var newUrl = url
+                    if (newUrl.endsWith(".m3u8")) {
+                        val path =
+                            url.substringAfterLast(url.toHttpUrl().host).substringBeforeLast("?id=")
 
-                if (response.code != 200) {
-                    Log.d("STREAMED:Interceptor", "Request URL: $url")
-                    Log.d(
-                        "STREAMED:Interceptor",
-                        "Response headers: ${response.headers}"
-                    )
-                    Log.d(
-                        "STREAMED:Interceptor",
-                        "Response body: ${response.peekBody(1024).string()}"
-                    )
-                }
-
-                if (url.endsWith(".m3u8")) {
-                    val newUrl = runBlocking {
-                        getContentUrl(path) {
-                            // This code executes only when the response code is 429
-                            showToastOnce("You reached the limit of request for this session.")
-                            isLimited = true
-                            return@getContentUrl
+                        newUrl = runBlocking {
+                            getContentUrl(path) {
+                                // This code executes only when the response code is 429
+                                showToastOnce("You reached the limit of request for this session.")
+                                isLimited = true
+                                return@getContentUrl
+                            }
                         }
                     }
-
-                    response.close()
-                    val newRequest = request.newBuilder().url(newUrl).build()
+                    val newRequest =
+                        request.newBuilder()
+                            .url(newUrl)
+                            .build()
 
                     if (isLimited) {
                         return Response.Builder()
@@ -299,8 +288,41 @@ class Streamed : MainAPI() {
                             .request(newRequest)
                             .build()
                     }
-                    return chain.proceed(newRequest)
+                    val playlistResponse = chain.proceed(newRequest)
+
+                    val contentLenght = playlistResponse.headers["x-content-length"]?.toLong()
+                    val playlist = contentLenght?.let { playlistResponse.peekBody(it).string() }
+
+
+                    Log.d(
+                        "STREAMED:Interceptor",
+                        "Request url: $newUrl"
+                    )
+                    Log.d(
+                        "STREAMED:Interceptor",
+                        "Request headers: ${newRequest.headers}\n"
+                    )
+                    Log.d(
+                        "STREAMED:Interceptor",
+                        "Response headers: ${playlistResponse.headers}\n"
+                    )
+
+                    return playlistResponse
                 }
+                val response = chain.proceed(request)
+
+                Log.d(
+                    "STREAMED:Interceptor",
+                    "Request url: $url"
+                )
+                Log.d(
+                    "STREAMED:Interceptor",
+                    "Request headers: ${request.headers}\n"
+                )
+                Log.d(
+                    "STREAMED:Interceptor",
+                    "Response headers: ${response.headers}\n"
+                )
                 return response
             }
         }
