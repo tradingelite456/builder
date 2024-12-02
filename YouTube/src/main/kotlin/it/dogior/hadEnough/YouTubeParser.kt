@@ -1,53 +1,65 @@
 package it.dogior.hadEnough
 
-import android.util.Log
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MovieLoadResponse
 import com.lagradost.cloudstream3.MovieSearchResponse
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.amap
 import com.lagradost.cloudstream3.app
+import com.lagradost.cloudstream3.utils.AppUtils.parseJson
+import org.json.JSONArray
+import org.json.JSONObject
+import org.schabi.newpipe.extractor.stream.StreamInfo
 
-class YouTubeParser {
-    private val videoRegex = Regex("/watch\\?v=[a-zA-Z0-9_-]+[^\"']*")
+class YouTubeParser(private val apiName: String) {
+    private val videoRegex = Regex("/watch\\?v=[a-zA-Z0-9_-]+[^\",]")
 
     /** Returns video urls from the provided url */
     suspend fun getVideoUrls(feedUrl: String): List<String> {
-        val response = app.get(feedUrl)
+        val response = app.get("$feedUrl?cbrd=1&ucbcb=1", headers = mapOf("User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"))
         val initialData = response.document.toString()
             .substringAfter("var ytInitialData =")
             .substringBefore("</script>")
-        return videoRegex.findAll(initialData).toList()
-            .map { "https://www.youtube.com${it.value}" }
+        val contents = ((JSONObject(initialData)
+            .getJSONObject("contents")
+            .getJSONObject("twoColumnBrowseResultsRenderer")
+            .get("tabs") as JSONArray)[0] as JSONObject)
+            .getJSONObject("tabRenderer")
+            .getJSONObject("content")
+            .getJSONObject("sectionListRenderer")
+            .get("contents") as JSONArray
+        val contentList = parseJson<List<Any>>(contents.toString())
+        val videoUrls = contentList.amap {
+            videoRegex.findAll(it.toString()).toList()
+                .amap { id -> "https://www.youtube.com${id.value}" }
+        }
+        val v = videoUrls.flatten()
+        return v
     }
 
-    suspend fun videoToSearchResponse(videoUrl: String): SearchResponse {
-        val response = app.get(videoUrl)
-        val head = response.document.head()
-        val title = head.select("meta[property=\"og:title\"]").attr("content")
-        val thumbnail = head.select("meta[property=\"og:image\"]").attr("content")
+    fun videoToSearchResponse(videoUrl: String): SearchResponse {
+        val videoInfo = StreamInfo.getInfo(videoUrl)
+
         return MovieSearchResponse(
-            name = title,
+            name = videoInfo.name,
             url = videoUrl,
-            posterUrl = thumbnail,
-            apiName = "YouTube"
+            posterUrl = videoInfo.thumbnails[0].url,
+            apiName = apiName
         )
     }
 
-    suspend fun videoToLoadResponse(videoUrl: String): LoadResponse {
-        val response = app.get(videoUrl)
-        val document = response.document
-        val title = document.select("meta[property=\"og:title\"]").attr("content")
-        val description = document.select("meta[property=\"og:description\"]").attr("content")
-        val thumbnail = document.select("meta[property=\"og:image\"]").attr("content")
+    fun videoToLoadResponse(videoUrl: String): LoadResponse {
+        val videoInfo = StreamInfo.getInfo(videoUrl)
+
         return MovieLoadResponse(
-            name = title,
+            name = videoInfo.name,
             url = videoUrl,
             dataUrl = videoUrl,
-            posterUrl = thumbnail,
-            plot = description,
+            posterUrl = videoInfo.thumbnails[0].url,
+            plot = videoInfo.description.content,
             type = TvType.Others,
-            apiName = "YouTube"
+            apiName = apiName
         )
     }
 

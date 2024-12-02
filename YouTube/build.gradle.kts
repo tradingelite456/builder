@@ -5,7 +5,7 @@ version = -1
 cloudstream {
     // All of these properties are optional, you can safely remove them
 
-    description = "Videos and playlists from YouTube"
+    description = "Work In Progress | Videos and playlists from YouTube"
     authors = listOf("doGior")
 
     /**
@@ -22,4 +22,8 @@ cloudstream {
     requiresResources = false
 
     iconUrl = "https://www.youtube.com/s/desktop/711fd789/img/logos/favicon_144x144.png"
+}
+
+dependencies {
+    implementation("com.github.teamnewpipe:NewPipeExtractor:v0.24.2")
 }
