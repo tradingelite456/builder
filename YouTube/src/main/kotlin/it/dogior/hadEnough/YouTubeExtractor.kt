@@ -1,5 +1,6 @@
 package it.dogior.hadEnough
 
+import com.lagradost.api.Log
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.utils.ExtractorApi
@@ -11,19 +12,11 @@ import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeStreamLi
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import org.schabi.newpipe.extractor.stream.VideoStream
 
-open class YoutubeExtractor : ExtractorApi() {
+open class YouTubeExtractor : ExtractorApi() {
     override val mainUrl = "https://www.youtube.com"
     override val requiresReferer = false
     override val name = "YouTube"
 
-    companion object {
-        private var ytVideos: MutableMap<String, List<VideoStream>> = mutableMapOf()
-        private var ytVideosSubtitles: MutableMap<String, List<SubtitlesStream>> = mutableMapOf()
-    }
-
-    override fun getExtractorUrl(id: String): String {
-        return "$mainUrl/watch?v=$id"
-    }
 
     override suspend fun getUrl(
         url: String,
@@ -31,6 +24,9 @@ open class YoutubeExtractor : ExtractorApi() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ) {
+        val ytVideos: MutableMap<String, List<VideoStream>> = mutableMapOf()
+        val ytVideosSubtitles: MutableMap<String, List<SubtitlesStream>> = mutableMapOf()
+        Log.d("YoutubeExtractor", "StreamEmpty? ${ytVideos[url].isNullOrEmpty()}")
         if (ytVideos[url].isNullOrEmpty()) {
             val link =
                 YoutubeStreamLinkHandlerFactory.getInstance().fromUrl(
@@ -46,6 +42,7 @@ open class YoutubeExtractor : ExtractorApi() {
 
             }
             s.fetchPage()
+            Log.d("YoutubeExtractor", "StreamNumber: ${s.videoOnlyStreams.size}")
             ytVideos[url] = s.videoStreams
             ytVideosSubtitles[url] = try {
                 s.subtitlesDefault.filterNotNull()
@@ -54,6 +51,7 @@ open class YoutubeExtractor : ExtractorApi() {
                 emptyList()
             }
         }
+        Log.d("YoutubeExtractor", "Number of streams: ${ytVideos[url]?.size}")
         ytVideos[url]?.mapNotNull {
             if (it.isVideoOnly() || it.height <= 0) return@mapNotNull null
 
@@ -61,7 +59,7 @@ open class YoutubeExtractor : ExtractorApi() {
                 this.name,
                 this.name,
                 it.content ?: return@mapNotNull null,
-                "",
+                referer ?: "",
                 it.height
             )
         }?.forEach(callback)
