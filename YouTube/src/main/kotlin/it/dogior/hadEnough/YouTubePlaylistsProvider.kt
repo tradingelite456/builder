@@ -16,11 +16,11 @@ import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import org.schabi.newpipe.extractor.NewPipe
 
-class YouTubeProvider : MainAPI() {
+class YouTubePlaylistsProvider : MainAPI() {
     override var mainUrl = MAIN_URL
-    override var name = "YouTube"
+    override var name = "YouTube Playlists"
     override val supportedTypes = setOf(TvType.Others)
-    override val hasMainPage = true
+    override val hasMainPage = false
     override var lang = "un"
 
     private val ytParser = YouTubeParser(this.name)
@@ -32,32 +32,10 @@ class YouTubeProvider : MainAPI() {
         NewPipe.init(DownloaderTestImpl.getInstance())
     }
 
-    override val mainPage = mainPageOf(
-        "$mainUrl/feed/trending" to "Trending",
-//        "https://www.youtube.com/channel/UCYfdidRxbB8Qhf0Nx7ioOYw" to "News",
-//        "https://www.youtube.com/gaming" to "Gaming",
-//        "https://www.youtube.com/channel/UC-9-kyTW8ZkZNDHQJ6FgpwQ" to "Music",
-    )
-
-    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val videoUrls = ytParser.getVideoUrls(request.data)
-        val videos = videoUrls.amap { ytParser.videoToSearchResponse(it) }
-        return newHomePageResponse(
-            HomePageList(
-                name = request.name,
-                list = videos,
-                isHorizontalImages = true
-            ), false
-        )
-    }
-
-//    override suspend fun search(query: String): List<SearchResponse> {
-//        val url = "$mainUrl/results?search_query=$query"
-//        val videoUrls = ytParser.getVideoUrls(url)
-//        return videoUrls.amap { ytParser.videoToSearchResponse(it) }
-//    }
     override suspend fun search(query: String): List<SearchResponse> {
-        return ytParser.search(query)
+        val url = "$mainUrl/results?search_query=$query&sp=EgIQAw%253D%253D"
+        val videoUrls = ytParser.getPlaylistUrls(url)
+        return videoUrls.amap { ytParser.videoToSearchResponse(it) }
     }
 
     override suspend fun load(url: String): LoadResponse {
