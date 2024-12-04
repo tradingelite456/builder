@@ -25,7 +25,10 @@ class StreamingCommunityExtractor : ExtractorApi() {
         Log.d(TAG,"REFERER: $referer  URL: $url")
 
         if (url.isNotEmpty()) {
-            val playlistUrl = getPlaylistLink(url)
+            val response = app.get(url).document
+            val iframeSrc = response.select("iframe").attr("src")
+            val playlistUrl = getPlaylistLink(iframeSrc)
+//            val playlistUrl = getPlaylistLink(url)
             Log.w(TAG, "FINAL URL: $playlistUrl")
 
             callback.invoke(
@@ -67,6 +70,7 @@ class StreamingCommunityExtractor : ExtractorApi() {
     }
 
     private suspend fun getScript(url:String): Script {
+        Log.d("getScript", "url: $url")
         val headers = mutableMapOf(
             "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
             "Host" to url.toHttpUrl().host,
@@ -79,14 +83,7 @@ class StreamingCommunityExtractor : ExtractorApi() {
 
         val iframe = app.get(url, headers = headers).document
         Log.d("getScript", "IFRAME1: $iframe")
-//        Log.d("getScript", "IFRAME: $iframe")
-        val src = iframe.select("iframe").attr("src")
-        Log.d("getScript", "IFRAME Src: $src")
-        headers["Host"] = src.toHttpUrl().host
-        Log.d("getScript", "Headers: $headers")
-        val iframe2 = app.get(src, headers = headers).document
-        Log.d("getScript", "IFRAME2: $iframe2")
-        val scripts = iframe2.select("script")
+        val scripts = iframe.select("script")
         val script = scripts.find { it.data().contains("masterPlaylist") }!!.data().replace("\n", "\t")
 
         val scriptJson = getSanitisedScript(script)
