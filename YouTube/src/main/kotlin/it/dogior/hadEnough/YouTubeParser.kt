@@ -1,59 +1,89 @@
 package it.dogior.hadEnough
 
+import com.lagradost.api.Log
+import com.lagradost.cloudstream3.Episode
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.LoadResponse.Companion.addDuration
 import com.lagradost.cloudstream3.MovieLoadResponse
 import com.lagradost.cloudstream3.MovieSearchResponse
 import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import com.lagradost.cloudstream3.TvSeriesSearchResponse
 import com.lagradost.cloudstream3.TvType
-import com.lagradost.cloudstream3.amap
-import com.lagradost.cloudstream3.app
-import com.lagradost.cloudstream3.utils.AppUtils.parseJson
-import com.lagradost.cloudstream3.utils.schemaStripRegex
 import it.dogior.hadEnough.YouTubeProvider.Companion.MAIN_URL
-import org.json.JSONArray
-import org.json.JSONObject
-import org.schabi.newpipe.extractor.InfoItem
+import org.schabi.newpipe.extractor.InfoItem.InfoType
 import org.schabi.newpipe.extractor.ServiceList
-import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeFeedExtractor
-import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeSearchExtractor
-import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeSearchQueryHandlerFactory
-import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeStreamLinkHandlerFactory
+import org.schabi.newpipe.extractor.channel.ChannelInfo
+import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo
+import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException
+import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler
+import org.schabi.newpipe.extractor.localization.ContentCountry
+import org.schabi.newpipe.extractor.localization.Localization
+import org.schabi.newpipe.extractor.search.SearchInfo
+import org.schabi.newpipe.extractor.services.youtube.YoutubeService
+import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeTrendingExtractor
+import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeTrendingLinkHandlerFactory
 import org.schabi.newpipe.extractor.stream.StreamInfo
 
 class YouTubeParser(private val apiName: String) {
-    private val videoRegex = Regex("/watch\\?v=[a-zA-Z0-9_-]+[^\",]")
-    private val playlistRegex = Regex("/playlist\\?list=[a-zA-Z0-9_-]+[^\",]")
-    /** Returns video urls from the provided url */
-    suspend fun getVideoUrls(feedUrl: String): List<String> {
-        val response = app.get("$feedUrl?cbrd=1&ucbcb=1", headers = mapOf("User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"))
-        val initialData = response.document.toString()
-            .substringAfter("var ytInitialData =")
-            .substringBefore("</script>")
-        val contents = ((JSONObject(initialData)
-            .getJSONObject("contents")
-            .getJSONObject("twoColumnBrowseResultsRenderer")
-            .get("tabs") as JSONArray)[0] as JSONObject)
-            .getJSONObject("tabRenderer")
-            .getJSONObject("content")
-            .getJSONObject("sectionListRenderer")
-            .get("contents") as JSONArray
-        val contentList = parseJson<List<Any>>(contents.toString())
-        val videoUrls = contentList.amap {
-            videoRegex.findAll(it.toString()).toList()
-                .amap { id -> "https://www.youtube.com${id.value}" }
-        }.flatten()
-        return videoUrls
+    fun getTrendingVideoUrls(
+        countryCode: String = "IT",
+        languageCode: String = "it",
+    ): List<SearchResponse> {
+
+        val linkHandler =
+            YoutubeTrendingLinkHandlerFactory.getInstance().fromUrl("$MAIN_URL/feed/trending")
+        val kiosk = YoutubeService(ServiceList.YouTube.serviceId).kioskList.defaultKioskId
+        val extractor = YoutubeTrendingExtractor(ServiceList.YouTube, linkHandler, kiosk)
+        extractor.forceLocalization(Localization(languageCode))
+        extractor.forceContentCountry(ContentCountry(countryCode))
+        extractor.fetchPage()
+
+        val videoUrls = extractor.initialPage.items.mapNotNull {
+            if (!it.isShortFormContent) {
+                it.url
+            } else {
+                null
+            }
+        }
+        return videoUrls.mapNotNull { videoToSearchResponse(it) }
     }
 
-    fun search(query: String): List<SearchResponse> {
-        val link = YoutubeSearchQueryHandlerFactory.getInstance().fromQuery(query)
-        val extractor = YoutubeSearchExtractor(ServiceList.YouTube, link)
-        extractor.fetchPage()
-        val results = extractor.initialPage.items.mapNotNull {
+    fun search(
+        query: String,
+        contentFilter: String = "videos"
+    ): List<SearchResponse> {
+        val handlerFactory = ServiceList.YouTube.searchQHFactory
+
+//        val linkHandler = if (playlistOnly){
+//            handlerFactory.fromQuery(query, mutableListOf(playlistFilter), sortFilter)
+//        } else {
+//            handlerFactory.fromQuery(query)
+//        }
+        val searchHandler = handlerFactory.fromQuery(
+            query,
+            listOf(contentFilter),
+            null
+        )
+//        Log.d("YouTubeParser", "Content filters: ${handlerFactory.availableContentFilter.toList()}")
+//        val extractor = YoutubeSearchExtractor(ServiceList.YouTube, linkHandler)
+//        Log.d("YouTubeParser", "Results size: ${}")
+//
+//        extractor.forceLocalization(Localization(languageCode))
+//        extractor.forceContentCountry(ContentCountry(countryCode))
+
+        val searchInfo = SearchInfo.getInfo(ServiceList.YouTube, SearchQueryHandler(searchHandler))
+
+        val resultSize = searchInfo.relatedItems.size
+//        Log.d("YouTubeParser", "Meta info: $resultSize")
+        if (resultSize <= 0) {
+            return emptyList()
+        }
+        val pageResults = searchInfo.relatedItems.mapNotNull {
+//            Log.d("YouTubeParser", "Related: ${it.name}, type: ${it.infoType}")
             when (it.infoType) {
-                InfoItem.InfoType.PLAYLIST -> {
+                InfoType.PLAYLIST, InfoType.CHANNEL -> {
+        //                Log.d("YouTubeParser", "Playlist: ${it.name}")
                     TvSeriesSearchResponse(
                         name = it.name,
                         url = it.url,
@@ -61,7 +91,8 @@ class YouTubeParser(private val apiName: String) {
                         apiName = apiName
                     )
                 }
-                InfoItem.InfoType.STREAM -> {
+                InfoType.STREAM -> {
+        //                Log.d("YouTubeParser", "Video: ${it.name}")
                     MovieSearchResponse(
                         name = it.name,
                         url = it.url,
@@ -70,43 +101,26 @@ class YouTubeParser(private val apiName: String) {
                     )
                 }
                 else -> {
+        //                Log.d("YouTubeParser", "Other: ${it.name}")
                     null
                 }
             }
         }
-        return results
+        return pageResults
     }
 
-    suspend fun getPlaylistUrls(feedUrl: String): List<String> {
-        val response = app.get("$feedUrl?cbrd=1&ucbcb=1", headers = mapOf("User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"))
-        val initialData = response.document.toString()
-            .substringAfter("var ytInitialData =")
-            .substringBefore("</script>")
-        val contents = ((JSONObject(initialData)
-            .getJSONObject("contents")
-            .getJSONObject("twoColumnBrowseResultsRenderer")
-            .get("tabs") as JSONArray)[0] as JSONObject)
-            .getJSONObject("tabRenderer")
-            .getJSONObject("content")
-            .getJSONObject("sectionListRenderer")
-            .get("contents") as JSONArray
-        val contentList = parseJson<List<Any>>(contents.toString())
-        val playlistUrls = contentList.amap {
-            playlistRegex.findAll(it.toString()).toList()
-                .amap { id -> "https://www.youtube.com${id.value}" }
-        }.flatten()
-        return playlistUrls
-    }
-
-    fun videoToSearchResponse(videoUrl: String): SearchResponse {
-        val videoInfo = StreamInfo.getInfo(videoUrl)
-
-        return MovieSearchResponse(
-            name = videoInfo.name,
-            url = videoUrl,
-            posterUrl = videoInfo.thumbnails[0].url,
-            apiName = apiName
-        )
+    private fun videoToSearchResponse(videoUrl: String): SearchResponse? {
+        try {
+            val videoInfo = StreamInfo.getInfo(videoUrl)
+            return MovieSearchResponse(
+                name = videoInfo.name,
+                url = videoUrl,
+                posterUrl = videoInfo.thumbnails[0].url,
+                apiName = apiName
+            )
+        } catch (e: ContentNotAvailableException){
+            return null
+        }
     }
 
     fun videoToLoadResponse(videoUrl: String): LoadResponse {
@@ -126,5 +140,40 @@ class YouTubeParser(private val apiName: String) {
         ).apply {
             addDuration(length.toInt().toString())
         }
+    }
+
+    fun channelToLoadResponse(url: String): LoadResponse {
+        val channelInfo = ChannelInfo.getInfo(url)
+        val tags = mutableListOf("Subscribers: ${channelInfo.subscriberCount}")
+        tags.addAll(channelInfo.tags)
+        return TvSeriesLoadResponse(
+            name = channelInfo.name,
+            url = url,
+            posterUrl = channelInfo.avatars[0].url,
+            backgroundPosterUrl = channelInfo.banners[0].url,
+            plot = channelInfo.description,
+            type = TvType.Others,
+            tags = tags,
+            episodes = getChannelVideos(url),
+            apiName = apiName
+        )
+    }
+
+    private fun getChannelVideos(url: String): List<Episode> {
+        val channel = ChannelInfo.getInfo(url)
+        val tabsLinkHandlers = channel.tabs
+        val tabs = tabsLinkHandlers.map{ ChannelTabInfo.getInfo(ServiceList.YouTube, it) }
+        val videoTab = tabs.first { it.name == "videos" }
+
+        Log.d("YouTubeParser", "Channel Tabs: $videoTab")
+
+        val videos = videoTab.relatedItems.mapNotNull {
+            Episode(
+                data = it.url,
+                name = it.name,
+                posterUrl = it.thumbnails[0].url
+            )
+        }
+        return videos
     }
 }

@@ -11,5 +11,7 @@ class YouTubePlugin: Plugin() {
         // All providers should be added in this manner
         registerMainAPI(YouTubeProvider())
 //        registerMainAPI(YouTubePlaylistsProvider())
+        registerMainAPI(YouTubeChannelProvider())
+        registerExtractorAPI(YouTubeExtractor())
     }
 }

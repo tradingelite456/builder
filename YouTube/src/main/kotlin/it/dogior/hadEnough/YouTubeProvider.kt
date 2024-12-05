@@ -1,6 +1,5 @@
 package it.dogior.hadEnough
 
-import android.content.Context
 import com.lagradost.cloudstream3.DownloaderTestImpl
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
@@ -10,11 +9,11 @@ import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
-import com.lagradost.cloudstream3.amap
-import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import org.schabi.newpipe.extractor.NewPipe
+import org.schabi.newpipe.extractor.localization.ContentCountry
+import org.schabi.newpipe.extractor.localization.Localization
 
 class YouTubeProvider : MainAPI() {
     override var mainUrl = MAIN_URL
@@ -30,32 +29,20 @@ class YouTubeProvider : MainAPI() {
     }
     init {
         NewPipe.init(DownloaderTestImpl.getInstance())
+        NewPipe.setupLocalization(Localization("it"), ContentCountry("IT"))
     }
 
-    override val mainPage = mainPageOf(
-        "$mainUrl/feed/trending" to "Trending",
-//        "https://www.youtube.com/channel/UCYfdidRxbB8Qhf0Nx7ioOYw" to "News",
-//        "https://www.youtube.com/gaming" to "Gaming",
-//        "https://www.youtube.com/channel/UC-9-kyTW8ZkZNDHQJ6FgpwQ" to "Music",
-    )
-
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val videoUrls = ytParser.getVideoUrls(request.data)
-        val videos = videoUrls.amap { ytParser.videoToSearchResponse(it) }
+        val videos = ytParser.getTrendingVideoUrls()
         return newHomePageResponse(
             HomePageList(
-                name = request.name,
+                name = "Trending",
                 list = videos,
                 isHorizontalImages = true
             ), false
         )
     }
 
-//    override suspend fun search(query: String): List<SearchResponse> {
-//        val url = "$mainUrl/results?search_query=$query"
-//        val videoUrls = ytParser.getVideoUrls(url)
-//        return videoUrls.amap { ytParser.videoToSearchResponse(it) }
-//    }
     override suspend fun search(query: String): List<SearchResponse> {
         return ytParser.search(query)
     }
