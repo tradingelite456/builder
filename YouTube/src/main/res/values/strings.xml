@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="language_tw">Content language</string>
-    <string name="country_tw">Content country</string>
+    <string name="header_tw">Change localization</string>
+    <string name="language_tw">Language</string>
+    <string name="country_tw">Country</string>
     <string name="country_hint">UK</string>
     <string name="language_hint">en</string>
 </resources>

@@ -16,6 +16,7 @@ import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.channel.ChannelInfo
 import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException
+import org.schabi.newpipe.extractor.exceptions.ExtractionException
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
@@ -116,6 +117,8 @@ class YouTubeParser(private val apiName: String) {
             )
         } catch (e: ContentNotAvailableException) {
             return null
+        } catch (e: ExtractionException){
+            throw ExtractionException("Error getting video info")
         }
     }
 
