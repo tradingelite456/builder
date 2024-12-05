@@ -26,17 +26,11 @@ import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeTrending
 import org.schabi.newpipe.extractor.stream.StreamInfo
 
 class YouTubeParser(private val apiName: String) {
-    fun getTrendingVideoUrls(
-        countryCode: String = "IT",
-        languageCode: String = "it",
-    ): List<SearchResponse> {
-
+    fun getTrendingVideoUrls(): List<SearchResponse> {
         val linkHandler =
             YoutubeTrendingLinkHandlerFactory.getInstance().fromUrl("$MAIN_URL/feed/trending")
         val kiosk = YoutubeService(ServiceList.YouTube.serviceId).kioskList.defaultKioskId
         val extractor = YoutubeTrendingExtractor(ServiceList.YouTube, linkHandler, kiosk)
-        extractor.forceLocalization(Localization(languageCode))
-        extractor.forceContentCountry(ContentCountry(countryCode))
         extractor.fetchPage()
 
         val videoUrls = extractor.initialPage.items.mapNotNull {
@@ -51,7 +45,7 @@ class YouTubeParser(private val apiName: String) {
 
     fun search(
         query: String,
-        contentFilter: String = "videos"
+        contentFilter: String = "videos",
     ): List<SearchResponse> {
         val handlerFactory = ServiceList.YouTube.searchQHFactory
 
@@ -83,7 +77,7 @@ class YouTubeParser(private val apiName: String) {
 //            Log.d("YouTubeParser", "Related: ${it.name}, type: ${it.infoType}")
             when (it.infoType) {
                 InfoType.PLAYLIST, InfoType.CHANNEL -> {
-        //                Log.d("YouTubeParser", "Playlist: ${it.name}")
+                    //                Log.d("YouTubeParser", "Playlist: ${it.name}")
                     TvSeriesSearchResponse(
                         name = it.name,
                         url = it.url,
@@ -91,8 +85,9 @@ class YouTubeParser(private val apiName: String) {
                         apiName = apiName
                     )
                 }
+
                 InfoType.STREAM -> {
-        //                Log.d("YouTubeParser", "Video: ${it.name}")
+                    //                Log.d("YouTubeParser", "Video: ${it.name}")
                     MovieSearchResponse(
                         name = it.name,
                         url = it.url,
@@ -100,8 +95,9 @@ class YouTubeParser(private val apiName: String) {
                         apiName = apiName
                     )
                 }
+
                 else -> {
-        //                Log.d("YouTubeParser", "Other: ${it.name}")
+                    //                Log.d("YouTubeParser", "Other: ${it.name}")
                     null
                 }
             }
@@ -118,7 +114,7 @@ class YouTubeParser(private val apiName: String) {
                 posterUrl = videoInfo.thumbnails[0].url,
                 apiName = apiName
             )
-        } catch (e: ContentNotAvailableException){
+        } catch (e: ContentNotAvailableException) {
             return null
         }
     }
@@ -162,10 +158,8 @@ class YouTubeParser(private val apiName: String) {
     private fun getChannelVideos(url: String): List<Episode> {
         val channel = ChannelInfo.getInfo(url)
         val tabsLinkHandlers = channel.tabs
-        val tabs = tabsLinkHandlers.map{ ChannelTabInfo.getInfo(ServiceList.YouTube, it) }
+        val tabs = tabsLinkHandlers.map { ChannelTabInfo.getInfo(ServiceList.YouTube, it) }
         val videoTab = tabs.first { it.name == "videos" }
-
-        Log.d("YouTubeParser", "Channel Tabs: $videoTab")
 
         val videos = videoTab.relatedItems.mapNotNull {
             Episode(

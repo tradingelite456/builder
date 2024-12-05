@@ -36,6 +36,7 @@ android{
 }
 
 dependencies {
+    implementation("com.google.android.material:material:1.12.0")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
     implementation("com.github.teamnewpipe:NewPipeExtractor:v0.24.3")
 }

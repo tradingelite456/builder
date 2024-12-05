@@ -1,5 +1,7 @@
 package it.dogior.hadEnough
 
+import android.content.Context
+import android.util.Log
 import com.lagradost.cloudstream3.DownloaderTestImpl
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
@@ -14,6 +16,7 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
+import java.util.Locale
 
 class YouTubeProvider : MainAPI() {
     override var mainUrl = MAIN_URL
@@ -27,11 +30,6 @@ class YouTubeProvider : MainAPI() {
     companion object{
         const val MAIN_URL = "https://www.youtube.com"
     }
-    init {
-        NewPipe.init(DownloaderTestImpl.getInstance())
-        NewPipe.setupLocalization(Localization("it"), ContentCountry("IT"))
-    }
-
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val videos = ytParser.getTrendingVideoUrls()
         return newHomePageResponse(
