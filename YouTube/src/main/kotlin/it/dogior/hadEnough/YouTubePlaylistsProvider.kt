@@ -7,7 +7,7 @@ import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorLink
 
-class YouTubePlaylistsProvider : MainAPI() {
+class YouTubePlaylistsProvider(language: String) : MainAPI() {
     override var mainUrl = MAIN_URL
     override var name = "YouTube Playlists"
     override val supportedTypes = setOf(TvType.Others)

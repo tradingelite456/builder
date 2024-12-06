@@ -26,8 +26,8 @@ class YouTubePlugin : Plugin() {
 
         // All providers should be added in this manner
         registerMainAPI(YouTubeProvider(language))
-        registerMainAPI(YouTubePlaylistsProvider())
-        registerMainAPI(YouTubeChannelProvider())
+        registerMainAPI(YouTubePlaylistsProvider(language))
+        registerMainAPI(YouTubeChannelProvider(language))
         registerExtractorAPI(YouTubeExtractor())
 
         val activity = context as AppCompatActivity
