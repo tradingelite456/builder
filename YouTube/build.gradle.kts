@@ -1,11 +1,11 @@
 
 // use an integer for version numbers
-version = 0
+version = 1
 
 cloudstream {
     // All of these properties are optional, you can safely remove them
 
-    description = "Work In Progress | Videos and playlists from YouTube"
+    description = "Videos and channels from YouTube"
     authors = listOf("doGior")
 
     /**

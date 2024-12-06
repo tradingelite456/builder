@@ -84,7 +84,6 @@ class SettingsFragment(private val plugin: YouTubePlugin, val sharedPref: Shared
             override fun onClick(v: View?) {
                 val language = languageEditText.text?.trim()?.toString()
                 val country = countryEditText.text?.trim()?.toString()
-                Log.d("YoutubePlugin", "Language: ${language}, Country: $country")
                 if (!language.isNullOrEmpty() && !country.isNullOrEmpty() && language.length == 2 && country.length == 2) {
                     NewPipe.setupLocalization(
                         Localization(language.lowercase()),
@@ -97,7 +96,7 @@ class SettingsFragment(private val plugin: YouTubePlugin, val sharedPref: Shared
                         this?.apply()
                     }
 
-                    showToast("Saved")
+                    showToast("Saved!\n Restart the app for the changes to take effect")
                     dismiss()
                 } else {
                     showToast("Be sure to fill both fields with the 2 ISO characters")

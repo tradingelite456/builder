@@ -3,12 +3,9 @@ package it.dogior.hadEnough
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
 import com.lagradost.cloudstream3.plugins.Plugin
 import android.content.Context
-import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import com.lagradost.cloudstream3.CommonActivity.activity
 import com.lagradost.cloudstream3.DownloaderTestImpl
-import com.lagradost.cloudstream3.ErrorLoadingException
-import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
@@ -18,14 +15,18 @@ class YouTubePlugin : Plugin() {
     private val sharedPref = activity?.getSharedPreferences("Youtube", Context.MODE_PRIVATE)
 
     override fun load(context: Context) {
-        val language = sharedPref?.getString("language", "it") ?: "it"
-        val country = sharedPref?.getString("country", "it") ?: "IT"
+        var language = sharedPref?.getString("language", "it")
+        var country = sharedPref?.getString("country", "IT")
+
+        if (language.isNullOrEmpty()) {language = "it"}
+        if (country.isNullOrEmpty()) {country = "IT"}
+
         NewPipe.init(DownloaderTestImpl.getInstance())
         NewPipe.setupLocalization(Localization(language), ContentCountry(country))
 
         // All providers should be added in this manner
-        registerMainAPI(YouTubeProvider())
-//        registerMainAPI(YouTubePlaylistsProvider())
+        registerMainAPI(YouTubeProvider(language))
+        registerMainAPI(YouTubePlaylistsProvider())
         registerMainAPI(YouTubeChannelProvider())
         registerExtractorAPI(YouTubeExtractor())
 

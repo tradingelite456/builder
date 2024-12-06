@@ -1,8 +1,5 @@
 package it.dogior.hadEnough
 
-import android.content.Context
-import android.util.Log
-import com.lagradost.cloudstream3.DownloaderTestImpl
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
@@ -13,17 +10,13 @@ import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
-import org.schabi.newpipe.extractor.NewPipe
-import org.schabi.newpipe.extractor.localization.ContentCountry
-import org.schabi.newpipe.extractor.localization.Localization
-import java.util.Locale
 
-class YouTubeProvider : MainAPI() {
+class YouTubeProvider(language: String) : MainAPI() {
     override var mainUrl = MAIN_URL
     override var name = "YouTube"
     override val supportedTypes = setOf(TvType.Others)
     override val hasMainPage = true
-    override var lang = "un"
+    override var lang = language
 
     private val ytParser = YouTubeParser(this.name)
 
