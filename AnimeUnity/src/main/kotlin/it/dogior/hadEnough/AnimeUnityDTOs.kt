@@ -92,7 +92,7 @@ data class Anime(
     @JsonProperty("season") val season: String,
     @JsonProperty("title_it") val titleIt: String?,
     @JsonProperty("mal_id") val malId: Int,
-    @JsonProperty("episodes") val episodes: List<Episode>,
+    @JsonProperty("episodes") val episodes: List<Episode>?,
     @JsonProperty("genres") val genres: List<Genre>
 )
 
@@ -107,6 +107,15 @@ data class Episode(
     @JsonProperty("public") val isPublic: Int,
     @JsonProperty("scws_id") val scwsId: Int,
     @JsonProperty("file_name") val fileName: String?
+)
+
+data class AnimeInfo(
+    @JsonProperty("id") val id: Int,
+    @JsonProperty("name") val name: String?,
+    @JsonProperty("slug") val slug: String,
+    @JsonProperty("episodes_count") val episodesCount: Int,
+    @JsonProperty("current_episode") val currentEpisode: Int,
+    @JsonProperty("episodes") val episodes: List<Episode>
 )
 
 data class Genre(

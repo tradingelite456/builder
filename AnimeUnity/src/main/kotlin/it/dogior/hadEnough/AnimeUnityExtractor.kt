@@ -21,8 +21,8 @@ class AnimeUnityExtractor : ExtractorApi() {
             subtitleCallback: (SubtitleFile) -> Unit,
             callback: (ExtractorLink) -> Unit
     ) {
-        val TAG = "AnimeUnity:getUrl"
-        Log.d(TAG, "REFERER: $referer  URL: $url")
+//        val TAG = "AnimeUnity:getUrl"
+//        Log.d(TAG, "REFERER: $referer  URL: $url")
         val masterPlaylist = getMasterPlaylistUrl(url)
         if (url.isNotEmpty()) {
             callback.invoke(
@@ -54,7 +54,7 @@ class AnimeUnityExtractor : ExtractorApi() {
             masterPlaylistUrl += "&h=1"
         }
 
-        Log.d(TAG, "Master Playlist URL: $masterPlaylistUrl")
+//        Log.d(TAG, "Master Playlist URL: $masterPlaylistUrl")
         return masterPlaylistUrl
     }
 
@@ -70,10 +70,10 @@ class AnimeUnityExtractor : ExtractorApi() {
         val script = scripts.find { it.data().contains("masterPlaylist") }!!.data().replace("\n", "\t")
 
         val scriptJson = getSanitisedScript(script)
-        Log.d(TAG, "Script Json: $scriptJson")
+//        Log.d(TAG, "Script Json: $scriptJson")
 
         val scriptObj = parseJson<Script>(scriptJson)
-        Log.d(TAG, "Script Obj: $scriptObj")
+//        Log.d(TAG, "Script Obj: $scriptObj")
 
         return scriptObj
     }

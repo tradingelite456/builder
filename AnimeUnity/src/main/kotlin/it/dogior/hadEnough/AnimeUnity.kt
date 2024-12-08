@@ -1,10 +1,7 @@
 package it.dogior.hadEnough
 
-import android.content.Context
 import com.lagradost.api.Log
-import com.lagradost.cloudstream3.CommonActivity.activity
 import com.lagradost.cloudstream3.DubStatus
-import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
@@ -28,11 +25,8 @@ import com.lagradost.cloudstream3.newAnimeSearchResponse
 import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
-import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
-import kotlinx.coroutines.Dispatchers
 import java.util.Locale
-import kotlinx.coroutines.withContext
 
 typealias Str = BooleanOrString.AsString
 //typealias Bool = BooleanOrString.AsBoolean
@@ -47,7 +41,6 @@ class AnimeUnity : MainAPI() {
     override val hasMainPage = true
     override val hasQuickSearch: Boolean = true
     override var sequentialMainPage = true
-    private val sharedPref = activity?.getSharedPreferences("AnimeUnity", Context.MODE_PRIVATE)
 
     companion object {
         val mainUrl = "https://www.animeunity.to"
@@ -89,7 +82,7 @@ class AnimeUnity : MainAPI() {
         )
         headers.putAll(h)
         cookies = response.cookies
-//        Log.d("$TAG:setup", "Headers: $headers")
+//        // Log.d("$TAG:setup", "Headers: $headers")
 
     }
 
@@ -101,34 +94,24 @@ class AnimeUnity : MainAPI() {
 
     private suspend fun searchResponseBuilder(objectList: List<Anime>): List<SearchResponse> {
         return objectList.amap { anime ->
-            // Cache anime data in shared preferences
-            withContext(Dispatchers.IO) {
-                sharedPref?.edit()?.apply {
-                    putString("${anime.id}-${anime.slug}", anime.toJson())
-                    apply()
+            val title = (anime.titleIt ?: anime.titleEng ?: anime.title!!)
+                .replace(" (ITA)", "")
+
+            val poster = getImage(anime.imageUrl, anime.anilistId)
+
+            newAnimeSearchResponse(
+                name = title,
+                url = "$mainUrl/anime/${anime.id}-${anime.slug}",
+                type = when {
+                    anime.type == "TV" -> TvType.Anime
+                    anime.type == "Movie" || anime.episodesCount == 1 -> TvType.AnimeMovie
+                    else -> TvType.OVA
                 }
-
-                // Determine title
-                val title = (anime.titleIt ?: anime.titleEng ?: anime.title!!)
-                    .replace(" (ITA)", "")
-
-                // Get poster image efficiently
-                val poster = getImage(anime.imageUrl, anime.anilistId)
-
-                // Create search response
-                newAnimeSearchResponse(
-                    name = title,
-                    url = "$mainUrl/anime/${anime.id}-${anime.slug}",
-                    type = when {
-                        anime.type == "TV" -> TvType.Anime
-                        anime.type == "Movie" || anime.episodesCount == 1 -> TvType.AnimeMovie
-                        else -> TvType.OVA
-                    }
-                ).apply {
-                    addDubStatus(anime.dub == 1)
-                    addPoster(poster)
-                }
+            ).apply {
+                addDubStatus(anime.dub == 1)
+                addPoster(poster)
             }
+
         }
     }
 
@@ -136,12 +119,8 @@ class AnimeUnity : MainAPI() {
         // First try the direct image URL if available
         if (!imageUrl.isNullOrEmpty()) {
             try {
-                val response = withContext(Dispatchers.IO) {
-                    app.get(imageUrl)
-                }
-                if (response.code == 200) {
-                    return imageUrl
-                }
+                val fileName = imageUrl.substringAfterLast("/")
+                return "https://img.animeunity.to/anime/$fileName"
             } catch (_: Exception) {
                 // Fallback to Anilist if direct image fails
             }
@@ -167,19 +146,18 @@ class AnimeUnity : MainAPI() {
             "query" to query,
             "variables" to """{"id":$anilistId}"""
         )
+        val response = app.post("https://graphql.anilist.co", data = body)
+        val anilistObj = parseJson<AnilistResponse>(response.text)
 
-        return withContext(Dispatchers.IO) {
-            val response = app.post("https://graphql.anilist.co", data = body)
-            val anilistObj = parseJson<AnilistResponse>(response.text)
-            anilistObj.data.media.coverImage?.let { coverImage ->
-                coverImage.large ?: coverImage.medium!!
-            } ?: throw IllegalStateException("No valid image found")
-        }
+        return anilistObj.data.media.coverImage?.let { coverImage ->
+            coverImage.large ?: coverImage.medium!!
+        } ?: throw IllegalStateException("No valid image found")
+
     }
 
     //Get the Homepage
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val localTag = "$TAG:MainPage"
+//        val localTag = "$TAG:MainPage"
 
         val url = request.data + "get-animes"
         if (cookies.isEmpty()) {
@@ -192,20 +170,20 @@ class AnimeUnity : MainAPI() {
         val offset = (page - 1) * 30
         requestData.offset = offset
 
-        Log.d(
-            localTag,
-            "Sezione: ${request.name} \tPage: $page \t Offset: $offset \t Request offset: ${requestData.offset}"
-        )
+        // Log.d(
+//            localTag,
+//            "Sezione: ${request.name} \tPage: $page \t Offset: $offset \t Request offset: ${requestData.offset}"
+//        )
         val requestBody = requestData.toRequestBody()
 
 
         val response =
             app.post(url, headers = headers, cookies = cookies, requestBody = requestBody)
 
-//        Log.d(localTag, "Cookies: ${response.cookies}")
+//        // Log.d(localTag, "Cookies: ${response.cookies}")
         val responseObject = parseJson<ApiResponse>(response.text)
         val titles = responseObject.titles
-//        Log.d(localTag, "Titles: $titles")
+//        // Log.d(localTag, "Titles: $titles")
 
         val hasNextPage = requestData.offset
             ?.let { it < 177 } ?: true && titles?.size == 30
@@ -246,7 +224,7 @@ class AnimeUnity : MainAPI() {
     // This function gets called when you search for something also
     //This is to get Title,Href,Posters for Homepage
     override suspend fun search(query: String): List<SearchResponse> {
-        val localTag = "$TAG:search"
+//        val localTag = "$TAG:search"
         val url = "$mainUrl/archivio/get-animes"
 
         resetHeadersAndCookies()
@@ -258,28 +236,56 @@ class AnimeUnity : MainAPI() {
 
         val responseObject = parseJson<ApiResponse>(response.text)
         val titles = responseObject.titles
-        Log.d(localTag, "Titles: $titles")
+        // Log.d(localTag, "Titles: $titles")
 
         return searchResponseBuilder(titles ?: emptyList())
     }
 
     // This function gets called when you enter the page/show
     override suspend fun load(url: String): LoadResponse {
-        val localTag = "$TAG:load"
-        Log.d(localTag, "URL: $url")
+//        val localTag = "$TAG:load"
+        resetHeadersAndCookies()
+        setupHeadersAndCookies()
+        val animePage = app.get(url).document
+        val videoPlayer = animePage.select("video-player")
+        val anime = parseJson<Anime>(videoPlayer.attr("anime"))
 
-        val animeKey = url.substringAfterLast("/")
 
-        Log.d(localTag, "Pref key: $animeKey")
-
-        val anime = sharedPref?.getString(animeKey, null)?.let { parseJson<Anime>(it) }
-            ?: throw ErrorLoadingException("Error loading anime from cache")
-        val episodes = anime.episodes.map {
-//            Log.d(localTag, "Episodes: ${it.toJson()}")
+        val eps = parseJson<List<Episode>>(videoPlayer.attr("episodes"))
+        val totalEps = videoPlayer.attr("episodes_count").toInt()
+        // 120 is the max number of episodes per request to the info_api endpoint
+        val isEpNumberMultipleOfRange = totalEps % 120 == 0
+        val range = if (isEpNumberMultipleOfRange) {
+            totalEps / 120
+        } else {
+            (totalEps / 120) + 1
+        }
+        val episodes = eps.map {
             newEpisode("$url/${it.id}") {
                 this.episode = it.number.toIntOrNull()
             }
+        }.toMutableList()
+
+        if (totalEps > 120) {
+            for (i in 2..range) {
+                val endRange = if (i == range) {
+                    totalEps
+                } else {
+                    i * 120
+                }
+
+                val infoUrl =
+                    "https://www.animeunity.to/info_api/${anime.id}/1?start_range=${1 + (i - 1) * 120}&end_range=${endRange}"
+                val info = app.get(infoUrl).text
+                val animeInfo = parseJson<AnimeInfo>(info)
+                episodes.addAll(animeInfo.episodes.map {
+                    newEpisode("$url/${it.id}") {
+                        this.episode = it.number.toIntOrNull()
+                    }
+                })
+            }
         }
+
         val title = anime.titleIt ?: anime.titleEng ?: anime.title!!
         val animeLoadResponse = newAnimeLoadResponse(
             name = title.replace(" (ITA)", ""),
@@ -290,8 +296,10 @@ class AnimeUnity : MainAPI() {
         ) {
             this.posterUrl =
                 getImage(anime.imageUrl, anime.anilistId)
-            this.backgroundPosterUrl = getImage(anime.cover, anime.anilistId)
+            anime.cover?.let { this.backgroundPosterUrl = it }
+            this.year = anime.date.toInt()
             addRating(anime.score)
+
             addDuration(anime.episodesLength.toString() + " minuti")
             val dub = if (anime.dub == 1) DubStatus.Dubbed else DubStatus.Subbed
             addEpisodes(dub, episodes)
@@ -320,17 +328,16 @@ class AnimeUnity : MainAPI() {
         data: String,
         isCasting: Boolean,
         subtitleCallback: (SubtitleFile) -> Unit,
-        callback: (ExtractorLink) -> Unit
+        callback: (ExtractorLink) -> Unit,
     ): Boolean {
-        val localTag = "$TAG:loadLinks"
-        Log.d(localTag, "Url : $data")
+//        val localTag = "$TAG:loadLinks"
+        // Log.d(localTag, "Url : $data")
 
         val document = app.get(data).document
 
         val sourceUrl = document.select("video-player").attr("embed_url")
-//        Log.d(localTag, "Document: $document")
-        Log.d(localTag, "Iframe: $sourceUrl")
-
+//        // Log.d(localTag, "Document: $document")
+        // Log.d(localTag, "Iframe: $sourceUrl")
 
 
         AnimeUnityExtractor().getUrl(

@@ -1,5 +1,5 @@
 // use an integer for version numbers
-version = 4
+version = 5
 
 
 cloudstream {
@@ -26,8 +26,4 @@ cloudstream {
     requiresResources = false
 
     iconUrl = "https://www.animeunity.to/apple-touch-icon.png"
-}
-
-dependencies{
-    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
 }
