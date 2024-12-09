@@ -183,7 +183,7 @@ class YouTubeParser(private val apiName: String) {
             nextPage = more.nextPage
             count++
             if (count >= 10) break
-            Log.d("YouTubeParser", "Page ${count + 1}: ${more.items.size}")
+//            Log.d("YouTubeParser", "Page ${count + 1}: ${more.items.size}")
         }
         return TvSeriesLoadResponse(
             name = playlistInfo.name,
