@@ -12,7 +12,7 @@ class YouTubePlaylistsProvider(language: String) : MainAPI() {
     override var name = "YouTube Playlists"
     override val supportedTypes = setOf(TvType.Others)
     override val hasMainPage = false
-    override var lang = "un"
+    override var lang = language
 
     private val ytParser = YouTubeParser(this.name)
 

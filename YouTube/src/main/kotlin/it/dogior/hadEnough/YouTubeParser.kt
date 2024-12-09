@@ -11,6 +11,7 @@ import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import com.lagradost.cloudstream3.TvSeriesSearchResponse
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.addDate
+import org.schabi.newpipe.extractor.InfoItem
 import org.schabi.newpipe.extractor.InfoItem.InfoType
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.channel.ChannelInfo
@@ -49,7 +50,6 @@ class YouTubeParser(private val apiName: String) {
         contentFilter: String = "videos",
     ): List<SearchResponse> {
         val handlerFactory = ServiceList.YouTube.searchQHFactory
-
         val searchHandler = handlerFactory.fromQuery(
             query,
             listOf(contentFilter),
@@ -59,11 +59,20 @@ class YouTubeParser(private val apiName: String) {
         val searchInfo = SearchInfo.getInfo(ServiceList.YouTube, SearchQueryHandler(searchHandler))
 
         val resultSize = searchInfo.relatedItems.size
-        Log.d("YouTubeParser", "Result size: $resultSize")
         if (resultSize <= 0) {
             return emptyList()
         }
-        val pageResults = searchInfo.relatedItems.mapNotNull {
+
+        val pageResults = searchInfo.relatedItems.toMutableList()
+        var nextPage = searchInfo.nextPage
+        for (i in 1..3){
+            val more = SearchInfo.getMoreItems(ServiceList.YouTube, searchHandler, nextPage)
+            pageResults.addAll(more.items)
+            if (!more.hasNextPage()) break
+            nextPage = more.nextPage
+        }
+
+        val finalResults = pageResults.mapNotNull {
 //            Log.d("YouTubeParser", "Related: ${it.name}, type: ${it.infoType}")
             when (it.infoType) {
                 InfoType.PLAYLIST, InfoType.CHANNEL -> {
@@ -83,11 +92,13 @@ class YouTubeParser(private val apiName: String) {
                     )
                 }
                 else -> {
+//                    Log.d("YouTubeParser", "Other type: ${it.name} \t|\t type: ${it.infoType}")
                     null
                 }
             }
         }
-        return pageResults
+//        Log.d("YouTubeParser", "Results size: ${finalResults.size}")
+        return finalResults
     }
 
     private fun videoToSearchResponse(videoUrl: String): SearchResponse? {
