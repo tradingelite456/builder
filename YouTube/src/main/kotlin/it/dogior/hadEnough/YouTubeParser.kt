@@ -79,7 +79,7 @@ class YouTubeParser(private val apiName: String) {
                     TvSeriesSearchResponse(
                         name = it.name,
                         url = it.url,
-                        posterUrl = it.thumbnails[0].url,
+                        posterUrl = it.thumbnails.last().url,
                         apiName = apiName
                     )
                 }
@@ -87,7 +87,7 @@ class YouTubeParser(private val apiName: String) {
                     MovieSearchResponse(
                         name = it.name,
                         url = it.url,
-                        posterUrl = it.thumbnails[0].url,
+                        posterUrl = it.thumbnails.last().url,
                         apiName = apiName
                     )
                 }
@@ -107,7 +107,7 @@ class YouTubeParser(private val apiName: String) {
             return MovieSearchResponse(
                 name = videoInfo.name,
                 url = videoUrl,
-                posterUrl = videoInfo.thumbnails[0].url,
+                posterUrl = videoInfo.thumbnails.last().url,
                 apiName = apiName
             )
         } catch (e: ContentNotAvailableException) {
@@ -127,7 +127,7 @@ class YouTubeParser(private val apiName: String) {
             name = videoInfo.name,
             url = videoUrl,
             dataUrl = videoUrl,
-            posterUrl = videoInfo.thumbnails[0].url,
+            posterUrl = videoInfo.thumbnails.last().url,
             plot = videoInfo.description.content,
             type = TvType.Others,
             tags = listOf(videoInfo.uploaderName, views, likes),
@@ -143,8 +143,8 @@ class YouTubeParser(private val apiName: String) {
         return TvSeriesLoadResponse(
             name = channelInfo.name,
             url = url,
-            posterUrl = channelInfo.avatars[0].url,
-            backgroundPosterUrl = channelInfo.banners[0].url,
+            posterUrl = channelInfo.avatars.last().url,
+            backgroundPosterUrl = channelInfo.banners.last().url,
             plot = channelInfo.description,
             type = TvType.Others,
             tags = tags,
@@ -161,7 +161,7 @@ class YouTubeParser(private val apiName: String) {
             Episode(
                 data = it.url,
                 name = it.name,
-                posterUrl = it.thumbnails[0].url
+                posterUrl = it.thumbnails.last().url
             )
         }
         return videos.reversed()
@@ -171,7 +171,7 @@ class YouTubeParser(private val apiName: String) {
         val playlistInfo = PlaylistInfo.getInfo(url)
         val tags = mutableListOf("Channel: ${playlistInfo.uploaderName}")
         val banner =
-            if (playlistInfo.banners.isNotEmpty()) playlistInfo.banners[0].url else playlistInfo.thumbnails[0].url
+            if (playlistInfo.banners.isNotEmpty()) playlistInfo.banners.last().url else playlistInfo.thumbnails.last().url
         val eps = playlistInfo.relatedItems.toMutableList()
         var hasNext = playlistInfo.hasNextPage()
         var count = 1
@@ -188,7 +188,7 @@ class YouTubeParser(private val apiName: String) {
         return TvSeriesLoadResponse(
             name = playlistInfo.name,
             url = url,
-            posterUrl = playlistInfo.thumbnails[0].url,
+            posterUrl = playlistInfo.thumbnails.last().url,
             backgroundPosterUrl = banner,
             plot = playlistInfo.description.content,
             type = TvType.Others,
@@ -204,7 +204,7 @@ class YouTubeParser(private val apiName: String) {
             Episode(
                 data = video.url,
                 name = video.name,
-                posterUrl = video.thumbnails[0].url,
+                posterUrl = video.thumbnails.last().url,
                 runTime = (video.duration / 60).toInt()
             ).apply {
                 video.uploadDate?.let { addDate(Date(it.date().timeInMillis)) }
