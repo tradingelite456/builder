@@ -40,7 +40,7 @@ class AnimeUnity : MainAPI() {
     override var lang = "it"
     override val hasMainPage = true
     override val hasQuickSearch: Boolean = true
-    override var sequentialMainPage = true
+    override var sequentialMainPage = false
 
     companion object {
         val mainUrl = "https://www.animeunity.to"
