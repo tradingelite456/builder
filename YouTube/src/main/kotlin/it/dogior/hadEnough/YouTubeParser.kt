@@ -10,6 +10,7 @@ import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import com.lagradost.cloudstream3.TvSeriesSearchResponse
 import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.addDate
 import org.schabi.newpipe.extractor.InfoItem.InfoType
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.channel.ChannelInfo
@@ -21,6 +22,8 @@ import org.schabi.newpipe.extractor.playlist.PlaylistInfo
 import org.schabi.newpipe.extractor.search.SearchInfo
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeTrendingExtractor
 import org.schabi.newpipe.extractor.stream.StreamInfo
+import org.schabi.newpipe.extractor.stream.StreamInfoItem
+import java.util.Date
 
 class YouTubeParser(private val apiName: String) {
     fun getTrendingVideoUrls(): List<SearchResponse> {
@@ -52,7 +55,6 @@ class YouTubeParser(private val apiName: String) {
             listOf(contentFilter),
             null
         )
-        Log.d("YouTubeParser", "Content filters: ${handlerFactory.availableContentFilter.toList()}")
 
         val searchInfo = SearchInfo.getInfo(ServiceList.YouTube, SearchQueryHandler(searchHandler))
 
@@ -62,7 +64,7 @@ class YouTubeParser(private val apiName: String) {
             return emptyList()
         }
         val pageResults = searchInfo.relatedItems.mapNotNull {
-            Log.d("YouTubeParser", "Related: ${it.name}, type: ${it.infoType}")
+//            Log.d("YouTubeParser", "Related: ${it.name}, type: ${it.infoType}")
             when (it.infoType) {
                 InfoType.PLAYLIST, InfoType.CHANNEL -> {
                     TvSeriesSearchResponse(
@@ -72,7 +74,6 @@ class YouTubeParser(private val apiName: String) {
                         apiName = apiName
                     )
                 }
-
                 InfoType.STREAM -> {
                     MovieSearchResponse(
                         name = it.name,
@@ -81,7 +82,6 @@ class YouTubeParser(private val apiName: String) {
                         apiName = apiName
                     )
                 }
-
                 else -> {
                     null
                 }
@@ -101,7 +101,7 @@ class YouTubeParser(private val apiName: String) {
             )
         } catch (e: ContentNotAvailableException) {
             return null
-        } catch (e: ExtractionException){
+        } catch (e: ExtractionException) {
             Log.d("YouTubeParser", "Error getting video info")
             throw e
         }
@@ -129,7 +129,6 @@ class YouTubeParser(private val apiName: String) {
     fun channelToLoadResponse(url: String): LoadResponse {
         val channelInfo = ChannelInfo.getInfo(url)
         val tags = mutableListOf("Subscribers: ${channelInfo.subscriberCount}")
-        tags.addAll(channelInfo.tags)
         return TvSeriesLoadResponse(
             name = channelInfo.name,
             url = url,
@@ -160,27 +159,46 @@ class YouTubeParser(private val apiName: String) {
     fun playlistToLoadResponse(url: String): LoadResponse {
         val playlistInfo = PlaylistInfo.getInfo(url)
         val tags = mutableListOf("Channel: ${playlistInfo.uploaderName}")
+        val banner =
+            if (playlistInfo.banners.isNotEmpty()) playlistInfo.banners[0].url else playlistInfo.thumbnails[0].url
+        val eps = playlistInfo.relatedItems.toMutableList()
+        var hasNext = playlistInfo.hasNextPage()
+        var count = 1
+        var nextPage = playlistInfo.nextPage
+        while (hasNext) {
+            val more = PlaylistInfo.getMoreItems(ServiceList.YouTube, url, nextPage)
+            eps.addAll(more.items)
+            hasNext = more.hasNextPage()
+            nextPage = more.nextPage
+            count++
+            if (count >= 10) break
+            Log.d("YouTubeParser", "Page ${count + 1}: ${more.items.size}")
+        }
         return TvSeriesLoadResponse(
             name = playlistInfo.name,
             url = url,
             posterUrl = playlistInfo.thumbnails[0].url,
-            backgroundPosterUrl = playlistInfo.banners[0].url,
+            backgroundPosterUrl = banner,
             plot = playlistInfo.description.content,
             type = TvType.Others,
             tags = tags,
-            episodes = getPlaylistVideos(playlistInfo),
+            episodes = getPlaylistVideos(eps),
             apiName = apiName
         )
     }
 
-    private fun getPlaylistVideos(playlist: PlaylistInfo): List<Episode> {
-        val videos = playlist.relatedItems.mapNotNull {
+    private fun getPlaylistVideos(videos: List<StreamInfoItem>): List<Episode> {
+        val episodes = videos.map { video ->
+//            Log.d("YouTubeParser", video.name)
             Episode(
-                data = it.url,
-                name = it.name,
-                posterUrl = it.thumbnails[0].url
-            )
+                data = video.url,
+                name = video.name,
+                posterUrl = video.thumbnails[0].url,
+                runTime = (video.duration / 60).toInt()
+            ).apply {
+                video.uploadDate?.let { addDate(Date(it.date().timeInMillis)) }
+            }
         }
-        return videos
+        return episodes
     }
 }

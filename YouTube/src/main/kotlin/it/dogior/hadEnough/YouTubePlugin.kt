@@ -5,7 +5,6 @@ import com.lagradost.cloudstream3.plugins.Plugin
 import android.content.Context
 import androidx.appcompat.app.AppCompatActivity
 import com.lagradost.cloudstream3.CommonActivity.activity
-import com.lagradost.cloudstream3.DownloaderTestImpl
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
@@ -21,7 +20,7 @@ class YouTubePlugin : Plugin() {
         if (language.isNullOrEmpty()) {language = "it"}
         if (country.isNullOrEmpty()) {country = "IT"}
 
-        NewPipe.init(DownloaderTestImpl.getInstance())
+        NewPipe.init(NewPipeDownloader.getInstance())
         NewPipe.setupLocalization(Localization(language), ContentCountry(country))
 
         // All providers should be added in this manner

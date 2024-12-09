@@ -1,11 +1,10 @@
+@file:Suppress("UnstableApiUsage")
 
 // use an integer for version numbers
-version = 1
+version = 2
 
 cloudstream {
-    // All of these properties are optional, you can safely remove them
-
-    description = "Videos and channels from YouTube"
+    description = "Videos, playlists and channels from YouTube"
     authors = listOf("doGior")
 
     /**
@@ -37,6 +36,6 @@ android{
 
 dependencies {
     implementation("com.google.android.material:material:1.12.0")
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.0.4")
     implementation("com.github.teamnewpipe:NewPipeExtractor:v0.24.3")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.0.4")
 }

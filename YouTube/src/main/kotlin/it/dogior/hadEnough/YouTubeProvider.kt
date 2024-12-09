@@ -25,6 +25,10 @@ class YouTubeProvider(language: String) : MainAPI() {
     }
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val videos = ytParser.getTrendingVideoUrls()
+
+        // TODO: Add sections based on user given playlists
+        // i.e the users goes to the settings puts the url of a playlists
+        // and then that playlist will be added to the main pageas a section
         return newHomePageResponse(
             HomePageList(
                 name = "Trending",
