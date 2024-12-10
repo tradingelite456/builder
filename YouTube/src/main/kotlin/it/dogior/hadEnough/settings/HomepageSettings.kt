@@ -113,6 +113,7 @@ class HomepageSettings(
                 GlobalScope.launch {
                     withContext(Dispatchers.IO) {
                         val item = (youtubeUrlEt.text.toString() to getName(youtubeUrlEt.text.toString())).toJson()
+                        Log.d("YoutubeProvider", item)
                         sharedPref?.getStringSet("playlists", emptySet())?.let {
                             playlistsSet = mutableSetOf()
                             playlistsSet.addAll(it)
@@ -126,6 +127,7 @@ class HomepageSettings(
                     }
                 }
                 showToast("Playlist / channel added!\nRestart the app to see it in the homepage")
+                dismiss()
             }
         })
 
@@ -223,8 +225,9 @@ class HomepageSettings(
     }
 
     private suspend fun getName(playlistUrl: String): String? {
-        val isPlaylist = playlistUrl.startsWith("https://www.youtube.com/playlist?list=")
-        val isChannel = playlistUrl.startsWith("https://www.youtube.com/@")
+        val urlPath = playlistUrl.substringAfter("youtu").substringAfter("/")
+        val isPlaylist = urlPath.startsWith("playlist?list=")
+        val isChannel = urlPath.startsWith("@")
 
         return withContext(Dispatchers.IO) {
             if (isPlaylist && !isChannel) {

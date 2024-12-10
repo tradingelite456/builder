@@ -1,6 +1,7 @@
 package it.dogior.hadEnough
 
 import android.content.SharedPreferences
+import android.util.Log
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
@@ -38,8 +39,9 @@ class YouTubeProvider(language: String, private val sharedPrefs: SharedPreferenc
             playlistsUrl.forEach { dataJson ->
                 val playlistData = parseJson<Pair<String, String>>(dataJson)
                 val playlistUrl = playlistData.first
-                val isPlaylist = playlistUrl.startsWith("https://www.youtube.com/playlist?list=")
-                val isChannel = playlistUrl.startsWith("https://www.youtube.com/@")
+                val urlPath = playlistUrl.substringAfter("youtu").substringAfter("/")
+                val isPlaylist = urlPath.startsWith("playlist?list=")
+                val isChannel = urlPath.startsWith("@")
                 val videos = if (isPlaylist && !isChannel) {
                     ytParser.playlistToSearchResponseList(playlistUrl, page)
                 } else if (!isPlaylist && isChannel) {

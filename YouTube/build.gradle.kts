@@ -1,7 +1,7 @@
 @file:Suppress("UnstableApiUsage")
 
 // use an integer for version numbers
-version = 3
+version = 4
 
 cloudstream {
     description = "Videos, playlists and channels from YouTube"
@@ -14,7 +14,7 @@ cloudstream {
      * 2: Slow
      * 3: Beta only
      * */
-    status = 2
+    status = 1
 
     tvTypes = listOf("Others")
 
