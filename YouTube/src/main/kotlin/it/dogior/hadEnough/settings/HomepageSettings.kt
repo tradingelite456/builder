@@ -20,11 +20,15 @@ import it.dogior.hadEnough.BuildConfig
 import it.dogior.hadEnough.YouTubePlugin
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
+import androidx.lifecycle.lifecycleScope
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.CommonActivity.showToast
-import com.lagradost.cloudstream3.amap
+import com.lagradost.cloudstream3.utils.AppUtils.parseJson
+import com.lagradost.cloudstream3.utils.AppUtils.toJson
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.channel.ChannelInfo
 import org.schabi.newpipe.extractor.playlist.PlaylistInfo
@@ -34,7 +38,10 @@ import org.schabi.newpipe.extractor.playlist.PlaylistInfo
  * Use the [HomepageSettings] factory method to
  * create an instance of this fragment.
  */
-class HomepageSettings(private val plugin: YouTubePlugin, val sharedPref: SharedPreferences?) :
+class HomepageSettings(
+    private val plugin: YouTubePlugin,
+    val sharedPref: SharedPreferences?
+) :
     BottomSheetDialogFragment() {
 
     private fun <T : View> View.findView(name: String): T {
@@ -68,6 +75,7 @@ class HomepageSettings(private val plugin: YouTubePlugin, val sharedPref: Shared
         return inflater.inflate(layout, container, false)
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
     @RequiresApi(Build.VERSION_CODES.M)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val headerTw = view.findView<TextView>("header_tw")
@@ -90,12 +98,10 @@ class HomepageSettings(private val plugin: YouTubePlugin, val sharedPref: Shared
         }
         val playlistsList = view.findView<LinearLayout>("playlists_list")
 
-        runBlocking{
-            playlistsSet.toList().amap {
-                playlistsList.addView(
-                    playlistsRow(it, sharedPref, playlistsSet, playlistsList)
-                )
-            }
+        playlistsSet.forEach {
+            playlistsList.addView(
+                playlistsRow(it, sharedPref, playlistsSet, playlistsList)
+            )
         }
 
 
@@ -104,19 +110,21 @@ class HomepageSettings(private val plugin: YouTubePlugin, val sharedPref: Shared
 
         addSectionButton.setOnClickListener(object : View.OnClickListener {
             override fun onClick(v: View?) {
-                sharedPref?.getStringSet("playlists", emptySet())?.let {
-                    playlistsSet = mutableSetOf()
-                    playlistsSet.addAll(it)
-                    playlistsSet.add(youtubeUrlEt.text.toString())
+                GlobalScope.launch {
+                    withContext(Dispatchers.IO) {
+                        val item = (youtubeUrlEt.text.toString() to getName(youtubeUrlEt.text.toString())).toJson()
+                        sharedPref?.getStringSet("playlists", emptySet())?.let {
+                            playlistsSet = mutableSetOf()
+                            playlistsSet.addAll(it)
+                            playlistsSet.add(item)
+                        }
+                        with(sharedPref?.edit()) {
+                            this?.putStringSet("playlists", playlistsSet)
+                            this?.apply()
+                        }
+                        youtubeUrlEt.text = ""
+                    }
                 }
-
-                with(sharedPref?.edit()) {
-                    this?.putStringSet("playlists", playlistsSet)
-                    this?.apply()
-                }
-
-
-                youtubeUrlEt.text = ""
                 showToast("Playlist / channel added!\nRestart the app to see it in the homepage")
             }
         })
@@ -137,26 +145,14 @@ class HomepageSettings(private val plugin: YouTubePlugin, val sharedPref: Shared
 
     }
 
-    private suspend fun playlistsRow(
-        playlistUrl: String,
+    private fun playlistsRow(
+        itemJson: String,
         sharedPref: SharedPreferences?,
         playlistsSet: MutableSet<String>,
         playlistList: LinearLayout,
     ): RelativeLayout {
-        val isPlaylist = playlistUrl.startsWith("https://www.youtube.com/playlist?list=")
-        val isChannel = playlistUrl.startsWith("https://www.youtube.com/@")
-
-        val title = withContext(Dispatchers.IO) {
-            if (isPlaylist && !isChannel) {
-                val playlistInfo = PlaylistInfo.getInfo(playlistUrl)
-                "${playlistInfo.uploaderName}: ${playlistInfo.name}"
-            } else if (!isPlaylist && isChannel) {
-                ChannelInfo.getInfo(playlistUrl).name
-            } else {
-                null
-            }
-        }
-
+        val item = parseJson<Pair<String, String>>(itemJson)
+        val title = item.second
         // Create the RelativeLayout
         val relativeLayout = RelativeLayout(this@HomepageSettings.requireContext()).apply {
             layoutParams = RelativeLayout.LayoutParams(
@@ -212,8 +208,8 @@ class HomepageSettings(private val plugin: YouTubePlugin, val sharedPref: Shared
         val delete = relativeLayout.findViewById<ImageButton>(deleteButton.id)
         delete.setOnClickListener(object : View.OnClickListener {
             override fun onClick(v: View?) {
-                val deleteSuccessfull = playlistsSet.remove(playlistUrl)
-                if(deleteSuccessfull){
+                val deleteSuccessfull = playlistsSet.remove(itemJson)
+                if (deleteSuccessfull) {
                     with(sharedPref?.edit()) {
                         this?.putStringSet("playlists", playlistsSet)
                         this?.apply()
@@ -224,6 +220,22 @@ class HomepageSettings(private val plugin: YouTubePlugin, val sharedPref: Shared
             }
         })
         return relativeLayout
+    }
+
+    private suspend fun getName(playlistUrl: String): String? {
+        val isPlaylist = playlistUrl.startsWith("https://www.youtube.com/playlist?list=")
+        val isChannel = playlistUrl.startsWith("https://www.youtube.com/@")
+
+        return withContext(Dispatchers.IO) {
+            if (isPlaylist && !isChannel) {
+                val playlistInfo = PlaylistInfo.getInfo(playlistUrl)
+                "${playlistInfo.uploaderName}: ${playlistInfo.name}"
+            } else if (!isPlaylist && isChannel) {
+                ChannelInfo.getInfo(playlistUrl).name
+            } else {
+                "Unknown"
+            }
+        }
     }
 
     private fun dpToPx(context: Context, dp: Int): Int {
