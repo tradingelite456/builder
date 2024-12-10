@@ -12,6 +12,7 @@ import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.amap
 
 class YouTubeProvider(language: String, private val sharedPrefs: SharedPreferences?) : MainAPI() {
     override var mainUrl = MAIN_URL
@@ -36,7 +37,7 @@ class YouTubeProvider(language: String, private val sharedPrefs: SharedPreferenc
         val playlistsData = sharedPrefs?.getStringSet("playlists", emptySet()) ?: emptySet()
         if (playlistsData.isNotEmpty()) {
             val triples = playlistsData.map { parseJson<Triple<String, String, Long>>(it) }
-            triples.sortedBy { it.third }.forEach { data ->
+            triples.sortedBy { it.third }.amap { data ->
                 val playlistUrl = data.first
                 val urlPath = playlistUrl.substringAfter("youtu").substringAfter("/")
                 val isPlaylist = urlPath.startsWith("playlist?list=")
