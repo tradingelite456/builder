@@ -40,7 +40,7 @@ import org.schabi.newpipe.extractor.playlist.PlaylistInfo
  */
 class HomepageSettings(
     private val plugin: YouTubePlugin,
-    val sharedPref: SharedPreferences?
+    val sharedPref: SharedPreferences?,
 ) :
     BottomSheetDialogFragment() {
 
@@ -111,23 +111,36 @@ class HomepageSettings(
         addSectionButton.setOnClickListener(object : View.OnClickListener {
             override fun onClick(v: View?) {
                 GlobalScope.launch {
-                    withContext(Dispatchers.IO) {
-                        val item = (youtubeUrlEt.text.toString() to getName(youtubeUrlEt.text.toString())).toJson()
-                        Log.d("YoutubeProvider", item)
-                        sharedPref?.getStringSet("playlists", emptySet())?.let {
-                            playlistsSet = mutableSetOf()
-                            playlistsSet.addAll(it)
-                            playlistsSet.add(item)
-                        }
-                        with(sharedPref?.edit()) {
-                            this?.putStringSet("playlists", playlistsSet)
-                            this?.apply()
-                        }
+                    val now = System.currentTimeMillis()
+                    val item = withContext(Dispatchers.IO) {
+                        Triple(youtubeUrlEt.text.toString(), getName(youtubeUrlEt.text.toString()), now)
+                            .toJson()
+                    }
+
+                    Log.d("YoutubeProvider", item)
+                    sharedPref?.getStringSet("playlists", emptySet())?.let {
+                        playlistsSet = mutableSetOf()
+                        playlistsSet.addAll(it)
+                        playlistsSet.add(item)
+                    }
+                    with(sharedPref?.edit()) {
+                        this?.putStringSet("playlists", playlistsSet)
+                        this?.apply()
+                    }
+                    withContext(Dispatchers.Main) {
                         youtubeUrlEt.text = ""
+                        addSectionButton.isClickable = true
+                        playlistsList.addView(
+                            playlistsRow(
+                                item,
+                                sharedPref,
+                                playlistsSet,
+                                playlistsList
+                            )
+                        )
                     }
                 }
-                showToast("Playlist / channel added!\nRestart the app to see it in the homepage")
-                dismiss()
+                addSectionButton.isClickable = false
             }
         })
 
@@ -153,7 +166,7 @@ class HomepageSettings(
         playlistsSet: MutableSet<String>,
         playlistList: LinearLayout,
     ): RelativeLayout {
-        val item = parseJson<Pair<String, String>>(itemJson)
+        val item = parseJson<Triple<String, String, Long>>(itemJson)
         val title = item.second
         // Create the RelativeLayout
         val relativeLayout = RelativeLayout(this@HomepageSettings.requireContext()).apply {

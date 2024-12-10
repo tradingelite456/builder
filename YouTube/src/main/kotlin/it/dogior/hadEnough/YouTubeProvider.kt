@@ -1,7 +1,6 @@
 package it.dogior.hadEnough
 
 import android.content.SharedPreferences
-import android.util.Log
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
@@ -34,11 +33,11 @@ class YouTubeProvider(language: String, private val sharedPrefs: SharedPreferenc
             val videos = ytParser.getTrendingVideoUrls(page)
             videos?.let { sections.add(it) }
         }
-        val playlistsUrl = sharedPrefs?.getStringSet("playlists", emptySet()) ?: emptySet()
-        if (playlistsUrl.isNotEmpty()) {
-            playlistsUrl.forEach { dataJson ->
-                val playlistData = parseJson<Pair<String, String>>(dataJson)
-                val playlistUrl = playlistData.first
+        val playlistsData = sharedPrefs?.getStringSet("playlists", emptySet()) ?: emptySet()
+        if (playlistsData.isNotEmpty()) {
+            val triples = playlistsData.map { parseJson<Triple<String, String, Long>>(it) }
+            triples.sortedBy { it.third }.forEach { data ->
+                val playlistUrl = data.first
                 val urlPath = playlistUrl.substringAfter("youtu").substringAfter("/")
                 val isPlaylist = urlPath.startsWith("playlist?list=")
                 val isChannel = urlPath.startsWith("@")
