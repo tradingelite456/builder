@@ -2,6 +2,7 @@ package it.dogior.hadEnough
 
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.Episode
+import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.LoadResponse.Companion.addDuration
 import com.lagradost.cloudstream3.MovieLoadResponse
@@ -16,33 +17,145 @@ import org.schabi.newpipe.extractor.InfoItem.InfoType
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.channel.ChannelInfo
 import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo
-import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException
-import org.schabi.newpipe.extractor.exceptions.ExtractionException
+import org.schabi.newpipe.extractor.kiosk.KioskInfo
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler
 import org.schabi.newpipe.extractor.playlist.PlaylistInfo
 import org.schabi.newpipe.extractor.search.SearchInfo
-import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeTrendingExtractor
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import java.util.Date
 
 class YouTubeParser(private val apiName: String) {
-    fun getTrendingVideoUrls(): List<SearchResponse> {
+
+    fun getTrendingVideoUrls(page: Int): HomePageList? {
         val service = ServiceList.YouTube
-
-//        Log.d("YouTubeParser", "Localization: ${service.localization}")
         val kiosks = service.kioskList
-        val extractor = kiosks.defaultKioskExtractor as YoutubeTrendingExtractor
-        extractor.fetchPage()
+        val trendingsUrl = kiosks.defaultKioskExtractor.url
+        val infoItem = KioskInfo.getInfo(ServiceList.YouTube, trendingsUrl)
 
-        val videos = extractor.initialPage.items.mapNotNull {
-            if (!it.isShortFormContent) {
-                videoToSearchResponse(it.url)
-            } else {
-                null
+        val videos = if (page == 1) {
+            infoItem.relatedItems.toMutableList()
+        } else {
+            mutableListOf<StreamInfoItem>()
+        }
+        if (page > 1) {
+            var hasNext = infoItem.hasNextPage()
+            if (!hasNext) {
+                return null
+            }
+            var count = 1
+            var nextPage = infoItem.nextPage
+            while (count < page && hasNext) {
+                val more = KioskInfo.getMoreItems(ServiceList.YouTube, trendingsUrl, nextPage)
+                if (count == page - 1) {
+                    videos.addAll(more.items)
+                }
+                hasNext = more.hasNextPage()
+                nextPage = more.nextPage
+                count++
             }
         }
-        return videos
+        val searchResponses = videos.filter { !it.isShortFormContent }.map {
+            MovieSearchResponse(
+                name = it.name,
+                url = it.url,
+                posterUrl = it.thumbnails.last().url,
+                type = TvType.Others,
+                apiName = apiName
+            )
+        }
+        return HomePageList(
+            name = "Trending",
+            list = searchResponses,
+            isHorizontalImages = true
+        )
+    }
+
+    fun playlistToSearchResponseList(url: String, page: Int): HomePageList? {
+        val playlistInfo = PlaylistInfo.getInfo(url)
+        val videos = if (page == 1) {
+            playlistInfo.relatedItems.toMutableList()
+        } else {
+            mutableListOf<StreamInfoItem>()
+        }
+        if (page > 1) {
+            var hasNext = playlistInfo.hasNextPage()
+            if (!hasNext) {
+                return null
+            }
+            var count = 1
+            var nextPage = playlistInfo.nextPage
+            while (count < page && hasNext) {
+                val more = PlaylistInfo.getMoreItems(ServiceList.YouTube, url, nextPage)
+                if (count == page - 1) {
+                    videos.addAll(more.items)
+                }
+                hasNext = more.hasNextPage()
+                nextPage = more.nextPage
+                count++
+            }
+        }
+        val searchResponses = videos.map {
+            MovieSearchResponse(
+                name = it.name,
+                url = it.url,
+                posterUrl = it.thumbnails.last().url,
+                type = TvType.Others,
+                apiName = apiName
+            )
+        }
+        return HomePageList(
+            name = "${playlistInfo.uploaderName}: ${playlistInfo.name}",
+            list = searchResponses,
+            isHorizontalImages = true
+        )
+    }
+
+    fun channelToSearchResponseList(url: String, page: Int): HomePageList? {
+        val channelInfo = ChannelInfo.getInfo(url)
+        val tabsLinkHandlers = channelInfo.tabs
+        val tabs = tabsLinkHandlers.map { ChannelTabInfo.getInfo(ServiceList.YouTube, it) }
+        val videoTab = tabs.first { it.name == "videos" }
+
+        val videos = if (page == 1) {
+            videoTab.relatedItems.toMutableList()
+        } else {
+            mutableListOf<InfoItem>()
+        }
+
+        if (page > 1) {
+            var hasNext = videoTab.hasNextPage()
+            if (!hasNext) {
+                return null
+            }
+            var count = 1
+            var nextPage = videoTab.nextPage
+            while (count < page && hasNext) {
+
+                val videoTabHandler = tabsLinkHandlers.first{it.url.endsWith("/videos")}
+                val more = ChannelTabInfo.getMoreItems(ServiceList.YouTube, videoTabHandler, nextPage)
+                if (count == page - 1) {
+                    videos.addAll(more.items)
+                }
+                hasNext = more.hasNextPage()
+                nextPage = more.nextPage
+                count++
+            }
+        }
+        val searchResponses = videos.map {
+            MovieSearchResponse(
+                name = it.name,
+                url = it.url,
+                posterUrl = it.thumbnails.last().url,
+                type = TvType.Others,
+                apiName = apiName
+            )
+        }
+        return HomePageList(
+            name = channelInfo.name,
+            list = searchResponses,
+            isHorizontalImages = true
+        )
     }
 
     fun search(
@@ -65,7 +178,7 @@ class YouTubeParser(private val apiName: String) {
 
         val pageResults = searchInfo.relatedItems.toMutableList()
         var nextPage = searchInfo.nextPage
-        for (i in 1..3){
+        for (i in 1..3) {
             val more = SearchInfo.getMoreItems(ServiceList.YouTube, searchHandler, nextPage)
             pageResults.addAll(more.items)
             if (!more.hasNextPage()) break
@@ -83,6 +196,7 @@ class YouTubeParser(private val apiName: String) {
                         apiName = apiName
                     )
                 }
+
                 InfoType.STREAM -> {
                     MovieSearchResponse(
                         name = it.name,
@@ -91,6 +205,7 @@ class YouTubeParser(private val apiName: String) {
                         apiName = apiName
                     )
                 }
+
                 else -> {
 //                    Log.d("YouTubeParser", "Other type: ${it.name} \t|\t type: ${it.infoType}")
                     null
@@ -99,23 +214,6 @@ class YouTubeParser(private val apiName: String) {
         }
 //        Log.d("YouTubeParser", "Results size: ${finalResults.size}")
         return finalResults
-    }
-
-    private fun videoToSearchResponse(videoUrl: String): SearchResponse? {
-        try {
-            val videoInfo = StreamInfo.getInfo(videoUrl)
-            return MovieSearchResponse(
-                name = videoInfo.name,
-                url = videoUrl,
-                posterUrl = videoInfo.thumbnails.last().url,
-                apiName = apiName
-            )
-        } catch (e: ContentNotAvailableException) {
-            return null
-        } catch (e: ExtractionException) {
-            Log.d("YouTubeParser", "Error getting video info")
-            throw e
-        }
     }
 
     fun videoToLoadResponse(videoUrl: String): LoadResponse {

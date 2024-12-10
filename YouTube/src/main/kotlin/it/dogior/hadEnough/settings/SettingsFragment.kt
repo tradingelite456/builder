@@ -1,10 +1,9 @@
-package it.dogior.hadEnough
+package it.dogior.hadEnough.settings
 
 import android.content.SharedPreferences
 import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
@@ -16,6 +15,8 @@ import androidx.annotation.RequiresApi
 import androidx.core.content.res.ResourcesCompat
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.lagradost.cloudstream3.CommonActivity.showToast
+import it.dogior.hadEnough.BuildConfig
+import it.dogior.hadEnough.YouTubePlugin
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
@@ -61,47 +62,43 @@ class SettingsFragment(private val plugin: YouTubePlugin, val sharedPref: Shared
 
     @RequiresApi(Build.VERSION_CODES.M)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        val header_tw = view.findView<TextView>("header_tw")
-        header_tw.text = getString("header_tw")
+        val headerTw = view.findView<TextView>("header_tw")
+        headerTw.text = getString("header_tw")
 
-        val language_tw = view.findView<TextView>("lang_tw")
-        val country_tw = view.findView<TextView>("country_tw")
+        val localizationTW = view.findView<TextView>("localization_tw")
+        val homepageTW = view.findView<TextView>("homepage_tw")
 
-        language_tw.text = getString("language_tw")
-        country_tw.text = getString("country_tw")
-
-        val languageEditText = view.findView<EditText>("editText_language")
-        val countryEditText = view.findView<EditText>("editText_country")
-
-        languageEditText.hint = getString("language_hint")
-        countryEditText.hint = getString("country_hint")
+        localizationTW.text = getString("localization_tw")
+        homepageTW.text = getString("homepage_tw")
 
 
-        val saveButton = view.findView<ImageButton>("save_button")
-        saveButton.setImageDrawable(getDrawable("save_icon"))
 
-        saveButton.setOnClickListener(object : View.OnClickListener {
+
+        val changeLocalizationButton = view.findView<ImageButton>("changeLocalization_button")
+        changeLocalizationButton.setImageDrawable(getDrawable("settings_icon"))
+
+        changeLocalizationButton.setOnClickListener(object : View.OnClickListener {
             override fun onClick(v: View?) {
-                val language = languageEditText.text?.trim()?.toString()
-                val country = countryEditText.text?.trim()?.toString()
-                if (!language.isNullOrEmpty() && !country.isNullOrEmpty() && language.length == 2 && country.length == 2) {
-                    NewPipe.setupLocalization(
-                        Localization(language.lowercase()),
-                        ContentCountry(country.uppercase())
-                    )
+                LocalizationSettings(plugin, sharedPref).show(
+                    activity?.supportFragmentManager
+                        ?: throw Exception("Unable to open localization settings"),
+                    ""
+                )
+                dismiss()
+            }
+        })
 
-                    with(sharedPref?.edit()) {
-                        this?.putString("language", language.lowercase())
-                        this?.putString("country", country.uppercase())
-                        this?.apply()
-                    }
+        val changeHomepageButton = view.findView<ImageButton>("changeHomepage_button")
+        changeHomepageButton.setImageDrawable(getDrawable("settings_icon"))
 
-                    showToast("Saved!\n Restart the app for the changes to take effect")
-                    dismiss()
-                } else {
-                    showToast("Be sure to fill both fields with the 2 ISO characters")
-                }
-
+        changeHomepageButton.setOnClickListener(object : View.OnClickListener {
+            override fun onClick(v: View?) {
+                HomepageSettings(plugin, sharedPref).show(
+                    activity?.supportFragmentManager
+                        ?: throw Exception("Unable to open localization settings"),
+                    ""
+                )
+                dismiss()
             }
         })
 

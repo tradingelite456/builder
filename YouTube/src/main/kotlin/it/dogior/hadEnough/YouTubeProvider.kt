@@ -1,5 +1,6 @@
 package it.dogior.hadEnough
 
+import android.content.SharedPreferences
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
@@ -11,7 +12,7 @@ import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
 
-class YouTubeProvider(language: String) : MainAPI() {
+class YouTubeProvider(language: String, private val sharedPrefs: SharedPreferences?) : MainAPI() {
     override var mainUrl = MAIN_URL
     override var name = "YouTube"
     override val supportedTypes = setOf(TvType.Others)
@@ -20,21 +21,37 @@ class YouTubeProvider(language: String) : MainAPI() {
 
     private val ytParser = YouTubeParser(this.name)
 
-    companion object{
+    companion object {
         const val MAIN_URL = "https://www.youtube.com"
     }
-    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val videos = ytParser.getTrendingVideoUrls()
 
-        // TODO: Add sections based on user given playlists
-        // i.e the users goes to the settings puts the url of a playlists
-        // and then that playlist will be added to the main pageas a section
+    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        val isTrendingEnabled = sharedPrefs?.getBoolean("trending", true) ?: true
+        val sections = mutableListOf<HomePageList>()
+        if (isTrendingEnabled) {
+            val videos = ytParser.getTrendingVideoUrls(page)
+            videos?.let { sections.add(it) }
+        }
+        val playlistsUrl = sharedPrefs?.getStringSet("playlists", emptySet()) ?: emptySet()
+        if (playlistsUrl.isNotEmpty()) {
+            playlistsUrl.forEach { playlistUrl ->
+                val isPlaylist = playlistUrl.startsWith("https://www.youtube.com/playlist?list=")
+                val isChannel = playlistUrl.startsWith("https://www.youtube.com/@")
+                val videos = if (isPlaylist && !isChannel) {
+                    ytParser.playlistToSearchResponseList(playlistUrl, page)
+                } else if (!isPlaylist && isChannel) {
+                    ytParser.channelToSearchResponseList(playlistUrl, page)
+                } else {
+                    null
+                }
+                videos?.let { sections.add(it) }
+            }
+        }
+        if (sections.isEmpty()){
+            sections.add(HomePageList("All sections are disabled. Go to the settings to enable them", emptyList()))
+        }
         return newHomePageResponse(
-            HomePageList(
-                name = "Trending",
-                list = videos,
-                isHorizontalImages = true
-            ), false
+            sections, true
         )
     }
 

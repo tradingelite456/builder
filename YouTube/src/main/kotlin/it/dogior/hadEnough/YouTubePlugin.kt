@@ -5,6 +5,7 @@ import com.lagradost.cloudstream3.plugins.Plugin
 import android.content.Context
 import androidx.appcompat.app.AppCompatActivity
 import com.lagradost.cloudstream3.CommonActivity.activity
+import it.dogior.hadEnough.settings.SettingsFragment
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
@@ -24,7 +25,7 @@ class YouTubePlugin : Plugin() {
         NewPipe.setupLocalization(Localization(language), ContentCountry(country))
 
         // All providers should be added in this manner
-        registerMainAPI(YouTubeProvider(language))
+        registerMainAPI(YouTubeProvider(language, sharedPref))
         registerMainAPI(YouTubePlaylistsProvider(language))
         registerMainAPI(YouTubeChannelProvider(language))
         registerExtractorAPI(YouTubeExtractor())
