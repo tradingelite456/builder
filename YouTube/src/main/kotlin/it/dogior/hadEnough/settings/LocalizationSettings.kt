@@ -34,6 +34,11 @@ class LocalizationSettings(private val plugin: YouTubePlugin, val sharedPref: Sh
         return this.findViewById(id)
     }
 
+    private fun View.makeTvCompatible() {
+        this.setPadding(this.paddingLeft + 10,this.paddingTop + 10,this.paddingRight + 10,this.paddingBottom + 10)
+        this.background = getDrawable("outline")
+    }
+
     private fun getDrawable(name: String): Drawable? {
         val id =
             plugin.resources!!.getIdentifier(name, "drawable", BuildConfig.LIBRARY_PACKAGE_NAME)
@@ -80,6 +85,7 @@ class LocalizationSettings(private val plugin: YouTubePlugin, val sharedPref: Sh
 
         val saveButton = view.findView<ImageButton>("save_button")
         saveButton.setImageDrawable(getDrawable("save_icon"))
+        saveButton.makeTvCompatible()
 
         saveButton.setOnClickListener(object : View.OnClickListener {
             override fun onClick(v: View?) {

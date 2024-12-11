@@ -13,6 +13,7 @@ import android.widget.ImageButton
 import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.view.setPadding
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.lagradost.cloudstream3.CommonActivity.showToast
 import it.dogior.hadEnough.BuildConfig
@@ -32,6 +33,11 @@ class SettingsFragment(private val plugin: YouTubePlugin, val sharedPref: Shared
     private fun <T : View> View.findView(name: String): T {
         val id = plugin.resources!!.getIdentifier(name, "id", BuildConfig.LIBRARY_PACKAGE_NAME)
         return this.findViewById(id)
+    }
+
+    private fun View.makeTvCompatible() {
+        this.setPadding(this.paddingLeft + 10,this.paddingTop + 10,this.paddingRight + 10,this.paddingBottom + 10)
+        this.background = getDrawable("outline")
     }
 
     private fun getDrawable(name: String): Drawable? {
@@ -76,6 +82,7 @@ class SettingsFragment(private val plugin: YouTubePlugin, val sharedPref: Shared
 
         val changeLocalizationButton = view.findView<ImageButton>("changeLocalization_button")
         changeLocalizationButton.setImageDrawable(getDrawable("settings_icon"))
+        changeLocalizationButton.makeTvCompatible()
 
         changeLocalizationButton.setOnClickListener(object : View.OnClickListener {
             override fun onClick(v: View?) {
@@ -90,6 +97,7 @@ class SettingsFragment(private val plugin: YouTubePlugin, val sharedPref: Shared
 
         val changeHomepageButton = view.findView<ImageButton>("changeHomepage_button")
         changeHomepageButton.setImageDrawable(getDrawable("settings_icon"))
+        changeHomepageButton.makeTvCompatible()
 
         changeHomepageButton.setOnClickListener(object : View.OnClickListener {
             override fun onClick(v: View?) {

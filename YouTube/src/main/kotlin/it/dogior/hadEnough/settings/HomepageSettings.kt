@@ -30,6 +30,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.channel.ChannelInfo
 import org.schabi.newpipe.extractor.playlist.PlaylistInfo
 
@@ -47,6 +48,11 @@ class HomepageSettings(
     private fun <T : View> View.findView(name: String): T {
         val id = plugin.resources!!.getIdentifier(name, "id", BuildConfig.LIBRARY_PACKAGE_NAME)
         return this.findViewById(id)
+    }
+
+    private fun View.makeTvCompatible() {
+        this.setPadding(this.paddingLeft + 10,this.paddingTop + 10,this.paddingRight + 10,this.paddingBottom + 10)
+        this.background = getDrawable("outline")
     }
 
     private fun getDrawable(name: String): Drawable? {
@@ -107,14 +113,26 @@ class HomepageSettings(
 
         val addSectionButton = view.findView<ImageButton>("addSection_button")
         addSectionButton.setImageDrawable(getDrawable("add_icon"))
+        addSectionButton.makeTvCompatible()
 
         addSectionButton.setOnClickListener(object : View.OnClickListener {
             override fun onClick(v: View?) {
+                addSectionButton.isClickable = false
                 GlobalScope.launch {
                     val now = System.currentTimeMillis()
-                    val item = withContext(Dispatchers.IO) {
-                        Triple(youtubeUrlEt.text.toString(), getName(youtubeUrlEt.text.toString()), now)
-                            .toJson()
+                    val item = try {
+                        withContext(Dispatchers.IO) {
+                            Triple(
+                                youtubeUrlEt.text.toString(),
+                                getName(youtubeUrlEt.text.toString()),
+                                now
+                            )
+                                .toJson()
+                        }
+                    } catch (e: NoSuchMethodError) {
+                        addSectionButton.isClickable = true
+                        showToast("Error")
+                        return@launch
                     }
 
                     Log.d("YoutubeProvider", item)
@@ -140,13 +158,13 @@ class HomepageSettings(
                         )
                     }
                 }
-                addSectionButton.isClickable = false
             }
         })
 
 
         val saveButton = view.findView<ImageButton>("save_button")
         saveButton.setImageDrawable(getDrawable("save_icon"))
+        saveButton.makeTvCompatible()
 
         saveButton.setOnClickListener(object : View.OnClickListener {
             override fun onClick(v: View?) {
@@ -244,10 +262,10 @@ class HomepageSettings(
 
         return withContext(Dispatchers.IO) {
             if (isPlaylist && !isChannel) {
-                val playlistInfo = PlaylistInfo.getInfo(playlistUrl)
+                val playlistInfo = PlaylistInfo.getInfo(ServiceList.YouTube, playlistUrl)
                 "${playlistInfo.uploaderName}: ${playlistInfo.name}"
             } else if (!isPlaylist && isChannel) {
-                ChannelInfo.getInfo(playlistUrl).name
+                ChannelInfo.getInfo(ServiceList.YouTube, playlistUrl).name
             } else {
                 "Unknown"
             }
