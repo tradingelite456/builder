@@ -130,7 +130,12 @@ open class AnimeWorldCore : MainAPI() {
         val url = fixUrl(anchor.attr("href").parseHref())
 
         // Simplify title and otherTitle selection.
-        val titleText = anchor.text()
+        val titleText = if (isTopPage) {
+            this.select("div.info > div.main > a").text()
+        } else {
+            anchor.text()
+        }
+
         val title = if (isDubbed) titleText.replace(" (ITA)", "") else titleText
         val otherTitle =
             if (isDubbed) anchor.attr("data-jtitle").replace(" (ITA)", "") else titleText
@@ -210,7 +215,7 @@ open class AnimeWorldCore : MainAPI() {
 
     override suspend fun load(url: String): LoadResponse {
         val document = request(url).document
-        Log.d("AnimeWorld:load", "Url: $url")
+//        Log.d("AnimeWorld:load", "Url: $url")
 
 
         val widget = document.select("div.widget.info")
@@ -246,6 +251,15 @@ open class AnimeWorldCore : MainAPI() {
             else if (status == null && text.contains("Durata"))
                 duration = meta.nextElementSibling()?.text()
         }
+        if(duration != null) {
+            if (duration.contains("/ep")) duration = duration.replace("/ep", "")
+            else if (duration.contains("h e ")) {
+                val d = duration.split("h e ")
+                val h = d[0].toInt() * 60
+                val m = d[1].removeSuffix(" min").toInt()
+                duration = (h + m).toString() + " min"
+            }
+        }
 
         val servers = document.select(".widget.servers > .widget-body")
 
@@ -256,7 +270,7 @@ open class AnimeWorldCore : MainAPI() {
             val id = it.select("a").attr("data-id")
             val number = it.select("a").attr("data-episode-num").toIntOrNull()
             val epUrl = "$mainUrl/api/episode/info?id=$id"
-            Log.d("AnimeWorld:load", "Ep Url: $epUrl")
+//            Log.d("AnimeWorld:load", "Ep Url: $epUrl")
             Episode(
                 epUrl,
                 episode = number
@@ -265,7 +279,7 @@ open class AnimeWorldCore : MainAPI() {
         val comingSoon = episodes.isEmpty()
         val nextAiringDate = document.select("#next-episode").attr("data-calendar-date")
         val nextAiringTime = document.select("#next-episode").attr("data-calendar-time")
-        Log.d("AnimeWorld:load", "NextAiring: $nextAiringDate $nextAiringTime")
+//        Log.d("AnimeWorld:load", "NextAiring: $nextAiringDate $nextAiringTime")
 
         val nextAiringUnix = try {
             SimpleDateFormat("yyyy-MM-dd'T'HH:mm", Locale.getDefault())
@@ -289,7 +303,7 @@ open class AnimeWorldCore : MainAPI() {
             addMalId(malId)
             addAniListId(anlId)
             addRating(rating)
-            addDuration(duration)
+            duration?.let { addDuration(duration) }
             addTrailer(trailerUrl)
             this.recommendations = recommendations
             this.comingSoon = comingSoon
@@ -301,7 +315,7 @@ open class AnimeWorldCore : MainAPI() {
         data: String,
         isCasting: Boolean,
         subtitleCallback: (SubtitleFile) -> Unit,
-        callback: (ExtractorLink) -> Unit
+        callback: (ExtractorLink) -> Unit,
     ): Boolean {
         val url = tryParseJson<Json>(
             request(data).text
