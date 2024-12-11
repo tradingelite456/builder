@@ -37,23 +37,35 @@ class YouTubeProvider(language: String, private val sharedPrefs: SharedPreferenc
         val playlistsData = sharedPrefs?.getStringSet("playlists", emptySet()) ?: emptySet()
         if (playlistsData.isNotEmpty()) {
             val triples = playlistsData.map { parseJson<Triple<String, String, Long>>(it) }
-            triples.sortedBy { it.third }.amap { data ->
+            val list = triples.amap { data ->
                 val playlistUrl = data.first
                 val urlPath = playlistUrl.substringAfter("youtu").substringAfter("/")
                 val isPlaylist = urlPath.startsWith("playlist?list=")
                 val isChannel = urlPath.startsWith("@")
-                val videos = if (isPlaylist && !isChannel) {
+                val customSections = if (isPlaylist && !isChannel) {
                     ytParser.playlistToSearchResponseList(playlistUrl, page)
                 } else if (!isPlaylist && isChannel) {
                     ytParser.channelToSearchResponseList(playlistUrl, page)
                 } else {
                     null
                 }
-                videos?.let { sections.add(it) }
+                customSections to data.third
             }
+            list.sortedBy { it.second }.forEach {
+                val homepageSection = it.first
+                if (homepageSection != null) {
+                    sections.add(homepageSection)
+                }
+            }
+
         }
-        if (sections.isEmpty()){
-            sections.add(HomePageList("All sections are disabled. Go to the settings to enable them", emptyList()))
+        if (sections.isEmpty()) {
+            sections.add(
+                HomePageList(
+                    "All sections are disabled. Go to the settings to enable them",
+                    emptyList()
+                )
+            )
         }
         return newHomePageResponse(
             sections, true
