@@ -1,5 +1,6 @@
 package it.dogior.hadEnough
 
+import android.util.Base64
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.AnimeSearchResponse
 import com.lagradost.cloudstream3.DubStatus
@@ -36,12 +37,20 @@ import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
+import com.lagradost.cloudstream3.utils.getAndUnpack
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.nicehttp.NiceResponse
 import org.jsoup.nodes.Element
 import org.jsoup.nodes.Node
+import org.mozilla.javascript.Context
+import org.mozilla.javascript.NativeJSON
+import org.mozilla.javascript.NativeJSON.stringify
+import org.mozilla.javascript.NativeObject
+import org.mozilla.javascript.Scriptable
 import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 open class AnimeWorldCore : MainAPI() {
     override var mainUrl = "https://www.animeworld.so"
@@ -270,10 +279,7 @@ open class AnimeWorldCore : MainAPI() {
         val servers = document.select(".widget.servers > .widget-body")
 
         val episodes = servers.select(".server[data-name=\"9\"] .episode").map {
-            val id = it.select("a").attr("data-id")
             val number = it.select("a").attr("data-episode-num").toIntOrNull()
-            val epUrl = "$mainUrl/api/episode/info?id=$id"
-//            Log.d("AnimeWorld:load", "Ep Url: $epUrl")
             Episode(
                 "$number¿$url",
                 episode = number,
@@ -336,25 +342,22 @@ open class AnimeWorldCore : MainAPI() {
         if (apiResults.isEmpty()) return false
 
         val finalExtractors = mutableListOf<ExtractorLink>()
-            apiResults.amap {
+        apiResults.amap {
             if (it.target.contains("AnimeWorld")) {
-                finalExtractors.add(ExtractorLink(
-                    name,
-                    name,
-                    it.grabber,
-                    referer = mainUrl,
-                    quality = Qualities.Unknown.value
-                ))
+                finalExtractors.add(
+                    ExtractorLink(
+                        name,
+                        "AnimeWorld",
+                        it.grabber,
+                        referer = mainUrl,
+                        quality = Qualities.Unknown.value
+                    )
+                )
 
-            }else if(it.target.contains("listeamed.net")) {
-//                loadExtractor(it.grabber, referer = null, subtitleCallback, callback)
-                try{
-                    Vidguardto2().getUrl(it.grabber)
-                        ?.let { extractor -> finalExtractors.addAll(extractor) }
-                }catch (e: NoClassDefFoundError){
-                    null
-                }
-            } else{
+            } else if (it.target.contains("listeamed.net")) {
+                val extractor = getExtractorLinkFromVidguard(it.grabber)
+                extractor?.let{e -> finalExtractors.add(e) }
+            } else {
                 null
             }
         }.filterNotNull()
@@ -364,4 +367,103 @@ open class AnimeWorldCore : MainAPI() {
         }
         return true
     }
+
+    // TODO: move to a separate file
+    private suspend fun getExtractorLinkFromVidguard(url: String): ExtractorLink? {
+        val response = app.get(url).document
+        val script = response.selectFirst("script:containsData(eval)")?.data() ?: return null
+        val decodedScript = runJS2(script)
+        val json = tryParseJson<SvgObject>(decodedScript) ?: return null
+        val playlistUrl = sigDecode(json.stream)
+
+        return ExtractorLink(
+            "VidGuard",
+            "VidGuard",
+            playlistUrl,
+            referer = mainUrl,
+            quality = Qualities.Unknown.value,
+            isM3u8 = true
+        )
+    }
+
+    private fun sigDecode(url: String): String {
+        val sig = url.split("sig=")[1].split("&")[0]
+        val t = sig.chunked(2)
+            .joinToString("") { (Integer.parseInt(it, 16) xor 2).toChar().toString() }
+            .let {
+                val padding = when (it.length % 4) {
+                    2 -> "=="
+                    3 -> "="
+                    else -> ""
+                }
+                String(Base64.decode((it + padding).toByteArray(Charsets.UTF_8), Base64.DEFAULT))
+            }
+            .dropLast(5)
+            .reversed()
+            .toCharArray()
+            .apply {
+                for (i in indices step 2) {
+                    if (i + 1 < size) {
+                        this[i] = this[i + 1].also { this[i + 1] = this[i] }
+                    }
+                }
+            }
+            .concatToString()
+            .dropLast(5)
+        return url.replace(sig, t)
+    }
+
+    private fun runJS2(hideMyHtmlContent: String): String {
+        var result = ""
+        val latch = CountDownLatch(1)
+
+        try {
+            val rhino = Context.enter()
+            rhino.optimizationLevel = -1
+            val scope: Scriptable = rhino.initStandardObjects()
+            scope.put("window", scope, scope)
+
+            try {
+                rhino.evaluateString(
+                    scope,
+                    hideMyHtmlContent,
+                    "JavaScript",
+                    1,
+                    null
+                )
+
+                val svgObject = scope.get("svg", scope)
+                result = when {
+                    svgObject is NativeObject -> {
+                        stringify(rhino, scope, svgObject, null, null).toString()
+                    }
+                    svgObject != Context.getUndefinedValue() -> {
+                        Context.toString(svgObject)
+                    }
+                    else -> ""
+                }
+            } catch (e: Exception) {
+                Log.e("JSExecution", "Error executing JavaScript\n${e.message}")
+            } finally {
+                Context.exit()
+                latch.countDown()
+            }
+        } catch (e: Exception) {
+            Log.e("JSSetup", "Error setting up JavaScript context\n${e.message}")
+            latch.countDown()
+        }
+
+        try {
+            latch.await(5, TimeUnit.SECONDS)
+        } catch (e: InterruptedException) {
+            Log.e("JSExecution", "Execution interrupted\n${e.message}")
+        }
+
+        return result
+    }
+
+    data class SvgObject(
+        val stream: String,
+        val hash: String,
+    )
 }
