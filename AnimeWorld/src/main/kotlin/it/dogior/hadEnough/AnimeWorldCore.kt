@@ -23,16 +23,23 @@ import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.addDubStatus
 import com.lagradost.cloudstream3.addEpisodes
 import com.lagradost.cloudstream3.addPoster
+import com.lagradost.cloudstream3.amap
 import com.lagradost.cloudstream3.app
+import com.lagradost.cloudstream3.extractors.Vidguardto2
 import com.lagradost.cloudstream3.fixUrl
+import com.lagradost.cloudstream3.network.WebViewResolver
 import com.lagradost.cloudstream3.newAnimeLoadResponse
 import com.lagradost.cloudstream3.newAnimeSearchResponse
 import com.lagradost.cloudstream3.newHomePageResponse
+import com.lagradost.cloudstream3.utils.AppUtils.parseJson
+import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
+import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.nicehttp.NiceResponse
 import org.jsoup.nodes.Element
+import org.jsoup.nodes.Node
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -79,7 +86,6 @@ open class AnimeWorldCore : MainAPI() {
     }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        Log.d("AnimeWorld:MainPage", "Url:${request.data}")
         val pagedata: NiceResponse = if (page > 1) {
             app.get(request.data + "&page=$page")
         } else {
@@ -251,7 +257,7 @@ open class AnimeWorldCore : MainAPI() {
             else if (status == null && text.contains("Durata"))
                 duration = meta.nextElementSibling()?.text()
         }
-        if(duration != null) {
+        if (duration != null) {
             if (duration.contains("/ep")) duration = duration.replace("/ep", "")
             else if (duration.contains("h e ")) {
                 val d = duration.split("h e ")
@@ -263,17 +269,14 @@ open class AnimeWorldCore : MainAPI() {
 
         val servers = document.select(".widget.servers > .widget-body")
 
-
-//        val servers = document.select(".widget.servers")
-
         val episodes = servers.select(".server[data-name=\"9\"] .episode").map {
             val id = it.select("a").attr("data-id")
             val number = it.select("a").attr("data-episode-num").toIntOrNull()
             val epUrl = "$mainUrl/api/episode/info?id=$id"
 //            Log.d("AnimeWorld:load", "Ep Url: $epUrl")
             Episode(
-                epUrl,
-                episode = number
+                "$number¿$url",
+                episode = number,
             )
         }
         val comingSoon = episodes.isEmpty()
@@ -317,22 +320,48 @@ open class AnimeWorldCore : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit,
     ): Boolean {
-        val url = tryParseJson<Json>(
-            request(data).text
-        )?.grabber
+        val epNumber = data.split("¿")[0].toInt()
+        val pageUrl = data.split("¿")[1]
 
-        if (url.isNullOrEmpty())
-            return false
+        val serverElem = request(pageUrl).document.select(".widget.servers")
+        val servers = serverElem.select(".widget-body > .server")
+        val epElems = servers.select("a[data-episode-num=\"$epNumber\"]")
 
-        callback.invoke(
-            ExtractorLink(
-                name,
-                name,
-                url,
-                referer = mainUrl,
-                quality = Qualities.Unknown.value
-            )
-        )
+        val apiLinks = epElems.map {
+            "https://www.animeworld.so/api/episode/info?id=" + it.attr("data-id")
+        }
+        val apiResults = apiLinks.mapNotNull {
+            tryParseJson<Json>(request(it).text)
+        }
+        if (apiResults.isEmpty()) return false
+
+        val finalExtractors = mutableListOf<ExtractorLink>()
+            apiResults.amap {
+            if (it.target.contains("AnimeWorld")) {
+                finalExtractors.add(ExtractorLink(
+                    name,
+                    name,
+                    it.grabber,
+                    referer = mainUrl,
+                    quality = Qualities.Unknown.value
+                ))
+
+            }else if(it.target.contains("listeamed.net")) {
+//                loadExtractor(it.grabber, referer = null, subtitleCallback, callback)
+                try{
+                    Vidguardto2().getUrl(it.grabber)
+                        ?.let { extractor -> finalExtractors.addAll(extractor) }
+                }catch (e: NoClassDefFoundError){
+                    null
+                }
+            } else{
+                null
+            }
+        }.filterNotNull()
+
+        finalExtractors.forEach {
+            callback(it)
+        }
         return true
     }
 }
