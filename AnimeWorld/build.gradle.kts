@@ -27,6 +27,7 @@ cloudstream {
 
     iconUrl = "https://static.animeworld.so/assets/images/favicon/android-icon-192x192.png?s"
 }
+
 dependencies {
     implementation("org.mozilla:rhino:1.7.15")
 }
