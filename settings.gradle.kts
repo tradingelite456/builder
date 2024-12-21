@@ -12,6 +12,5 @@ include(
     "CanaliTV",
     "CalcioStreaming",
     "ToonItalia",
-//    "AltadefinizioneCommunity",
     "YouTube",
 )
