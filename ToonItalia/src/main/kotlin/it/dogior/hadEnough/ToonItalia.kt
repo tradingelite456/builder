@@ -13,14 +13,18 @@ import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.mainPageOf
+import com.lagradost.cloudstream3.network.WebViewResolver
 import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.newTvSeriesSearchResponse
+import com.lagradost.cloudstream3.utils.Coroutines.ioSafe
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.ShortLink.unshortenUprot
 import com.lagradost.cloudstream3.utils.loadExtractor
+import com.lagradost.cloudstream3.utils.unshortenLinkSafe
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 
@@ -33,11 +37,12 @@ class ToonItalia :
         setOf(TvType.TvSeries, TvType.Movie, TvType.Anime, TvType.AnimeMovie, TvType.Cartoon)
     override val hasMainPage = true
 
+
     override val mainPage = mainPageOf(
-        "https://toonitalia.green/" to "Ultimi Aggiunti",
-        "https://toonitalia.green/category/kids/" to "Serie Tv",
-        "https://toonitalia.green/category/anime/" to "Anime",
-        "https://toonitalia.green/film-anime/" to "Film",
+        mainUrl to "Ultimi Aggiunti",
+        "${mainUrl}category/kids/" to "Serie Tv",
+        "${mainUrl}category/anime/" to "Anime",
+        "${mainUrl}film-anime/" to "Film",
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
@@ -167,7 +172,7 @@ class ToonItalia :
         data: String,
         isCasting: Boolean,
         subtitleCallback: (SubtitleFile) -> Unit,
-        callback: (ExtractorLink) -> Unit
+        callback: (ExtractorLink) -> Unit,
     ): Boolean {
         val linkData = data.split("€")
         val pageUrl = linkData[0]
@@ -177,6 +182,10 @@ class ToonItalia :
         soup.select("a").forEach {
             val link = it.attr("href")
             val url = if (link.contains("uprot")) bypassUprot(link) else link
+//            if (link.contains("uprot")) {
+//                Log.d("ToonItalia", "Link: $link")
+//                Log.d("ToonItalia", "Link after uprot: ${unshortenUprot(link)}")
+//            }
             if (url != "something went wrong") {
                 Log.d("ToonItalia:loadLinks", "Url: $url")
                 if (url.contains("streamtape")) {
@@ -187,7 +196,7 @@ class ToonItalia :
             }
         }
 
-        return super.loadLinks(data, isCasting, subtitleCallback, callback)
+        return true
     }
 
     // Borrowed from the ToonItalia extension for Aniyomi
