@@ -1,6 +1,7 @@
 package it.dogior.hadEnough
 
 import com.lagradost.api.Log
+import com.lagradost.cloudstream3.AnimeSearchResponse
 import com.lagradost.cloudstream3.DubStatus
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
@@ -25,6 +26,7 @@ import com.lagradost.cloudstream3.newAnimeSearchResponse
 import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
+import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import java.util.Locale
 
@@ -40,7 +42,6 @@ class AnimeUnity : MainAPI() {
     override var lang = "it"
     override val hasMainPage = true
     override val hasQuickSearch: Boolean = true
-    override var sequentialMainPage = false
 
     companion object {
         val mainUrl = "https://www.animeunity.to"
@@ -50,12 +51,6 @@ class AnimeUnity : MainAPI() {
         ).toMutableMap()
         var cookies = emptyMap<String, String>()
     }
-
-//    init {
-//        val editor = sharedPref?.edit()
-//        editor?.clear()
-//        editor?.apply()
-//    }
 
     private val sectionNamesList = mainPageOf(
         "$mainUrl/archivio/" to "In Corso",
@@ -247,6 +242,12 @@ class AnimeUnity : MainAPI() {
         resetHeadersAndCookies()
         setupHeadersAndCookies()
         val animePage = app.get(url).document
+
+        val relatedAnimeJsonArray =
+            animePage.select("layout-items").attr("items-json")//.replace("\\", "")
+        val relatedAnime = parseJson<List<Anime>>(relatedAnimeJsonArray)
+
+
         val videoPlayer = animePage.select("video-player")
         val anime = parseJson<Anime>(videoPlayer.attr("anime"))
 
@@ -285,8 +286,8 @@ class AnimeUnity : MainAPI() {
                 })
             }
         }
-
         val title = anime.titleIt ?: anime.titleEng ?: anime.title!!
+
         val animeLoadResponse = newAnimeLoadResponse(
             name = title.replace(" (ITA)", ""),
             url = url,
@@ -317,6 +318,19 @@ class AnimeUnity : MainAPI() {
                 }
             }
             this.comingSoon = anime.status == "In uscita prossimamente"
+            this.recommendations = relatedAnime.amap {
+                AnimeSearchResponse(
+                    name = (it.titleIt ?: it.titleEng ?: it.title!!).replace(" (ITA)", ""),
+                    url = "$mainUrl/anime/${it.id}-${it.slug}",
+                    apiName = this@AnimeUnity.name,
+                    posterUrl = getImage(it.imageUrl, it.anilistId),
+                    type = if (it.type == "TV") TvType.Anime
+                    else if (it.type == "Movie" || it.episodesCount == 1) TvType.AnimeMovie
+                    else TvType.OVA
+                ).apply {
+                    addDubStatus(it.dub == 1)
+                }
+            }
         }
 
         return animeLoadResponse

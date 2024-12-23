@@ -82,7 +82,7 @@ data class Anime(
     @JsonProperty("type") val type: String,
     @JsonProperty("slug") val slug: String,
     @JsonProperty("title_eng") val titleEng: String?,
-    @JsonProperty("day") val day: String,
+    @JsonProperty("day") val day: String?,
     @JsonProperty("score") val score: String?,
     @JsonProperty("studio") val studio: String,
     @JsonProperty("dub") val dub: Int,
