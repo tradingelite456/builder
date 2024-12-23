@@ -220,7 +220,7 @@ class YouTubeParser(private val apiName: String) {
         val videoInfo = StreamInfo.getInfo(videoUrl)
         val views = "Views: ${videoInfo.viewCount}"
         val likes = "Likes: ${videoInfo.likeCount}"
-        val length = videoInfo.duration
+        val length = videoInfo.duration / 60
         return MovieLoadResponse(
             name = videoInfo.name,
             url = videoUrl,
@@ -231,7 +231,7 @@ class YouTubeParser(private val apiName: String) {
             tags = listOf(videoInfo.uploaderName, views, likes),
             apiName = apiName
         ).apply {
-            addDuration(length.toInt().toString())
+            this.duration = length.toInt()
         }
     }
 
