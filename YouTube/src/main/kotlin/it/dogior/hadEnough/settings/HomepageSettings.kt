@@ -20,7 +20,6 @@ import it.dogior.hadEnough.BuildConfig
 import it.dogior.hadEnough.YouTubePlugin
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
-import androidx.lifecycle.lifecycleScope
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.CommonActivity.showToast
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
@@ -104,7 +103,10 @@ class HomepageSettings(
         }
         val playlistsList = view.findView<LinearLayout>("playlists_list")
 
-        playlistsSet.forEach {
+        val tripleList = playlistsSet.map {
+            parseJson<Triple<String, String, Long>>(it)
+        }.sortedBy { it.third }
+        tripleList.forEach {
             playlistsList.addView(
                 playlistsRow(it, sharedPref, playlistsSet, playlistsList)
             )
@@ -179,12 +181,21 @@ class HomepageSettings(
     }
 
     private fun playlistsRow(
-        itemJson: String,
+        itemjson: String,
         sharedPref: SharedPreferences?,
         playlistsSet: MutableSet<String>,
         playlistList: LinearLayout,
     ): RelativeLayout {
-        val item = parseJson<Triple<String, String, Long>>(itemJson)
+        val item = parseJson<Triple<String, String, Long>>(itemjson)
+        return playlistsRow(item, sharedPref, playlistsSet, playlistList)
+    }
+
+    private fun playlistsRow(
+        item: Triple<String, String, Long>,
+        sharedPref: SharedPreferences?,
+        playlistsSet: MutableSet<String>,
+        playlistList: LinearLayout,
+    ): RelativeLayout {
         val title = item.second
         // Create the RelativeLayout
         val relativeLayout = RelativeLayout(this@HomepageSettings.requireContext()).apply {
@@ -241,7 +252,7 @@ class HomepageSettings(
         val delete = relativeLayout.findViewById<ImageButton>(deleteButton.id)
         delete.setOnClickListener(object : View.OnClickListener {
             override fun onClick(v: View?) {
-                val deleteSuccessfull = playlistsSet.remove(itemJson)
+                val deleteSuccessfull = playlistsSet.remove(item.toJson())
                 if (deleteSuccessfull) {
                     with(sharedPref?.edit()) {
                         this?.putStringSet("playlists", playlistsSet)
