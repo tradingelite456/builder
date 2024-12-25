@@ -26,6 +26,7 @@ import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
+import it.dogior.hadEnough.extractors.MaxStreamExtractor
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody
@@ -45,11 +46,22 @@ class CB01(val plugin: CB01Plugin) : MainAPI() {
 
     override val mainPage = mainPageOf(
         mainUrl to "Film",
-        "$mainUrl/serietv/" to "Serie TV"
+        "$mainUrl/serietv" to "Serie TV"
     )
 
-    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse? {
-        val response = app.get(request.data)
+    private fun fixTitle(title: String, isMovie: Boolean): String {
+        if (isMovie) {
+            return title.replace(Regex("""(\[HD] )*\(\d{4}\)${'$'}"""), "")
+        }
+        return title.replace(Regex("""[-–] Stagione \d+"""), "")
+            .replace(Regex("""[-–] ITA"""), "")
+            .replace(Regex("""[-–] *\d+[x×]\d*(/?\d*)*"""), "")
+            .replace(Regex("""[-–] COMPLETA"""), "").trim()
+    }
+
+    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        val url = if (page>1) "${request.data}/page/$page/" else request.data
+        val response = app.get(url)
         val document = response.document
         val items = document.selectFirst(".sequex-one-columns")!!.select(".post")
         val posts = items.mapNotNull { card ->
@@ -60,21 +72,23 @@ class CB01(val plugin: CB01Plugin) : MainAPI() {
             post?.let { it.poster = poster }
             post
         }
+        val pagination = document.selectFirst(".pagination")?.select(".page-item")!!
+        val lastPage = pagination[pagination.size - 2].text().replace(".", "").toInt()
+        val hasNext = page<lastPage
+        Log.d("CB01", "Last Page: ${lastPage}")
 
         val searchResponses = posts.map {
             if (request.data.contains("serietv")) {
+                Log.d("CB01", it.title)
                 // TODO: rimuovi tutto quello che c'è dopo il primo - se dopo c'è un numero o la parola stagione
-                val title =
-                    it.title.replace(Regex("""-?\d+×\d{2}(?:/\d{2})*${'$'}"""), "")
-                        .replace("- ITA", "")
-                        .replace("- COMPLETA", "").trim()
+                val title = fixTitle(it.title, false)
                 newTvSeriesSearchResponse(title, it.permalink, TvType.TvSeries) {
                     addPoster(it.poster)
                 }
             } else {
                 val quality = if (it.title.contains("HD")) SearchQuality.HD else null
                 newMovieSearchResponse(
-                    it.title.replace(Regex("""\[HD] \(\d{4}\)${'$'}"""), ""),
+                    fixTitle(it.title, true),
                     it.permalink,
                     TvType.Movie
                 ) {
@@ -84,7 +98,7 @@ class CB01(val plugin: CB01Plugin) : MainAPI() {
             }
         }
         val section = HomePageList(request.name, searchResponses, false)
-        return newHomePageResponse(section, false)
+        return newHomePageResponse(section, hasNext)
     }
 
     // this function gets called when you search for something
@@ -106,18 +120,17 @@ class CB01(val plugin: CB01Plugin) : MainAPI() {
             }
             posts?.map {
                 if (link.contains("serietv")) {
-                    // TODO: rimuovi tutto quello che c'è dopo il primo - se dopo c'è un numero o la parola stagione
-                    val title =
-                        it.title.replace(Regex("""-?\d+×\d{2}(?:/\d{2})*${'$'}"""), "")
-                            .replace("- ITA", "")
-                            .replace("- COMPLETA", "").trim()
-                    newTvSeriesSearchResponse(title, it.permalink, TvType.TvSeries) {
+                    newTvSeriesSearchResponse(
+                        fixTitle(it.title, false),
+                        it.permalink,
+                        TvType.TvSeries
+                    ) {
                         addPoster(it.poster)
                     }
                 } else {
                     val quality = if (it.title.contains("HD")) SearchQuality.HD else null
                     newMovieSearchResponse(
-                        it.title.replace(Regex("""\[HD] \(\d{4}\)${'$'}"""), ""),
+                        fixTitle(it.title, true),
                         it.permalink,
                         TvType.Movie
                     ) {
@@ -154,8 +167,9 @@ class CB01(val plugin: CB01Plugin) : MainAPI() {
                 mainContainer.selectFirst("table.cbtable:nth-child(5) > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(1)")
             val links = table?.select(".vhst")
                 ?.mapNotNull { it.attr("onclick").substringAfter("open('").substringBefore("',") }
+//            Log.d("CB01", "Links: $links")
             val data = links?.toJson() ?: "null"
-            newMovieLoadResponse(title, url, type, data) {
+            newMovieLoadResponse(fixTitle(title, true), url, type, data) {
                 addPoster(poster)
                 this.plot = plot
                 this.backgroundPosterUrl = banner
@@ -170,8 +184,8 @@ class CB01(val plugin: CB01Plugin) : MainAPI() {
             val plot = description?.last()?.trim()
             val tags = description?.first()?.split('/')
             val episodes = getEpisodes(document)
-
-            newTvSeriesLoadResponse(title, url, type, episodes) {
+            Log.d("CB01", "Title: $title")
+            newTvSeriesLoadResponse(fixTitle(title, false), url, type, episodes) {
                 addPoster(poster)
                 this.plot = plot
                 this.backgroundPosterUrl = banner
@@ -211,7 +225,12 @@ class CB01(val plugin: CB01Plugin) : MainAPI() {
         callback: (ExtractorLink) -> Unit,
     ): Boolean {
         if (data == "null") return false
-        val links = parseJson<List<String>>(data)
+        var links = parseJson<List<String>>(data)
+        links = links.filter { it.contains("uprot.net") || it.contains("stayonline") }
+        if (links.size > 2) {
+            links = links.subList(2, 4)
+        }
+        Log.d("CB01", "Scraped Link: $links")
 
         links.mapNotNull {
             Log.d("CB01", "Base Link: $it")
@@ -223,7 +242,7 @@ class CB01(val plugin: CB01Plugin) : MainAPI() {
                 null
             }
             link?.let { l ->
-                if (link!!.contains("uprot")) {
+                if (link!!.contains("uprot.net")) {
                     Log.d("CB01", "Bypassed Link: $link")
                     link = bypassUprot(l)
                 } else if (link!!.contains("stayonline")) {
@@ -232,9 +251,16 @@ class CB01(val plugin: CB01Plugin) : MainAPI() {
                 }
             }
 
-            link?.let{ l ->
+            link?.let { l ->
                 Log.d("CB01", "Final Link: $link")
-                loadExtractor(l, "", subtitleCallback, callback)
+//                loadExtractor(l, "", subtitleCallback, callback)
+                if (link!!.contains("maxstream")) {
+                    MaxStreamExtractor().getUrl(l, null, subtitleCallback, callback)
+                } else if (link!!.contains("mixdrop")) {
+                    val videoId = l.split('/')[4]
+                    val finalUrl = "https://mixdrop.ag/e/$videoId"
+                    loadExtractor(finalUrl, "", subtitleCallback, callback)
+                }
             }
         }
 
@@ -287,11 +313,11 @@ class CB01(val plugin: CB01Plugin) : MainAPI() {
 
         // Parse the HTML using Jsoup
         val document = Jsoup.parse(responseBody)
+        Log.d("CB01:Uprot", document.select("a").toString())
         val maxstreamUrl = document.selectFirst("a")?.attr("href")
 
         return maxstreamUrl
     }
-
 
     data class Post(
         @JsonProperty("id") val id: String,
