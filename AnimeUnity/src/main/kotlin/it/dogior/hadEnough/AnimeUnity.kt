@@ -82,7 +82,9 @@ class AnimeUnity : MainAPI() {
     }
 
     private fun resetHeadersAndCookies() {
-        headers.clear()
+        if(headers.isNotEmpty()) {
+            headers.clear()
+        }
         headers["Host"] = "www.animeunity.to"
         cookies = emptyMap()
     }
