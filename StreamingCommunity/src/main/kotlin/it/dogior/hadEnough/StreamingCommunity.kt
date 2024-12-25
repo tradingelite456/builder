@@ -40,7 +40,7 @@ class StreamingCommunity : MainAPI() {
 
 
     companion object {
-        val mainUrl = "https://streamingcommunity.computer"
+        val mainUrl = "https://streamingcommunity.prof"
         var name = "StreamingCommunity"
     }
 
