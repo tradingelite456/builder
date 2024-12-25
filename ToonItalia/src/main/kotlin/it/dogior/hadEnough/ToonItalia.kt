@@ -13,18 +13,15 @@ import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.mainPageOf
-import com.lagradost.cloudstream3.network.WebViewResolver
 import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.newTvSeriesSearchResponse
-import com.lagradost.cloudstream3.utils.Coroutines.ioSafe
 import com.lagradost.cloudstream3.utils.ExtractorLink
-import com.lagradost.cloudstream3.utils.ShortLink.unshortenUprot
-import com.lagradost.cloudstream3.utils.loadExtractor
-import com.lagradost.cloudstream3.utils.unshortenLinkSafe
+import it.dogior.hadEnough.extractors.MaxStreamExtractor
+import it.dogior.hadEnough.extractors.StreamTapeExtractor
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 
@@ -181,39 +178,44 @@ class ToonItalia :
         val soup = Jsoup.parse(episodeLinks)
         soup.select("a").forEach {
             val link = it.attr("href")
-            val url = if (link.contains("uprot")) bypassUprot(link) else link
-//            if (link.contains("uprot")) {
-//                Log.d("ToonItalia", "Link: $link")
-//                Log.d("ToonItalia", "Link after uprot: ${unshortenUprot(link)}")
-//            }
-            if (url != "something went wrong") {
-                Log.d("ToonItalia:loadLinks", "Url: $url")
-                if (url.contains("streamtape")) {
-                    StreamTapeExtractor().getUrl(url, null, subtitleCallback, callback)
-                } else {
-                    loadExtractor(url, subtitleCallback, callback)
+//            val url = if (link.contains("uprot")) bypassUprot(link) else link
+            if (link.contains("uprot")) {
+                val url = bypassUprot(link)
+                if (url != null) {
+                    if (url.contains("streamtape")) {
+                        StreamTapeExtractor().getUrl(url, null, subtitleCallback, callback)
+                    } else {
+                        MaxStreamExtractor().getUrl(url, null, subtitleCallback, callback)
+//                            loadExtractor(url, subtitleCallback, callback)
+                    }
                 }
             }
         }
-
         return true
     }
 
-    // Borrowed from the ToonItalia extension for Aniyomi
-    private suspend fun bypassUprot(url: String): String {
-        val page = app.get(url).body.string()
-        Regex("""<a[^>]+href="([^"]+)".*Continue""").findAll(page)
-            .map { it.groupValues[1] }
-            .toList()
-            .forEach { link ->
-                if (link.contains("https://maxstream.video") || link.contains("https://uprot.net") || link.contains(
-                        "https://streamtape"
-                    ) || link.contains("https://voe") && link != url
-                ) {
-                    return link
-                }
-            }
-        return "something went wrong"
+    private suspend fun bypassUprot(link: String): String? {
+        val updatedLink = if ("msf" in link) link.replace("msf", "mse") else link
+
+
+        // Generate headers (replace with your own method to generate fake headers)
+        val headers = mapOf(
+            "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+        )
+
+//        Log.d("CB01:Uprot", updatedLink)
+
+        // Make the HTTP request
+        val response = app.get(updatedLink, headers = headers, timeout = 10_000)
+
+        val responseBody = response.body.string()
+
+        // Parse the HTML using Jsoup
+        val document = Jsoup.parse(responseBody)
+        Log.d("CB01:Uprot", document.select("a").toString())
+        val maxstreamUrl = document.selectFirst("a")?.attr("href")
+
+        return maxstreamUrl
     }
 
     private fun Element.toSearchResponse(fromSearch: Boolean): SearchResponse {
