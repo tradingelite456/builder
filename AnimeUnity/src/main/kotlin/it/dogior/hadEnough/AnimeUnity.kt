@@ -46,7 +46,7 @@ class AnimeUnity : MainAPI() {
     companion object {
         val mainUrl = "https://www.animeunity.to"
         var name = "AnimeUnity"
-        val headers = mapOf(
+        var headers = mapOf(
             "Host" to "www.animeunity.to"
         ).toMutableMap()
         var cookies = emptyMap<String, String>()
@@ -82,7 +82,10 @@ class AnimeUnity : MainAPI() {
     }
 
     private fun resetHeadersAndCookies() {
-        if(headers.isNotEmpty()) {
+        if (headers == null) {
+            headers = mutableMapOf()
+        }
+        else if(headers.isNotEmpty()) {
             headers.clear()
         }
         headers["Host"] = "www.animeunity.to"
