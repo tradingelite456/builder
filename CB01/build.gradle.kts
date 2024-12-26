@@ -22,5 +22,5 @@ cloudstream {
     requiresResources = false
     language = "it"
 
-    iconUrl = "https://cb01new.one/favicon-512x512.png"
+    iconUrl = "https://cb01.uno/favicon-512x512.png"
 }
