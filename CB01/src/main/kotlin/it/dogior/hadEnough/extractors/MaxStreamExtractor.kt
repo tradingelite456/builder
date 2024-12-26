@@ -6,6 +6,7 @@ import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.utils.ExtractorApi
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
+import com.lagradost.cloudstream3.utils.getAndUnpack
 import java.io.File
 import java.io.FileOutputStream
 
@@ -31,44 +32,17 @@ class MaxStreamExtractor : ExtractorApi() {
         val response = app.get(url, headers = headers, timeout = 10_000)
         val responseBody = response.body.string()
 
-        val regex = Regex("""\}\('(.+)',.+,'(.+)'\.split""")
-        val matchResult = regex.find(responseBody)
-            ?: throw IllegalArgumentException("Regex match not found")
-        val (s1, s2) = matchResult.destructured
-        val terms = s2.split("|")
-        val urlsetIndex = terms.indexOf("urlset")
-        val hlsIndex = terms.indexOf("hls")
-        val sourcesIndex = terms.indexOf("sources")
-
-        val result = terms.subList(urlsetIndex + 1, hlsIndex).asReversed()
-        val firstPart = terms.subList(hlsIndex + 1, sourcesIndex).asReversed()
-
-        var firstUrlPart = ""
-        for (part in firstPart) {
-            firstUrlPart += if ("0" in part) part else "$part-"
-        }
-
-        val baseUrl = "https://$firstUrlPart.host-cdn.net/hls/"
-        val reversedElements = result
-
-        val finalUrl = if (reversedElements.size == 1) {
-            "$baseUrl,${reversedElements[0]}.urlset/master.m3u8"
-        } else {
-            val baseUrlBuilder = StringBuilder(baseUrl)
-            for ((index, element) in reversedElements.withIndex()) {
-                baseUrlBuilder.append(element).append(",")
-                if (index == reversedElements.lastIndex) {
-                    baseUrlBuilder.append(".urlset/master.m3u8")
-                }
-            }
-            baseUrlBuilder.toString()
-        }
-        Log.d("MaxStream", "Final URL: $finalUrl")
+        val script =
+            "eval(function(p,a,c,k,e,d)" + responseBody.substringAfter("<script type='text/javascript'>eval(function(p,a,c,k,e,d)")
+                .substringBefore(")))") + ")))"
+        val unpackedScript = getAndUnpack(script)
+        val src = unpackedScript.substringAfter("src:\"").substringBefore("\",")
+        Log.d("MaxStream", "Script: $src")
         callback.invoke(
             ExtractorLink(
                 source = name,
                 name = name,
-                url = finalUrl,
+                url = src,
                 referer = referer ?: "",
                 quality = Qualities.Unknown.value,
                 isM3u8 = true
