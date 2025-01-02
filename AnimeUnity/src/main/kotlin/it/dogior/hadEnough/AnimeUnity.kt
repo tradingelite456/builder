@@ -34,7 +34,7 @@ import java.util.Locale
 typealias Str = BooleanOrString.AsString
 //typealias Bool = BooleanOrString.AsBoolean
 
-const val TAG = "AnimeUnity"
+const val TAG = "AnimeUnity" 
 
 class AnimeUnity : MainAPI() {
     override var mainUrl = Companion.mainUrl
