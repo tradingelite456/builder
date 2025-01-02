@@ -28,6 +28,7 @@ import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.util.Locale
 
 typealias Str = BooleanOrString.AsString
@@ -44,10 +45,11 @@ class AnimeUnity : MainAPI() {
     override val hasQuickSearch: Boolean = true
 
     companion object {
-        val mainUrl = "https://www.animeunity.to"
+        val mainUrl = "https://www.animeunity.so"
         var name = "AnimeUnity"
         var headers = mapOf(
-            "Host" to "www.animeunity.to"
+            "Host" to mainUrl.toHttpUrl().host,
+            "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0"
         ).toMutableMap()
         var cookies = emptyMap<String, String>()
     }
@@ -57,6 +59,7 @@ class AnimeUnity : MainAPI() {
         "$mainUrl/archivio/" to "Popolari",
         "$mainUrl/archivio/" to "I migliori",
         "$mainUrl/archivio/" to "In Arrivo",
+//        "$mainUrl/archivio/" to "I migliori doppiati",
 //        "$mainUrl/archivio/" to "In Corso doppiati",
 //        "$mainUrl/archivio/" to "Popolari doppiati",
 //        "$mainUrl/archivio/" to "I migliori doppiati",
@@ -65,7 +68,7 @@ class AnimeUnity : MainAPI() {
 
 
     private suspend fun setupHeadersAndCookies() {
-        val response = app.get(mainUrl, headers = mapOf("Host" to "www.animeunity.to"))
+        val response = app.get("$mainUrl/archivio", headers = headers)
 
         val csrfToken = response.document.head().select("meta[name=csrf-token]").attr("content")
         val h = mapOf(
@@ -82,13 +85,11 @@ class AnimeUnity : MainAPI() {
     }
 
     private fun resetHeadersAndCookies() {
-        if (headers == null) {
-            headers = mutableMapOf()
-        }
-        else if(headers.isNotEmpty()) {
+        if(headers.isNotEmpty()) {
             headers.clear()
         }
-        headers["Host"] = "www.animeunity.to"
+        headers["Host"] = Companion.mainUrl.toHttpUrl().host
+        headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0"
         cookies = emptyMap()
     }
 
@@ -120,7 +121,7 @@ class AnimeUnity : MainAPI() {
         if (!imageUrl.isNullOrEmpty()) {
             try {
                 val fileName = imageUrl.substringAfterLast("/")
-                return "https://img.animeunity.to/anime/$fileName"
+                return "https://img.animeunity.so/anime/$fileName"
             } catch (_: Exception) {
                 // Fallback to Anilist if direct image fails
             }
@@ -292,6 +293,19 @@ class AnimeUnity : MainAPI() {
             }
         }
         val title = anime.titleIt ?: anime.titleEng ?: anime.title!!
+        val relatedAnimes = relatedAnime.amap {
+            AnimeSearchResponse(
+                name = (it.titleIt ?: it.titleEng ?: it.title!!).replace(" (ITA)", ""),
+                url = "$mainUrl/anime/${it.id}-${it.slug}",
+                apiName = this@AnimeUnity.name,
+                posterUrl = getImage(it.imageUrl, it.anilistId),
+                type = if (it.type == "TV") TvType.Anime
+                else if (it.type == "Movie" || it.episodesCount == 1) TvType.AnimeMovie
+                else TvType.OVA
+            ).apply {
+                addDubStatus(it.dub == 1)
+            }
+        }
 
         val animeLoadResponse = newAnimeLoadResponse(
             name = title.replace(" (ITA)", ""),
@@ -302,7 +316,9 @@ class AnimeUnity : MainAPI() {
         ) {
             this.posterUrl =
                 getImage(anime.imageUrl, anime.anilistId)
-            anime.cover?.let { this.backgroundPosterUrl = it }
+            anime.cover?.let {
+                this.backgroundPosterUrl = getBanner(it)
+            }
             this.year = anime.date.toInt()
             addRating(anime.score)
 
@@ -323,22 +339,23 @@ class AnimeUnity : MainAPI() {
                 }
             }
             this.comingSoon = anime.status == "In uscita prossimamente"
-            this.recommendations = relatedAnime.amap {
-                AnimeSearchResponse(
-                    name = (it.titleIt ?: it.titleEng ?: it.title!!).replace(" (ITA)", ""),
-                    url = "$mainUrl/anime/${it.id}-${it.slug}",
-                    apiName = this@AnimeUnity.name,
-                    posterUrl = getImage(it.imageUrl, it.anilistId),
-                    type = if (it.type == "TV") TvType.Anime
-                    else if (it.type == "Movie" || it.episodesCount == 1) TvType.AnimeMovie
-                    else TvType.OVA
-                ).apply {
-                    addDubStatus(it.dub == 1)
-                }
-            }
+            this.recommendations = relatedAnimes
         }
 
         return animeLoadResponse
+    }
+
+    private fun getBanner(imageUrl: String): String {
+//        Log.d("$TAG:getPoster", "imageUrl: $imageUrl")
+        if (imageUrl.isNotEmpty()) {
+            try {
+                val fileName = imageUrl.substringAfterLast("/")
+                return "https://img.animeunity.so/anime/$fileName"
+            } catch (_: Exception) {
+                // Fallback to Anilist if direct image fails
+            }
+        }
+        return imageUrl
     }
 
 
