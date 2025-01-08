@@ -12,5 +12,5 @@ include(
     "CB01",
     "StreamingCommunity",
     "ToonItalia",
-//    "YouTube"
+    "YouTube"
 )

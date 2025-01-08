@@ -16,7 +16,6 @@ import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.core.content.res.ResourcesCompat
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import it.dogior.hadEnough.BuildConfig
 import it.dogior.hadEnough.YouTubePlugin
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
@@ -45,7 +44,7 @@ class HomepageSettings(
     BottomSheetDialogFragment() {
 
     private fun <T : View> View.findView(name: String): T {
-        val id = plugin.resources!!.getIdentifier(name, "id", BuildConfig.LIBRARY_PACKAGE_NAME)
+        val id = plugin.resources!!.getIdentifier(name, "id", "it.doGior.hadEnoguh")
         return this.findViewById(id)
     }
 
@@ -56,13 +55,13 @@ class HomepageSettings(
 
     private fun getDrawable(name: String): Drawable? {
         val id =
-            plugin.resources!!.getIdentifier(name, "drawable", BuildConfig.LIBRARY_PACKAGE_NAME)
+            plugin.resources!!.getIdentifier(name, "drawable", "it.doGior.hadEnoguh")
         return ResourcesCompat.getDrawable(plugin.resources!!, id, null)
     }
 
     private fun getString(name: String): String? {
         val id =
-            plugin.resources!!.getIdentifier(name, "string", BuildConfig.LIBRARY_PACKAGE_NAME)
+            plugin.resources!!.getIdentifier(name, "string", "it.doGior.hadEnoguh")
         return plugin.resources!!.getString(id)
     }
 
@@ -74,7 +73,7 @@ class HomepageSettings(
         val id = plugin.resources!!.getIdentifier(
             "homepage_settings",
             "layout",
-            BuildConfig.LIBRARY_PACKAGE_NAME
+            "it.doGior.hadEnoguh"
         )
         val layout = plugin.resources!!.getLayout(id)
         return inflater.inflate(layout, container, false)
