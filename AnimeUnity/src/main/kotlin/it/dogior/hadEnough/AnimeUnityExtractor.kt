@@ -44,8 +44,8 @@ class AnimeUnityExtractor : ExtractorApi() {
 
         var masterPlaylistUrl: String
         val params = "token=${masterPlaylist.params.token}&expires=${masterPlaylist.params.expires}"
-        masterPlaylistUrl = if ("?b1" in masterPlaylist.url) {
-            "${masterPlaylist.url}&$params"
+        masterPlaylistUrl = if ("?b" in masterPlaylist.url) {
+            "${masterPlaylist.url.replace("?b:1", "?b=1")}&$params"
         } else{
             "${masterPlaylist.url}?$params"
         }

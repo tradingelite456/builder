@@ -96,12 +96,11 @@ class AnimeUnity : MainAPI() {
     private suspend fun searchResponseBuilder(objectList: List<Anime>): List<SearchResponse> {
         return objectList.amap { anime ->
             val title = (anime.titleIt ?: anime.titleEng ?: anime.title!!)
-                .replace(" (ITA)", "")
 
             val poster = getImage(anime.imageUrl, anime.anilistId)
 
             newAnimeSearchResponse(
-                name = title,
+                name = title.replace(" (ITA)", ""),
                 url = "$mainUrl/anime/${anime.id}-${anime.slug}",
                 type = when {
                     anime.type == "TV" -> TvType.Anime
@@ -109,7 +108,7 @@ class AnimeUnity : MainAPI() {
                     else -> TvType.OVA
                 }
             ).apply {
-                addDubStatus(anime.dub == 1)
+                addDubStatus(anime.dub == 1 || title.contains("(ITA)"))
                 addPoster(poster)
             }
 
@@ -294,8 +293,9 @@ class AnimeUnity : MainAPI() {
         }
         val title = anime.titleIt ?: anime.titleEng ?: anime.title!!
         val relatedAnimes = relatedAnime.amap {
+            val relatedTitle = (it.titleIt ?: it.titleEng ?: it.title!!)
             AnimeSearchResponse(
-                name = (it.titleIt ?: it.titleEng ?: it.title!!).replace(" (ITA)", ""),
+                name = relatedTitle.replace(" (ITA)", ""),
                 url = "$mainUrl/anime/${it.id}-${it.slug}",
                 apiName = this@AnimeUnity.name,
                 posterUrl = getImage(it.imageUrl, it.anilistId),
@@ -303,7 +303,7 @@ class AnimeUnity : MainAPI() {
                 else if (it.type == "Movie" || it.episodesCount == 1) TvType.AnimeMovie
                 else TvType.OVA
             ).apply {
-                addDubStatus(it.dub == 1)
+                addDubStatus(it.dub == 1 || relatedTitle.contains("(ITA)"))
             }
         }
 
@@ -330,7 +330,7 @@ class AnimeUnity : MainAPI() {
             addMalId(anime.malId)
             this.plot = anime.plot
             val doppiato =
-                if (anime.dub == 1) "\uD83C\uDDEE\uD83C\uDDF9  Italiano" else "\uD83C\uDDEF\uD83C\uDDF5  Giapponese"
+                if (anime.dub == 1 || title.contains("(ITA)")) "\uD83C\uDDEE\uD83C\uDDF9  Italiano" else "\uD83C\uDDEF\uD83C\uDDF5  Giapponese"
             this.tags = listOf(doppiato) + anime.genres.map { genre ->
                 genre.name.replaceFirstChar {
                     if (it.isLowerCase()) it.titlecase(
