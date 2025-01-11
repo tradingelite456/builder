@@ -28,6 +28,7 @@ import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.fixUrl
 import com.lagradost.cloudstream3.newAnimeLoadResponse
 import com.lagradost.cloudstream3.newAnimeSearchResponse
+import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -51,15 +52,41 @@ open class AnimeWorldCore : MainAPI() {
     )
 
     companion object {
-        private var cookies = emptyMap<String, String>()
-        private lateinit var token: String
+        private var cookies = mutableMapOf<String, String>()
+        private var headers = mutableMapOf<String, String>()
 
-        // Disabled authentication as site did
         private suspend fun request(url: String): NiceResponse {
-//            if (cookies.isEmpty()) {
-//                cookies = getCookies(url)
-//            }
-            return app.get(url)
+            if (cookies.isEmpty()) {
+                fixCookies()
+            }
+            return app.get(url, headers = headers, cookies = cookies)
+        }
+
+        private suspend fun fixCookies() {
+            // Regex patterns
+            val csrfTokenRegex = """<meta.*?id="csrf-token"\s*?content="(.*?)">""".toRegex()
+            val cookieRegex =
+                """document\.cookie\s*?=\s*?"(.+?)=(.+?)(\s*?;\s*?path=.+?)?"\s*?;""".toRegex()
+
+            // Number of attempts
+            repeat(2) {
+                val res = app.get("https://www.animeworld.so", allowRedirects = true)
+                val resBody = res.body.string()
+                // Check for cookies in the response
+                val cookieMatch = cookieRegex.find(resBody)
+                if (cookieMatch != null) {
+                    val (key, value) = cookieMatch.destructured
+                    cookies[key] = value
+                    return@repeat
+                }
+
+                // Check for CSRF token in the response
+                val csrfTokenMatch = csrfTokenRegex.find(resBody)
+                if (csrfTokenMatch != null) {
+                    headers["csrf-token"] = csrfTokenMatch.groupValues[1]
+                    return@repeat
+                }
+            }
         }
 
         fun getType(t: String?): TvType {
@@ -80,12 +107,14 @@ open class AnimeWorldCore : MainAPI() {
     }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val pagedata: NiceResponse = if (page > 1) {
-            app.get(request.data + "&page=$page")
+        val pageData: NiceResponse = if (page > 1) {
+            request(request.data + "&page=$page")
         } else {
-            app.get(request.data)
+            request(request.data)
         }
-        val document = pagedata.document
+
+        val document = pageData.document
+//        Log.d("AnimeWorld:MainPage", "Document: $document")
         val list = ArrayList<AnimeSearchResponse>()
         var hasNextPage = false
         if (request.name.contains("Top")) {
@@ -166,10 +195,9 @@ open class AnimeWorldCore : MainAPI() {
 
     override suspend fun quickSearch(query: String): List<SearchResponse>? {
         val document = app.post(
-            "https://www.animeworld.tv/api/search/v2?keyword=${query}",
+            "$mainUrl/api/search/v2?keyword=${query}",
             referer = mainUrl,
-            cookies = cookies,
-            headers = mapOf("csrf-token" to token)
+            cookies = cookies
         ).text
 
         return tryParseJson<SearchJson>(document)?.animes?.map { anime ->
@@ -301,7 +329,9 @@ open class AnimeWorldCore : MainAPI() {
             addTrailer(trailerUrl)
             this.recommendations = recommendations
             this.comingSoon = comingSoon
-            this.nextAiring = nextAiringUnix?.let { NextAiring(episodes.last().episode!! + 1, it) }
+            if (episodes.isNotEmpty() && nextAiringUnix != null && episodes.last().episode != null) {
+                this.nextAiring = NextAiring(episodes.last().episode!! + 1, nextAiringUnix)
+            }
         }
     }
 
@@ -311,6 +341,7 @@ open class AnimeWorldCore : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit,
     ): Boolean {
+//        Log.d("AnimeWorld:loadLinks", "DATA : $data")
         val epNumber = data.split("¿")[0].toInt()
         val pageUrl = data.split("¿")[1]
 
