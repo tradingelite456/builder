@@ -10,6 +10,7 @@ include(
     "CalcioStreaming",
     "CanaliTV",
     "CB01",
+    "OnlineSerieTV",
     "StreamingCommunity",
     "ToonItalia",
     "YouTube"
