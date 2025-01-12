@@ -1,6 +1,7 @@
 package it.dogior.hadEnough
 
 import com.lagradost.api.Log
+import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.AnimeSearchResponse
 import com.lagradost.cloudstream3.DubStatus
 import com.lagradost.cloudstream3.Episode
@@ -28,7 +29,6 @@ import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.fixUrl
 import com.lagradost.cloudstream3.newAnimeLoadResponse
 import com.lagradost.cloudstream3.newAnimeSearchResponse
-import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -38,8 +38,8 @@ import org.jsoup.nodes.Element
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-open class AnimeWorldCore : MainAPI() {
-    override var mainUrl = "https://www.animeworld.so"
+abstract class AnimeWorldCore : MainAPI() {
+    override var mainUrl = Companion.mainUrl
     override val hasMainPage = true
     override val hasQuickSearch = true
 
@@ -52,57 +52,43 @@ open class AnimeWorldCore : MainAPI() {
     )
 
     companion object {
+        private var mainUrl = "https://www.animeworld.so"
         private var cookies = mutableMapOf<String, String>()
         private var headers = mutableMapOf<String, String>()
 
         private suspend fun request(url: String): NiceResponse {
             if (cookies.isEmpty()) {
-                fixCookies()
+                headers["Cookie"] = getSecurityCookie()
+//                Log.d("AnimeWorld:Cookie", "Cookie: ${headers["Cookie"]}")
             }
-            return app.get(url, headers = headers, cookies = cookies)
+            return app.get(url, headers = headers)
         }
 
-        private suspend fun fixCookies() {
-            // Regex patterns
-            val csrfTokenRegex = """<meta.*?id="csrf-token"\s*?content="(.*?)">""".toRegex()
-            val cookieRegex =
-                """document\.cookie\s*?=\s*?"(.+?)=(.+?)(\s*?;\s*?path=.+?)?"\s*?;""".toRegex()
-
-            // Number of attempts
-            repeat(2) {
-                val res = app.get("https://www.animeworld.so", allowRedirects = true)
-                val resBody = res.body.string()
-                // Check for cookies in the response
-                val cookieMatch = cookieRegex.find(resBody)
-                if (cookieMatch != null) {
-                    val (key, value) = cookieMatch.destructured
-                    cookies[key] = value
-                    return@repeat
-                }
-
-                // Check for CSRF token in the response
-                val csrfTokenMatch = csrfTokenRegex.find(resBody)
-                if (csrfTokenMatch != null) {
-                    headers["csrf-token"] = csrfTokenMatch.groupValues[1]
-                    return@repeat
-                }
-            }
+        private suspend fun getSecurityCookie(): String {
+            val r = app.get(mainUrl, allowRedirects = false)
+//            Log.d("AnimeWorld:getSecurityCookie", "Cookie: ${r.headers["set-cookie"]}")
+            val securityCookie = r.headers["set-cookie"]!!.substringBefore(";")
+//            Log.d("AnimeWorld:getSecurityCookie", "Cookie: ${securityCookie}")
+            val r2 = app.get("$mainUrl/?d=1", headers = headers, allowRedirects = false)
+//            Log.d("AnimeWorld:getSecurityCookie", "Cookie: ${r2.headers["set-cookie"]}")
+            val sessionCookie = r2.headers["set-cookie"]!!.substringBefore(";")
+            return "$securityCookie; $sessionCookie"
         }
+    }
 
-        fun getType(t: String?): TvType {
-            return when (t?.lowercase()) {
-                "movie" -> TvType.AnimeMovie
-                "ova" -> TvType.OVA
-                else -> TvType.Anime
-            }
+    private fun getType(t: String?): TvType {
+        return when (t?.lowercase()) {
+            "movie" -> TvType.AnimeMovie
+            "ova" -> TvType.OVA
+            else -> TvType.Anime
         }
+    }
 
-        fun getStatus(t: String?): ShowStatus? {
-            return when (t?.lowercase()) {
-                "finito" -> ShowStatus.Completed
-                "in corso" -> ShowStatus.Ongoing
-                else -> null
-            }
+    private fun getStatus(t: String?): ShowStatus? {
+        return when (t?.lowercase()) {
+            "finito" -> ShowStatus.Completed
+            "in corso" -> ShowStatus.Ongoing
+            else -> null
         }
     }
 
