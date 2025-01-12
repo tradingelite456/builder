@@ -58,7 +58,7 @@ class OnlineSerieTV : MainAPI() {
                 val items = itemGrid.select(".uagb-post__inner-wrap")
                 items.map {
                     val itemTag = it.select(".uagb-post__title > a")
-                    val title = itemTag.text().trim()
+                    val title = itemTag.text().trim().replace(Regex("""\d{4}$"""), "")
                     val url = itemTag.attr("href")
                     val poster = it.select(".uagb-post__image > a > img").attr("src")
 
@@ -79,7 +79,7 @@ class OnlineSerieTV : MainAPI() {
                 val items = currentTop10?.select(".scrolling > li")
                 if (items != null) {
                     items.amap {
-                        val title = it.select("a").text().trim()
+                        val title = it.select("a").text().trim().replace(Regex("""\d{4}$"""), "")
                         val url = it.select("a").attr("href")
 
                         val showPage = app.get(url).document
@@ -111,7 +111,7 @@ class OnlineSerieTV : MainAPI() {
 
 
     private fun Element.toSearchResponse(): SearchResponse {
-        val title = this.select("h2").text().trim()
+        val title = this.select("h2").text().trim().replace(Regex("""\d{4}$"""), "")
         val url = this.select("a").attr("href")
         val poster = this.select("img").attr("src")
         return newTvSeriesSearchResponse(title, url) {
@@ -135,7 +135,7 @@ class OnlineSerieTV : MainAPI() {
         val response = app.get(url).document
         val dati = response.selectFirst(".headingder")!!
         val poster = dati.select(".imgs > img").attr("src").replace(Regex("""-\d+x\d+"""), "")
-        val title = dati.select(".dataplus > div:nth-child(1) > h1").text().trim()
+        val title = dati.select(".dataplus > div:nth-child(1) > h1").text().trim().replace(Regex("""\d{4}$"""), "")
         val rating = dati.select(".stars > span:nth-child(3)").text().trim().removeSuffix("/10")
         val genres = dati.select(".stars > span:nth-child(6) > i:nth-child(1)").text().trim()
         val year = dati.select(".stars > span:nth-child(8) > i:nth-child(1)").text().trim()
