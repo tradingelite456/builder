@@ -11,8 +11,10 @@ import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.amap
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.mainPageOf
+import com.lagradost.cloudstream3.network.WebViewResolver
 import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newMovieLoadResponse
@@ -22,6 +24,7 @@ import com.lagradost.cloudstream3.newTvSeriesSearchResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import it.dogior.hadEnough.extractors.MaxStreamExtractor
 import it.dogior.hadEnough.extractors.StreamTapeExtractor
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 
@@ -77,15 +80,60 @@ class ToonItalia :
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val response = app.get("$mainUrl/?s=$query")
-        val list = response.document.select("article").mapNotNull {
-            if (it.tagName() == "article") {
-                it.toSearchResponse(true)
-            } else {
+//        val response = app.get("$mainUrl?s=$query", interceptor = WebViewResolver("""\?s=lupin""".toRegex()))
+//        val document = response.document
+//        Log.d("ToonItalia:search", document.toString())
+//        val list = document.select("article").mapNotNull {
+//            if (it.tagName() == "article") {
+//                it.toSearchResponse(true)
+//            } else {
+//                null
+//            }
+//        }
+        return braveSearch(query)
+    }
+
+    private suspend fun braveSearch(query: String): List<SearchResponse> {
+        val response = app.get("https://search.brave.com/search?q=${query}+site%3A${mainUrl.toHttpUrl().host}")
+        val document = response.document
+        val resultList = document.select("#results")
+        val results = resultList.select(".snippet[data-type=\"web\"]").map { it.selectFirst("a")?.attr("href") }
+
+        val excludedUrls = listOf(
+            mainUrl + "category/anime/",
+            mainUrl + "category/kids/",
+            mainUrl + "film-anime/",
+            mainUrl + "lista-anime-e-cartoni/",
+            mainUrl + "lista-film-anime/",
+            mainUrl + "lista-serietv-ragazzi/")
+
+        val searchResponseList = results.amap{ url ->
+            if (url != null && excludedUrls.all { !it.contains(url) }){
+                val r = app.get(url).document
+                val title = r.select(".entry-title").text().trim()
+                val poster = r.select(".attachment-post-thumbnail").attr("src")
+                val typeFooter = r.select(".cat-links > a:nth-child(1)").text()
+
+                val type = if (typeFooter == "") {
+                    TvType.Movie
+                } else {
+                    TvType.TvSeries
+                }
+
+                if (type == TvType.TvSeries) {
+                    newTvSeriesSearchResponse(title, url, type) {
+                        this.posterUrl = poster
+                    }
+                } else {
+                    newMovieSearchResponse(title, url, type) {
+                        this.posterUrl = poster
+                    }
+                }
+            }else{
                 null
             }
-        }
-        return list
+        }.filterNotNull()
+        return searchResponseList
     }
 
     override suspend fun load(url: String): LoadResponse {
@@ -172,7 +220,7 @@ class ToonItalia :
         callback: (ExtractorLink) -> Unit,
     ): Boolean {
         val linkData = data.split("€")
-        val pageUrl = linkData[0]
+//        val pageUrl = linkData[0]
         // The a tags with the links from the different servers
         val episodeLinks = linkData[1]
         val soup = Jsoup.parse(episodeLinks)
