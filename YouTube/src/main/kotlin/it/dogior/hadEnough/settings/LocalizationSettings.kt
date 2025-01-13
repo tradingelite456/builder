@@ -15,6 +15,7 @@ import androidx.annotation.RequiresApi
 import androidx.core.content.res.ResourcesCompat
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.lagradost.cloudstream3.CommonActivity.showToast
+import it.dogior.hadEnough.BuildConfig
 import it.dogior.hadEnough.YouTubePlugin
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.localization.ContentCountry
@@ -29,7 +30,7 @@ class LocalizationSettings(private val plugin: YouTubePlugin, val sharedPref: Sh
     BottomSheetDialogFragment() {
 
     private fun <T : View> View.findView(name: String): T {
-        val id = plugin.resources!!.getIdentifier(name, "id", "it.doGior.hadEnoguh")
+        val id = plugin.resources!!.getIdentifier(name, "id", BuildConfig.LIBRARY_PACKAGE_NAME)
         return this.findViewById(id)
     }
 
@@ -40,13 +41,13 @@ class LocalizationSettings(private val plugin: YouTubePlugin, val sharedPref: Sh
 
     private fun getDrawable(name: String): Drawable? {
         val id =
-            plugin.resources!!.getIdentifier(name, "drawable", "it.doGior.hadEnoguh")
+            plugin.resources!!.getIdentifier(name, "drawable", BuildConfig.LIBRARY_PACKAGE_NAME)
         return ResourcesCompat.getDrawable(plugin.resources!!, id, null)
     }
 
     private fun getString(name: String): String? {
         val id =
-            plugin.resources!!.getIdentifier(name, "string", "it.doGior.hadEnoguh")
+            plugin.resources!!.getIdentifier(name, "string", BuildConfig.LIBRARY_PACKAGE_NAME)
         return plugin.resources!!.getString(id)
     }
 
@@ -58,7 +59,7 @@ class LocalizationSettings(private val plugin: YouTubePlugin, val sharedPref: Sh
         val id = plugin.resources!!.getIdentifier(
             "localization_settings",
             "layout",
-            "it.doGior.hadEnoguh"
+            BuildConfig.LIBRARY_PACKAGE_NAME
         )
         val layout = plugin.resources!!.getLayout(id)
         return inflater.inflate(layout, container, false)

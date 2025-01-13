@@ -23,6 +23,7 @@ import com.lagradost.api.Log
 import com.lagradost.cloudstream3.CommonActivity.showToast
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
+import it.dogior.hadEnough.BuildConfig
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -44,7 +45,7 @@ class HomepageSettings(
     BottomSheetDialogFragment() {
 
     private fun <T : View> View.findView(name: String): T {
-        val id = plugin.resources!!.getIdentifier(name, "id", "it.doGior.hadEnoguh")
+        val id = plugin.resources!!.getIdentifier(name, "id", BuildConfig.LIBRARY_PACKAGE_NAME)
         return this.findViewById(id)
     }
 
@@ -55,13 +56,13 @@ class HomepageSettings(
 
     private fun getDrawable(name: String): Drawable? {
         val id =
-            plugin.resources!!.getIdentifier(name, "drawable", "it.doGior.hadEnoguh")
+            plugin.resources!!.getIdentifier(name, "drawable", BuildConfig.LIBRARY_PACKAGE_NAME)
         return ResourcesCompat.getDrawable(plugin.resources!!, id, null)
     }
 
     private fun getString(name: String): String? {
         val id =
-            plugin.resources!!.getIdentifier(name, "string", "it.doGior.hadEnoguh")
+            plugin.resources!!.getIdentifier(name, "string", BuildConfig.LIBRARY_PACKAGE_NAME)
         return plugin.resources!!.getString(id)
     }
 
@@ -73,7 +74,7 @@ class HomepageSettings(
         val id = plugin.resources!!.getIdentifier(
             "homepage_settings",
             "layout",
-            "it.doGior.hadEnoguh"
+            BuildConfig.LIBRARY_PACKAGE_NAME
         )
         val layout = plugin.resources!!.getLayout(id)
         return inflater.inflate(layout, container, false)

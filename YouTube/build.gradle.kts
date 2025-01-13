@@ -1,4 +1,5 @@
 @file:Suppress("UnstableApiUsage")
+import org.jetbrains.kotlin.konan.properties.Properties
 
 // use an integer for version numbers
 version = 7
@@ -23,7 +24,11 @@ cloudstream {
     iconUrl = "https://www.youtube.com/s/desktop/711fd789/img/logos/favicon_144x144.png"
 }
 
-android{
+android {
+    buildFeatures {
+        buildConfig = true
+    }
+
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_1_8
