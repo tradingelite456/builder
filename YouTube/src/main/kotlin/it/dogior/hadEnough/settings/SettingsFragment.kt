@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
@@ -21,29 +22,37 @@ import it.dogior.hadEnough.YouTubePlugin
  * Use the [SettingsFragment] factory method to
  * create an instance of this fragment.
  */
-class SettingsFragment(private val plugin: YouTubePlugin, val sharedPref: SharedPreferences?) :
-    BottomSheetDialogFragment() {
+class SettingsFragment(
+    private val plugin: YouTubePlugin,
+    val sharedPref: SharedPreferences?
+) : BottomSheetDialogFragment() {
+    private val res = plugin.resources ?: throw Exception("Unable to read resources")
 
     private fun <T : View> View.findView(name: String): T {
-        val id = plugin.resources!!.getIdentifier(name, "id", BuildConfig.LIBRARY_PACKAGE_NAME)
+        val id = res.getIdentifier(name, "id", BuildConfig.LIBRARY_PACKAGE_NAME)
         return this.findViewById(id)
     }
 
     private fun View.makeTvCompatible() {
-        this.setPadding(this.paddingLeft + 10,this.paddingTop + 10,this.paddingRight + 10,this.paddingBottom + 10)
+        this.setPadding(
+            this.paddingLeft + 10,
+            this.paddingTop + 10,
+            this.paddingRight + 10,
+            this.paddingBottom + 10
+        )
         this.background = getDrawable("outline")
     }
 
     private fun getDrawable(name: String): Drawable? {
         val id =
-            plugin.resources!!.getIdentifier(name, "drawable", BuildConfig.LIBRARY_PACKAGE_NAME)
-        return ResourcesCompat.getDrawable(plugin.resources!!, id, null)
+            res.getIdentifier(name, "drawable", BuildConfig.LIBRARY_PACKAGE_NAME)
+        return ResourcesCompat.getDrawable(res, id, null)
     }
 
     private fun getString(name: String): String? {
         val id =
-            plugin.resources!!.getIdentifier(name, "string", BuildConfig.LIBRARY_PACKAGE_NAME)
-        return plugin.resources!!.getString(id)
+            res.getIdentifier(name, "string", BuildConfig.LIBRARY_PACKAGE_NAME)
+        return res.getString(id)
     }
 
     override fun onCreateView(
@@ -51,12 +60,12 @@ class SettingsFragment(private val plugin: YouTubePlugin, val sharedPref: Shared
         savedInstanceState: Bundle?,
     ): View? {
         // Inflate the layout for this fragment
-        val id = plugin.resources!!.getIdentifier(
+        val id = res.getIdentifier(
             "settings_fragment",
             "layout",
             BuildConfig.LIBRARY_PACKAGE_NAME
         )
-        val layout = plugin.resources!!.getLayout(id)
+        val layout = res.getLayout(id)
         return inflater.inflate(layout, container, false)
     }
 
@@ -70,8 +79,6 @@ class SettingsFragment(private val plugin: YouTubePlugin, val sharedPref: Shared
 
         localizationTW.text = getString("localization_tw")
         homepageTW.text = getString("homepage_tw")
-
-
 
 
         val changeLocalizationButton = view.findView<ImageButton>("changeLocalization_button")

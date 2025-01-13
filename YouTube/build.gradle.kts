@@ -1,8 +1,7 @@
 @file:Suppress("UnstableApiUsage")
-import org.jetbrains.kotlin.konan.properties.Properties
 
 // use an integer for version numbers
-version = 7
+version = 8
 
 cloudstream {
     description = "Videos, playlists and channels from YouTube"
@@ -27,6 +26,7 @@ cloudstream {
 android {
     buildFeatures {
         buildConfig = true
+        viewBinding = true
     }
 
     compileOptions {
