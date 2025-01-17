@@ -15,6 +15,7 @@ import com.lagradost.cloudstream3.LoadResponse.Companion.addMalId
 import com.lagradost.cloudstream3.LoadResponse.Companion.addRating
 import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
 import com.lagradost.cloudstream3.MainAPI
+import com.lagradost.cloudstream3.MainPageData
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.NextAiring
 import com.lagradost.cloudstream3.SearchResponse
@@ -27,9 +28,11 @@ import com.lagradost.cloudstream3.addPoster
 import com.lagradost.cloudstream3.amap
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.fixUrl
+import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newAnimeLoadResponse
 import com.lagradost.cloudstream3.newAnimeSearchResponse
 import com.lagradost.cloudstream3.newHomePageResponse
+import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
@@ -44,7 +47,9 @@ abstract class AnimeWorldCore : MainAPI() {
     override val hasQuickSearch = true
 
     open val isDubbed = false
-
+//    override val mainPage = emptyList<MainPageData>()
+    override val mainPage = mainPageOf(
+    "" to "Sondaggio")
     override val supportedTypes = setOf(
         TvType.Anime,
         TvType.AnimeMovie,
@@ -93,6 +98,17 @@ abstract class AnimeWorldCore : MainAPI() {
     }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        if (request.name == "Sondaggio"){
+            return newHomePageResponse(
+                HomePageList(
+                    name = request.name,
+                    list = listOf(newAnimeSearchResponse("Sondaggio", "https://it.surveymonkey.com/r/5GSWRYR", TvType.Movie) {
+                        this.posterUrl = "https://instagram.fcia2-2.fna.fbcdn.net/v/t51.29350-15/448360187_1185321185958312_4457518714583499251_n.jpg?stp=dst-jpg_e35_tt6&efg=eyJ2ZW5jb2RlX3RhZyI6ImltYWdlX3VybGdlbi4xMDc5eDEwNzkuc2RyLmYyOTM1MC5kZWZhdWx0X2ltYWdlIn0&_nc_ht=instagram.fcia2-2.fna.fbcdn.net&_nc_cat=100&_nc_ohc=M6v-uZ25hsYQ7kNvgFFuYkm&_nc_gid=56c6bdf508ad4df19784e5b193324d04&edm=ANTKIIoBAAAA&ccb=7-5&oh=00_AYCRKF0GMIeLIB8Oo6-jujIZzCpfksFKbV8gDTAHJxEs5g&oe=67901552&_nc_sid=d885a2"
+                    }),
+                    isHorizontalImages = false
+                ), false
+            )
+        }
         val pageData: NiceResponse = if (page > 1) {
             request(request.data + "&page=$page")
         } else {
@@ -228,6 +244,13 @@ abstract class AnimeWorldCore : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
+        if(url == "https://it.surveymonkey.com/r/5GSWRYR"){
+            return newMovieLoadResponse("Sondaggio", url, TvType.Movie, url){
+                this.posterUrl = "https://img.animeworld.so/general/Dark-AW.gif"
+                this.plot = "Un utente mi chiesto di unire AnimeWorld in un singolo plugin con anime sia doppiati che sottotitolati, potresti rispondere a questo sondaggio per farmi sapere cosa ne pensi? Per partecipare clicca l'icona del pianeta in alto ⬆️"
+                this.comingSoon = true
+            }
+        }
         val document = request(url).document
 //        Log.d("AnimeWorld:load", "Url: $url")
 

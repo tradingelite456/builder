@@ -7,7 +7,7 @@ class AnimeWorldDub : AnimeWorldCore() {
     override var lang = "it"
     override val isDubbed = true
 
-    override val mainPage = mainPageOf(
+    override val mainPage = super.mainPage + mainPageOf(
         "$mainUrl/filter?status=0&language=it&sort=1" to "In Corso",
         "$mainUrl/filter?language=it&sort=1" to "Ultimi aggiunti",
         "$mainUrl/filter?language=it&sort=6" to "Più Visti",

@@ -6,7 +6,7 @@ class AnimeWorldSub : AnimeWorldCore() {
     override var name = "AnimeWorld Sub"
     override var lang = "jp"
 
-    override val mainPage = mainPageOf(
+    override val mainPage = super.mainPage + mainPageOf(
         "$mainUrl/filter?status=0&language=jp&sort=1" to "In Corso",
         "$mainUrl/filter?language=jp&sort=1" to "Ultimi aggiunti",
         "$mainUrl/filter?language=jp&sort=6" to "Più Visti",
