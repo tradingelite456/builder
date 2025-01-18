@@ -379,7 +379,11 @@ abstract class AnimeWorldCore : MainAPI() {
                 )
 
             } else if (it.target.contains("listeamed.net")) {
-                VidguardExtractor().getUrl(it.grabber, null, subtitleCallback, callback)
+                try {
+                    VidguardExtractor().getUrl(it.grabber, null, subtitleCallback, callback)
+                }catch (e: StackOverflowError){
+                    Log.e("AnimeWorld", e.stackTrace.toString())
+                }
             } else {
                 null
             }
