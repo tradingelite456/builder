@@ -1,7 +1,5 @@
 package it.dogior.hadEnough
 
-import com.lagradost.api.Log
-import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.AnimeSearchResponse
 import com.lagradost.cloudstream3.DubStatus
 import com.lagradost.cloudstream3.Episode
@@ -15,7 +13,6 @@ import com.lagradost.cloudstream3.LoadResponse.Companion.addMalId
 import com.lagradost.cloudstream3.LoadResponse.Companion.addRating
 import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
 import com.lagradost.cloudstream3.MainAPI
-import com.lagradost.cloudstream3.MainPageData
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.NextAiring
 import com.lagradost.cloudstream3.SearchResponse
@@ -41,15 +38,26 @@ import org.jsoup.nodes.Element
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-abstract class AnimeWorldCore : MainAPI() {
+open class AnimeWorldCore(isSplit: Boolean = false) : MainAPI() {
     override var mainUrl = Companion.mainUrl
+    override var name = "AnimeWorld"
+    override var lang = "it"
     override val hasMainPage = true
     override val hasQuickSearch = true
 
-    open val isDubbed = false
-//    override val mainPage = emptyList<MainPageData>()
-    override val mainPage = mainPageOf(
-    "" to "Sondaggio")
+    open val currentExtension = CurrentExtension.CORE
+
+    //    override val mainPage = emptyList<MainPageData>()
+    override val mainPage = if (isSplit) {
+        emptyList()
+    } else {
+        mainPageOf(
+            "$mainUrl/filter?status=0&sort=1" to "In Corso",
+            "$mainUrl/filter?sort=1" to "Ultimi aggiunti",
+            "$mainUrl/filter?sort=6" to "Più Visti",
+            "$mainUrl/tops/all?sort=1" to "Top 100 Anime",
+        )
+    }
     override val supportedTypes = setOf(
         TvType.Anime,
         TvType.AnimeMovie,
@@ -66,16 +74,19 @@ abstract class AnimeWorldCore : MainAPI() {
                 headers["Cookie"] = getSecurityCookie()
 //                Log.d("AnimeWorld:Cookie", "Cookie: ${headers["Cookie"]}")
             }
-            return app.get(url, headers = headers)
+            val r = app.get(url, headers = headers)
+            return r
         }
 
         private suspend fun getSecurityCookie(): String {
             val r = app.get(mainUrl, allowRedirects = false)
-//            Log.d("AnimeWorld:getSecurityCookie", "Cookie: ${r.headers["set-cookie"]}")
-            val securityCookie = r.headers["set-cookie"]!!.substringBefore(";")
+
+            val securityCookie =
+                r.document.selectFirst("script")!!.data().substringAfter("\"").substringBefore(" ;")
 //            Log.d("AnimeWorld:getSecurityCookie", "Cookie: ${securityCookie}")
-            val r2 = app.get("$mainUrl/?d=1", headers = headers, allowRedirects = false)
-//            Log.d("AnimeWorld:getSecurityCookie", "Cookie: ${r2.headers["set-cookie"]}")
+            val h = mapOf("Cookie" to securityCookie)
+            val r2 = app.get("$mainUrl/?d=1", headers = h, allowRedirects = true)
+//            Log.d("AnimeWorld:getSecurityCookie", "Request: ${r2.body.string()}")
             val sessionCookie = r2.headers["set-cookie"]!!.substringBefore(";")
             return "$securityCookie; $sessionCookie"
         }
@@ -98,13 +109,19 @@ abstract class AnimeWorldCore : MainAPI() {
     }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        if (request.name == "Sondaggio"){
+        if (request.name == "Sondaggio") {
             return newHomePageResponse(
                 HomePageList(
                     name = request.name,
-                    list = listOf(newAnimeSearchResponse("Sondaggio", "https://it.surveymonkey.com/r/5GSWRYR", TvType.Movie) {
-                        this.posterUrl = "https://instagram.fcia2-2.fna.fbcdn.net/v/t51.29350-15/448360187_1185321185958312_4457518714583499251_n.jpg?stp=dst-jpg_e35_tt6&efg=eyJ2ZW5jb2RlX3RhZyI6ImltYWdlX3VybGdlbi4xMDc5eDEwNzkuc2RyLmYyOTM1MC5kZWZhdWx0X2ltYWdlIn0&_nc_ht=instagram.fcia2-2.fna.fbcdn.net&_nc_cat=100&_nc_ohc=M6v-uZ25hsYQ7kNvgFFuYkm&_nc_gid=56c6bdf508ad4df19784e5b193324d04&edm=ANTKIIoBAAAA&ccb=7-5&oh=00_AYCRKF0GMIeLIB8Oo6-jujIZzCpfksFKbV8gDTAHJxEs5g&oe=67901552&_nc_sid=d885a2"
-                    }),
+                    list = listOf(
+                        newAnimeSearchResponse(
+                            "Sondaggio",
+                            "https://it.surveymonkey.com/r/5GSWRYR",
+                            TvType.Movie
+                        ) {
+                            this.posterUrl =
+                                "https://instagram.fcia2-2.fna.fbcdn.net/v/t51.29350-15/448360187_1185321185958312_4457518714583499251_n.jpg?stp=dst-jpg_e35_tt6&efg=eyJ2ZW5jb2RlX3RhZyI6ImltYWdlX3VybGdlbi4xMDc5eDEwNzkuc2RyLmYyOTM1MC5kZWZhdWx0X2ltYWdlIn0&_nc_ht=instagram.fcia2-2.fna.fbcdn.net&_nc_cat=100&_nc_ohc=M6v-uZ25hsYQ7kNvgFFuYkm&_nc_gid=56c6bdf508ad4df19784e5b193324d04&edm=ANTKIIoBAAAA&ccb=7-5&oh=00_AYCRKF0GMIeLIB8Oo6-jujIZzCpfksFKbV8gDTAHJxEs5g&oe=67901552&_nc_sid=d885a2"
+                        }),
                     isHorizontalImages = false
                 ), false
             )
@@ -167,9 +184,9 @@ abstract class AnimeWorldCore : MainAPI() {
             anchor.text()
         }
 
-        val title = if (isDubbed) titleText.replace(" (ITA)", "") else titleText
-        val otherTitle =
-            if (isDubbed) anchor.attr("data-jtitle").replace(" (ITA)", "") else titleText
+        val title = titleText.replace(" (ITA)","")
+        val otherTitle = if (currentExtension == CurrentExtension.DUB) anchor.attr("data-jtitle")
+                .replace(" (ITA)", "") else titleText
 
         // Use when for `poster` selection.
         val poster = when {
@@ -235,19 +252,26 @@ abstract class AnimeWorldCore : MainAPI() {
 
     private fun filterByDubStatus(anime: AnimeSearchResponse): Boolean {
         return anime.dubStatus?.any {
-            if (isDubbed) {
-                it == DubStatus.Dubbed
-            } else {
-                it == DubStatus.Subbed
+            when (currentExtension) {
+                CurrentExtension.DUB -> {
+                    it == DubStatus.Dubbed
+                }
+                CurrentExtension.SUB -> {
+                    it == DubStatus.Subbed
+                }
+                else -> {
+                    true
+                }
             }
         } ?: true
     }
 
     override suspend fun load(url: String): LoadResponse {
-        if(url == "https://it.surveymonkey.com/r/5GSWRYR"){
-            return newMovieLoadResponse("Sondaggio", url, TvType.Movie, url){
+        if (url == "https://it.surveymonkey.com/r/5GSWRYR") {
+            return newMovieLoadResponse("Sondaggio", url, TvType.Movie, url) {
                 this.posterUrl = "https://img.animeworld.so/general/Dark-AW.gif"
-                this.plot = "Un utente mi chiesto di unire AnimeWorld in un singolo plugin con anime sia doppiati che sottotitolati, potresti rispondere a questo sondaggio per farmi sapere cosa ne pensi? Per partecipare clicca l'icona del pianeta in alto ⬆️"
+                this.plot =
+                    "Un utente mi chiesto di unire AnimeWorld in un singolo plugin con anime sia doppiati che sottotitolati, potresti rispondere a questo sondaggio per farmi sapere cosa ne pensi? Per partecipare clicca l'icona del pianeta in alto ⬆️"
                 this.comingSoon = true
             }
         }
@@ -385,5 +409,9 @@ abstract class AnimeWorldCore : MainAPI() {
             }
         }.filterNotNull()
         return true
+    }
+
+    enum class CurrentExtension {
+        DUB, SUB, CORE
     }
 }
