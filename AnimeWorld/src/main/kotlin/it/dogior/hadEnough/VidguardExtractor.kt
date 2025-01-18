@@ -94,7 +94,7 @@ class VidguardExtractor : ExtractorApi() {
                     } else {
                         Context.toString(svgObject)
                     }
-                } catch (e: Exception) {
+                } catch (e: Error) {
                     Log.i("Error", e.toString())
                 } finally {
                     Context.exit()
