@@ -31,7 +31,7 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 class StreamingCommunity : MainAPI() {
     override var mainUrl = Companion.mainUrl
     override var name = Companion.name
-    override var supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Cartoon)
+    override var supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Cartoon, TvType.Documentary)
     override var lang = "it"
     override val hasMainPage = true
     private var inertiaVersion = ""
@@ -40,7 +40,7 @@ class StreamingCommunity : MainAPI() {
 
 
     companion object {
-        val mainUrl = "https://streamingcommunity.prof"
+        val mainUrl = "https://streamingcommunity.ooo"
         var name = "StreamingCommunity"
     }
 
@@ -168,11 +168,12 @@ class StreamingCommunity : MainAPI() {
 //        val TAG = "STREAMINGCOMMUNITY:Item"
 
 //        Log.d(TAG, "URL: $url")
+        val actualUrl = getActualUrl(url)
         if (this.inertiaVersion == "") {
             setInertiaVersion()
         }
 
-        val response = app.get(url, headers = this.headers)
+        val response = app.get(actualUrl, headers = this.headers)
         val responseBody = response.body.string()
 //        Log.d(TAG, "Request: ${response.okhttpResponse.request}")
 //        Log.d(TAG, "Response: $responseBody")
@@ -189,7 +190,7 @@ class StreamingCommunity : MainAPI() {
             val episodes: List<Episode> = getEpisodes(props)
 //            Log.d(TAG, "Episode List: $episodes")
 
-            val tvShow = newTvSeriesLoadResponse(title.name, url, TvType.TvSeries, episodes) {
+            val tvShow = newTvSeriesLoadResponse(title.name, actualUrl, TvType.TvSeries, episodes) {
                 this.posterUrl = "https://cdn.$domain/images/" + title.getBackgroundImageId()
                 this.tags = genres
                 this.episodes = episodes
@@ -210,7 +211,7 @@ class StreamingCommunity : MainAPI() {
 //            Log.d(TAG, "TV Show: $tvShow")
             return tvShow
         } else {
-            val movie = newMovieLoadResponse(title.name, url, TvType.Movie, dataUrl = "$mainUrl/iframe/${title.id}&canPlayFHD=1") {
+            val movie = newMovieLoadResponse(title.name, actualUrl, TvType.Movie, dataUrl = "$mainUrl/iframe/${title.id}&canPlayFHD=1") {
 //                this.backgroundPosterUrl = "https://cdn.$domain/images/" + title.getBackgroundImageId()
                 this.posterUrl ="https://cdn.$domain/images/" + title.getBackgroundImageId()
                 this.tags = genres
@@ -233,6 +234,15 @@ class StreamingCommunity : MainAPI() {
 //            Log.d(TAG, "Movie: $movie")
             return movie
         }
+    }
+
+    private fun getActualUrl(url: String) = if (!url.contains(mainUrl)) {
+        val urlComponents = url.split("/")
+        val oldUrl = urlComponents.subList(0, 3).joinToString("/")
+    //            Log.d("StreamingCommunity", oldUrl)
+        url.replace(oldUrl, mainUrl)
+    } else {
+        url
     }
 
     private suspend fun getEpisodes(props: Props): List<Episode> {
