@@ -144,7 +144,7 @@ data class TitleProp(
 
 data class Trailer(
     @JsonProperty("id") val id: Int,
-    @JsonProperty("name") val name: String,
+    @JsonProperty("name") val name: String?,
     @JsonProperty("youtube_id") val youtubeId: String?,
     @JsonProperty("title_id") val titleId: Int?,
 ){
