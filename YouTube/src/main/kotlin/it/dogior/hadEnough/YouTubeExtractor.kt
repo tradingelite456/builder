@@ -2,6 +2,7 @@ package it.dogior.hadEnough
 
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.utils.ExtractorApi
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.M3u8Helper
@@ -54,7 +55,15 @@ open class YouTubeExtractor(private val hls: Boolean) : ExtractorApi() {
             stream.forEach {
                 callback.invoke(it)
             }
+            val subtitles = try {
+                extractor.subtitlesDefault.filterNotNull()
+            } catch (e: Exception) {
+                logError(e)
+                emptyList()
+            }
+            subtitles.mapNotNull {
+                SubtitleFile(it.languageTag ?: return@mapNotNull null, it.content ?: return@mapNotNull null)
+            }.forEach(subtitleCallback)
         }
-
     }
 }
