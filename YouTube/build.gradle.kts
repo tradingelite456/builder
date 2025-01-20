@@ -1,7 +1,7 @@
 @file:Suppress("UnstableApiUsage")
 
 // use an integer for version numbers
-version = 8
+version = 9
 
 cloudstream {
     description = "Videos, playlists and channels from YouTube"
