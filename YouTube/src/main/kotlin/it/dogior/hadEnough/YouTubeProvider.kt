@@ -41,7 +41,7 @@ class YouTubeProvider(language: String, private val sharedPrefs: SharedPreferenc
                 val playlistUrl = data.first
                 val urlPath = playlistUrl.substringAfter("youtu").substringAfter("/")
                 val isPlaylist = urlPath.startsWith("playlist?list=")
-                val isChannel = urlPath.startsWith("@")
+                val isChannel = urlPath.startsWith("@") || urlPath.startsWith("channel")
                 val customSections = if (isPlaylist && !isChannel) {
                     ytParser.playlistToSearchResponseList(playlistUrl, page)
                 } else if (!isPlaylist && isChannel) {
@@ -87,8 +87,8 @@ class YouTubeProvider(language: String, private val sharedPrefs: SharedPreferenc
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit,
     ): Boolean {
-
-        YouTubeExtractor().getUrl(data, "", subtitleCallback, callback)
+        val hls = sharedPrefs?.getBoolean("hls", true) ?: true
+        YouTubeExtractor(hls).getUrl(data, "", subtitleCallback, callback)
         return true
     }
 }

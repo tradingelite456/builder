@@ -32,6 +32,7 @@ import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.channel.ChannelInfo
 import org.schabi.newpipe.extractor.playlist.PlaylistInfo
+import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 
 /**
  * A simple [Fragment] subclass.
@@ -269,7 +270,7 @@ class HomepageSettings(
     private suspend fun getName(playlistUrl: String): String? {
         val urlPath = playlistUrl.substringAfter("youtu").substringAfter("/")
         val isPlaylist = urlPath.startsWith("playlist?list=")
-        val isChannel = urlPath.startsWith("@")
+        val isChannel = urlPath.startsWith("@") || urlPath.startsWith("channel")
 
         return withContext(Dispatchers.IO) {
             if (isPlaylist && !isChannel) {

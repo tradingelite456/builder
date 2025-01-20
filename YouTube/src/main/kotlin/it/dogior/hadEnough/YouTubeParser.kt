@@ -237,12 +237,22 @@ class YouTubeParser(private val apiName: String) {
 
     fun channelToLoadResponse(url: String): LoadResponse {
         val channelInfo = ChannelInfo.getInfo(url)
+        val avatars = try {
+            channelInfo.avatars.last().url
+        } catch (e: Exception){
+            null
+        }
+        val banners = try {
+            channelInfo.banners.last().url
+        } catch (e: Exception){
+            null
+        }
         val tags = mutableListOf("Subscribers: ${channelInfo.subscriberCount}")
         return TvSeriesLoadResponse(
             name = channelInfo.name,
             url = url,
-            posterUrl = channelInfo.avatars.last().url,
-            backgroundPosterUrl = channelInfo.banners.last().url,
+            posterUrl = avatars,
+            backgroundPosterUrl = banners,
             plot = channelInfo.description,
             type = TvType.Others,
             tags = tags,

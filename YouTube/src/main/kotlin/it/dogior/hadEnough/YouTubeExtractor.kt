@@ -2,22 +2,21 @@ package it.dogior.hadEnough
 
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.SubtitleFile
-import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.utils.ExtractorApi
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.M3u8Helper
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.schemaStripRegex
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeStreamLinkHandlerFactory
-import org.schabi.newpipe.extractor.stream.SubtitlesStream
-import org.schabi.newpipe.extractor.stream.VideoStream
 
-open class YouTubeExtractor : ExtractorApi() {
+open class YouTubeExtractor(private val hls: Boolean) : ExtractorApi() {
     override val mainUrl = "https://www.youtube.com"
     override val requiresReferer = false
     override val name = "YouTube"
 
+    constructor() : this(true)
 
     override suspend fun getUrl(
         url: String,
@@ -25,29 +24,37 @@ open class YouTubeExtractor : ExtractorApi() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit,
     ) {
-            val link =
-                YoutubeStreamLinkHandlerFactory.getInstance().fromUrl(
-                    url.replace(
-                        schemaStripRegex, ""
-                    )
-                )
+        val link =
+            YoutubeStreamLinkHandlerFactory.getInstance().fromUrl(
+                url.replace(schemaStripRegex, "")
+            )
 
-            val s = object : YoutubeStreamExtractor(
-                ServiceList.YouTube,
-                link
-            ) {}
+        val extractor = object : YoutubeStreamExtractor(
+            ServiceList.YouTube,
+            link
+        ) {}
 
-            s.fetchPage()
-            Log.d("YoutubeExtractor", "HLS Url: ${s.hlsUrl}")
+        extractor.fetchPage()
+
+        Log.d("YoutubeExtractor", "Is HLS enabled: $hls")
+        Log.d("YoutubeExtractor", "HLS Url: ${extractor.hlsUrl}")
+        if (hls) {
             callback.invoke(
                 ExtractorLink(
                     this.name,
                     this.name,
-                    s.hlsUrl,
+                    extractor.hlsUrl,
                     referer ?: "",
                     quality = Qualities.Unknown.value,
                     isM3u8 = true
                 )
             )
+        } else {
+            val stream = M3u8Helper.generateM3u8(this.name, extractor.hlsUrl, "")
+            stream.forEach {
+                callback.invoke(it)
+            }
+        }
+
     }
 }

@@ -1,5 +1,6 @@
 package it.dogior.hadEnough.settings
 
+import android.annotation.SuppressLint
 import android.content.SharedPreferences
 import android.graphics.drawable.Drawable
 import android.os.Build
@@ -10,6 +11,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
+import android.widget.Switch
 import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.core.content.res.ResourcesCompat
@@ -69,10 +71,21 @@ class SettingsFragment(
         return inflater.inflate(layout, container, false)
     }
 
+    @SuppressLint("UseSwitchCompatOrMaterialCode")
     @RequiresApi(Build.VERSION_CODES.M)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val headerTw = view.findView<TextView>("header_tw")
         headerTw.text = getString("header_tw")
+
+        val hlsSwitch = view.findView<Switch>("hls_switch")
+        hlsSwitch.text = getString("hls")
+        hlsSwitch.isChecked = sharedPref?.getBoolean("hls", true) ?: true
+        hlsSwitch.setOnCheckedChangeListener { compoundButton, b ->
+            with(sharedPref?.edit()) {
+                this?.putBoolean("hls", hlsSwitch.isChecked)
+                this?.apply()
+            }
+        }
 
         val localizationTW = view.findView<TextView>("localization_tw")
         val homepageTW = view.findView<TextView>("homepage_tw")

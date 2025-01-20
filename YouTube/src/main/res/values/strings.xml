@@ -12,4 +12,5 @@
     <string name="trending_text">Trending</string>
     <string name="addPlaylist_tw">Add playlist or channel</string>
     <string name="add_playlist_hint">URL</string>
+    <string name="hls">Use single source with mulitple tracks?</string>
 </resources>
