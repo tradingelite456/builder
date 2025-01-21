@@ -1,6 +1,5 @@
 // use an integer for version numbers
-version = 1
-
+version = 2
 
 cloudstream {
     // All of these properties are optional, you can safely remove them
@@ -20,8 +19,17 @@ cloudstream {
     tvTypes = listOf("Live")
 
     requiresResources = true
-    language = "it"
 
-    // random cc logo i found
-    iconUrl = "https://avatars.githubusercontent.com/u/55937028?s=200&v=4"
+    iconUrl = "https://cdn.icon-icons.com/icons2/564/PNG/512/TV_icon-icons.com_54127.png"
+}
+
+android {
+    buildFeatures {
+        buildConfig = true
+        viewBinding = true
+    }
+}
+
+dependencies {
+    implementation("com.google.android.material:material:1.12.0")
 }

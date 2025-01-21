@@ -1,67 +1,76 @@
 package it.dogior.hadEnough
 
-import android.content.Context
+import android.content.SharedPreferences
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.CommonActivity.activity
+import com.lagradost.cloudstream3.APIHolder.capitalize
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
 
-class CanaliTV : MainAPI() {
-    override var lang = "it"
+class TV(
+    private val enabledPlaylists: List<String>,
+    override var lang: String,
+    private val sharedPref: SharedPreferences?
+) : MainAPI() {
     override var mainUrl =
-        "https://raw.githubusercontent.com/Free-TV/IPTV/refs/heads/master/playlists/playlist_italy.m3u8"
-    override var name = "Canali TV"
+        "https://raw.githubusercontent.com/Free-TV/IPTV/refs/heads/master/playlists"
+    override var name = "TV"
     override val hasMainPage = true
     override val hasQuickSearch = true
     override val hasDownloadSupport = false
     override var sequentialMainPage = true
     override val supportedTypes = setOf(TvType.Live)
-    private var playlist: Playlist? = null
-    private val sharedPref = activity?.getPreferences(Context.MODE_PRIVATE)
+    private var playlists = mutableMapOf<String, Playlist?>()
+    private val urlList = enabledPlaylists.map { "$mainUrl/$it" }
 
 
-    private suspend fun getTVChannels(): List<TVChannel> {
-        if (playlist == null) {
-            playlist = IptvPlaylistParser().parseM3U(app.get(mainUrl).text)
+    private suspend fun getTVChannels(url: String): List<TVChannel> {
+        if (playlists[url] == null) {
+            playlists[url] = IptvPlaylistParser().parseM3U(app.get(url).text)
         }
-        return playlist!!.items
+        return playlists[url]!!.items
     }
-
 
     override suspend fun getMainPage(
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
-        val data = getTVChannels()
-        val title = "Canali TV"
-        val show = data.map {
-            sharedPref?.edit()?.apply {
-                putString(it.url, it.toJson())
-                apply()
-            }
-            it.toSearchResponse(apiName = this@CanaliTV.name)
+        if (urlList.isEmpty()){
+            return newHomePageResponse( HomePageList(
+                "Enable channels in the plugin settings",
+                emptyList(),
+                isHorizontalImages = true
+            ), false)
         }
-
-
-
-        return newHomePageResponse(
+        val sections = urlList.map {
+            val data = getTVChannels(it)
+            val sectionTitle = it.substringAfter("playlist_", "").replace(".m3u8", "").trim().capitalize()
+            val show = data.map { showData ->
+                sharedPref?.edit()?.apply {
+                    putString(showData.url, showData.toJson())
+                    apply()
+                }
+                showData.toSearchResponse(apiName = this@TV.name)
+            }
             HomePageList(
-                title,
+                sectionTitle,
                 show,
                 isHorizontalImages = true
-            ), false
-        )
+            )
+        }
+        return newHomePageResponse( sections, false)
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val data = getTVChannels()
-
-        return data.filter {
-            it.attributes["tvg-id"]?.contains(query) ?: false ||
-                    it.title?.lowercase()?.contains(query.lowercase()) ?: false
-        }.map { it.toSearchResponse(apiName = this@CanaliTV.name) }
+        val searchResponses = urlList.map { url ->
+            val data = getTVChannels(url)
+            data.filter {
+                it.attributes["tvg-id"]?.contains(query) ?: false ||
+                        it.title?.lowercase()?.contains(query.lowercase()) ?: false
+            }.map { it.toSearchResponse(apiName = this@TV.name) }
+        }.flatten()
+        return searchResponses
     }
 
     override suspend fun quickSearch(query: String): List<SearchResponse> {
@@ -75,9 +84,6 @@ class CanaliTV : MainAPI() {
         val streamUrl = tvChannel.url.toString()
         val channelName = tvChannel.title ?: tvChannel.attributes["tvg-id"].toString()
         val posterUrl = tvChannel.attributes["tvg-logo"].toString()
-
-        // TODO: parse and add epg
-        //https://www.tivu.tv/ora-in-onda.aspx
 
         return LiveStreamLoadResponse(
             channelName,

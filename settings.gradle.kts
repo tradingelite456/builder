@@ -8,7 +8,7 @@ include(
     "AnimeUnity",
     "AnimeWorld",
     "CalcioStreaming",
-    "CanaliTV",
+    "TV",
     "CB01",
     "OnlineSerieTV",
     "StreamingCommunity",
