@@ -1,32 +1,25 @@
 # [doGior](https://github.com/doGior)'s Had Enough
+[Read in english](https://github.com/doGior/doGiorsHadEnough/blob/master/README_en.md) <br><br>
+Ciao sono doGior e sono stanco di cercare plugin per Cloudstream che finiscono per non funzionare
+ed essere abbandonati, quindi ho deciso di creare una mia repository. Questi sono i plugin
+disponibili al momento
 
-Hi, I'm doGior, and I've had enough of searching for Cloudstream plugins that end up broken or
-abandoned, so I decided to create my own repository. These are the plugins available at the moment:
+### Plugin
 
-### Current plugins
+| **Nome**           | **Sito**                                               |            **Categorie**            | **Lingua** | **Funzionante** | **Note**                                                                                                                                                                                                  |
+|--------------------|--------------------------------------------------------|:-----------------------------------:|:----------:|:---------------:|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|  
+| AnimeUnity         | https://www.animeunity.to                              |                Anime                |    🇮🇹    |        ✅        |                                                                                                                                                                                                           |
+| AnimeWorld         | https://www.animeworld.so                              |                Anime                |    🇮🇹    |        ✅        | Se ti spunta "Connection timed out" prova ad andare nelle impostazioni e imposta dns su https su cloudflare                                                                                               |
+| CalcioStreaming    | https://www.calciostreaming.day/                       |             Sport Live              |    🇮🇹    |        ✅        | Fork da [ItalianProvider](https://github.com/Gian-Fr/ItalianProvider)                                                                                                                                     |
+| CB01               | https://cb01.uno                                       |            Film, TV Show            |    🇮🇹    |        ✅        |                                                                                                                                                                                                           |
+| OnlineSerieTV      | https://onlineserietv.com                              | Film, TV Show, Cartoni, Documentari |    🇮🇹    |        ✅        |                                                                                                                                                                                                           |
+| StreamingCommunity | https://streamingcommunity.asia                        | Film, TV Show, Cartoni, Documentari |    🇮🇹    |        ✅        |                                                                                                                                                                                                           |
+| ToonItalia         | https://toonitalia.green/                              |      Cartoni, Anime, TV Shows       |    🇮🇹    |        ✅        | La ricerca non funziona perché hanno implementato cloudflare                                                                                                                                              |
+| TV                 | https://github.com/Free-TV/IPTV/blob/master/playlists/ |               TV Live               |    🇺🇳    |        ✅        | Fork da [ItalianProvider](https://github.com/Gian-Fr/ItalianProvider)                                                                                                                                     |
+| YouTube            | https://www.youtube.com/                               |                Altro                |    🇺🇳    |        ✅        | Puoi incollare l'url di un canale o di una playlist nelle impostazioni del plugin per averli come sezioni nella homepage. Se li vuoi come "serie tv" abiliti i relativi plugin nella ricerca e cercali lì |
 
-| **Plugin**                  | **Website**                                                               |                **Content**                | **Language** | **Working** | **Notes**                                                                                                                                                                                             |
-|-----------------------------|---------------------------------------------------------------------------|:-----------------------------------------:|:------------:|:-----------:|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|  
-| AnimeUnity                  | https://www.animeunity.to                                                 |                   Anime                   |     🇮🇹     |      ✅      |                                                                                                                                                                                                       |
-| AnimeWorld                  | https://www.animeworld.so                                                 |                   Anime                   |     🇮🇹     |      ✅      | If it says connection timed out try going in the settings and set DNS over https to cloudflare                                                                                                        |
-| CalcioStreaming             | https://www.calciostreaming.day/                                          |                Live Sports                |     🇮🇹     |      ✅      | Forked from [ItalianProvider](https://github.com/Gian-Fr/ItalianProvider)                                                                                                                             |
-| Canali TV<strong>*</strong> | https://github.com/Free-TV/IPTV/blob/master/playlists/playlist_italy.m3u8 |                  Live TV                  |     🇮🇹     |      ✅      | Forked from [ItalianProvider](https://github.com/Gian-Fr/ItalianProvider)                                                                                                                             |
-| CB01                        | https://cb01.uno                                                          |             Movies, TV Shows              |     🇮🇹     |      ✅      |                                                                                                                                                                                                       |
-| OnlineSerieTV               | https://onlineserietv.com                                                 | Movies, TV Shows, Cartoons, Documentaries |     🇮🇹     |      ✅      |                                                                                                                                                                                                       |
-| StreamingCommunity          | https://streamingcommunity.asia                                           | Movies, TV Shows, Cartoons, Documentaries |     🇮🇹     |      ✅      |                                                                                                                                                                                                       |
-| ToonItalia                  | https://toonitalia.green/                                                 |         Cartoons, Anime, TV Shows         |     🇮🇹     |      ✅      | The search is broken as they implemented cloudflare protection                                                                                                                                        |
-| YouTube                     | https://www.youtube.com/                                                  |                   Other                   |     🇺🇳     |      ✅      | You can paste the url of a channel or a playlists in the plugin settings to have it as a homepage section. If you want it as a "tv show" enable the relative plugin in the search and search its name |
+## Installazione
 
-<strong>*</strong> If you want to be able to see TV channels from your country
-go [here](https://github.com/Free-TV/IPTV/blob/master/playlists/) select the file that corresponds
-to your desired country, click raw and copy the url of the page. In the app, once you have Canali TV
-installed,
-go on settings -> general -> clone site -> Canali TV -> apply and here you can type the name for
-your extension and paste the url you copied earlier. Once you click clone site you should have the
-new extension with your desired channels in the homescreen selector.
-
-## Install
-
-Click on the pizza to install
+Clicca sulla pizza per installare la repo
 
 [<img alt="alt_text" width="100px" src="pizza.png"/>](https://self-similarity.github.io/http-protocol-redirector?r=cloudstreamrepo://raw.githubusercontent.com/doGior/doGiorsHadEnough/builds/repo.json)
