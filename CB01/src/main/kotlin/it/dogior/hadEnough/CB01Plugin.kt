@@ -8,6 +8,6 @@ import android.content.Context
 class CB01Plugin: Plugin() {
     override fun load(context: Context) {
         // All providers should be added in this manner
-        registerMainAPI(CB01(this))
+        registerMainAPI(CB01())
     }
 }

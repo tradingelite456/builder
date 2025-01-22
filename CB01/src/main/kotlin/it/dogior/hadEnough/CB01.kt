@@ -1,7 +1,7 @@
 package it.dogior.hadEnough
 
-import android.util.Log
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.lagradost.api.Log
 import com.lagradost.cloudstream3.Episode
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
@@ -11,8 +11,10 @@ import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.SearchQuality
 import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.SeasonData
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.addPoster
+import com.lagradost.cloudstream3.addSeasonNames
 import com.lagradost.cloudstream3.amap
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.mainPageOf
@@ -25,22 +27,22 @@ import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.ShortLink
 import com.lagradost.cloudstream3.utils.loadExtractor
 import it.dogior.hadEnough.extractors.MaxStreamExtractor
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import okio.Buffer
 import org.json.JSONException
 import org.json.JSONObject
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 
-class CB01(val plugin: CB01Plugin) : MainAPI() {
+class CB01 : MainAPI() {
     override var mainUrl = "https://cb01.uno"
     override var name = "CB01"
-    override val supportedTypes = setOf(TvType.Movie)
+    override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Cartoon)
     override var lang = "it"
     override val hasMainPage = true
 
@@ -60,7 +62,7 @@ class CB01(val plugin: CB01Plugin) : MainAPI() {
     }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val url = if (page>1) "${request.data}/page/$page/" else request.data
+        val url = if (page > 1) "${request.data}/page/$page/" else request.data
         val response = app.get(url)
         val document = response.document
         val items = document.selectFirst(".sequex-one-columns")!!.select(".post")
@@ -74,13 +76,11 @@ class CB01(val plugin: CB01Plugin) : MainAPI() {
         }
         val pagination = document.selectFirst(".pagination")?.select(".page-item")!!
         val lastPage = pagination[pagination.size - 2].text().replace(".", "").toInt()
-        val hasNext = page<lastPage
-        Log.d("CB01", "Last Page: ${lastPage}")
+        val hasNext = page < lastPage
 
         val searchResponses = posts.map {
             if (request.data.contains("serietv")) {
-                Log.d("CB01", it.title)
-                // TODO: rimuovi tutto quello che c'è dopo il primo - se dopo c'è un numero o la parola stagione
+//                Log.d("CB01", it.title)
                 val title = fixTitle(it.title, false)
                 newTvSeriesSearchResponse(title, it.permalink, TvType.TvSeries) {
                     addPoster(it.poster)
@@ -179,14 +179,15 @@ class CB01(val plugin: CB01Plugin) : MainAPI() {
                 this.duration = runtime
             }
         } else {
+
             val description = mainContainer.selectFirst(".ignore-css > p:nth-child(1)")?.text()
                 ?.split(Regex("""\(\d{4}-(\d{4})?\)"""))
             val plot = description?.last()?.trim()
             val tags = description?.first()?.split('/')
-            val episodes = getEpisodes(document)
-            Log.d("CB01", "Title: $title")
+            val (episodes, seasons) = getEpisodes(document)
             newTvSeriesLoadResponse(fixTitle(title, false), url, type, episodes) {
                 addPoster(poster)
+                addSeasonNames(seasons)
                 this.plot = plot
                 this.backgroundPosterUrl = banner
                 this.tags = tags?.map { it.trim() }
@@ -194,28 +195,94 @@ class CB01(val plugin: CB01Plugin) : MainAPI() {
         }
     }
 
-    private fun getEpisodes(page: Document): List<Episode> {
+    private suspend fun getEpisodes(page: Document): Pair<List<Episode>, MutableList<SeasonData>> {
         val table = page.selectFirst("table.cbtable")
         val column = table?.selectFirst("td")
         val seasonDropdowns = column?.select("div.sp-wrap")
-        val episodes = seasonDropdowns?.mapNotNull { dropdown ->
+        val seasonsData = mutableListOf<SeasonData>()
+        val nestedEps = mutableListOf<Episode>()
+        val episodes = seasonDropdowns?.mapIndexedNotNull { index, dropdown ->
             val seasonName = dropdown.select("div.sp-head").text()
             val regex = "\\d+".toRegex()
-            val seasonNumber = regex.find(seasonName)?.value?.toIntOrNull()
-            dropdown.select("div.sp-body > strong > p").map {
+            val seasonNumber = regex.find(seasonName)?.value?.toIntOrNull() ?: index
+            dropdown.select("div.sp-body > strong > p").amap {
                 val epName = it.text().substringBefore('–').trim()
                 val epNumber = regex.find(epName.substringAfter('×'))?.value?.toIntOrNull()
                 val links = it.select("a").map { a -> a.attr("href") }
+//                Log.d("Links", seasonName + " " + links.toJson())
+                if (links.any { l -> l.contains("uprot") || l.contains("stayonline") }) {
+                    seasonsData.add(
+                        SeasonData(
+                            seasonNumber,
+                            seasonName.replace("- ITA", "")
+                                .replace("- HD", "").trim()
+                        )
+                    )
+                    val uprotLink = try {
+                        links.first { l -> l.contains("uprot") }
+                    } catch (e: NoSuchElementException) {
+                        null
+                    }
+                    val eps = if (uprotLink != null) {
+                        getNestedEpisodes(uprotLink, seasonNumber)
+                    } else {
+                        null
+                    }
+
+                    if (eps.isNullOrEmpty()) {
+                        Episode(
+                            name = epName,
+                            data = links.toJson(),
+                            season = seasonNumber,
+                            episode = epNumber
+                        )
+                    } else {
+                        nestedEps.addAll(eps)
+                        null
+                    }
+                } else {
+                    null
+                }
+            }.filterNotNull()
+        }?.flatten()
+
+        if (nestedEps.isNotEmpty()){
+            val eps = nestedEps.toMutableList()
+            eps.addAll(episodes ?: emptyList())
+            return eps to seasonsData
+        }
+
+//        Log.d("CB01", "Episodes: ${episodes.toString()}")
+        return (episodes ?: emptyList()) to seasonsData
+    }
+
+    private suspend fun getNestedEpisodes(uprotLink: String, season: Int?): List<Episode> {
+        val link = ShortLink.unshortenUprot(uprotLink)
+        Log.d("Link", "Bypassed Link: $link")
+        if (link.toHttpUrlOrNull() != null) {
+            val response = app.get(link)
+            val trs = response.document.select("tr")
+            val episodes = trs.map {
+                val tds = it.select("td")
+                val epLink = tds[1].select("a").attr("href")
+                val name = tds.first()?.text()
+                val epNumberRegex = Regex("""(\dE)?\d+(?=\.)""")
+                var epNumber = epNumberRegex.find(name ?: "")?.value
+                if (epNumber?.contains("E") == true){
+                    epNumber = epNumber.substringAfter("E")
+                }
+//                Log.d("Episode", "Ep Number: ${epNumber}")
                 Episode(
-                    name = null,
-                    data = links.toJson(),
-                    season = seasonNumber,
-                    episode = epNumber
+                    name = name,
+                    data = listOf(epLink).toJson(),
+                    season = season,
+                    episode = epNumber?.toIntOrNull()
                 )
             }
-        }?.flatten()
-//        Log.d("CB01", "Episodes: ${episodes.toString()}")
-        return episodes ?: emptyList()
+            return episodes
+//            Log.d("Link", "Response: $trs")
+        }
+        return emptyList()
     }
 
     override suspend fun loadLinks(
@@ -230,10 +297,10 @@ class CB01(val plugin: CB01Plugin) : MainAPI() {
         if (links.size > 2) {
             links = links.subList(2, 4)
         }
-        Log.d("CB01", "Scraped Link: $links")
+//        Log.d("CB01", "Scraped Link: $links")
 
         links.mapNotNull {
-            Log.d("CB01", "Base Link: $it")
+//            Log.d("CB01", "Base Link: $it")
             var link = if (it.contains("uprot")) {
                 bypassUprot(it)
             } else if (it.contains("stayonline")) {
@@ -243,16 +310,16 @@ class CB01(val plugin: CB01Plugin) : MainAPI() {
             }
             link?.let { l ->
                 if (link!!.contains("uprot.net")) {
-                    Log.d("CB01", "Bypassed Link: $link")
+//                    Log.d("CB01", "Bypassed Link: $link")
                     link = bypassUprot(l)
                 } else if (link!!.contains("stayonline")) {
-                    Log.d("CB01", "Bypassed Link: $link")
+//                    Log.d("CB01", "Bypassed Link: $link")
                     link = bypassStayOnline(l)
                 }
             }
 
             link?.let { l ->
-                Log.d("CB01", "Final Link: $link")
+//                Log.d("CB01", "Final Link: $link")
 //                loadExtractor(l, "", subtitleCallback, callback)
                 if (link!!.contains("maxstream")) {
                     MaxStreamExtractor().getUrl(l, null, subtitleCallback, callback)

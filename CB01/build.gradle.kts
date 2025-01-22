@@ -1,5 +1,5 @@
 // use an integer for version numbers
-version = 1
+version = 2
 
 
 cloudstream {
@@ -17,7 +17,7 @@ cloudstream {
     * */
     status = 1
 
-    tvTypes = listOf("Movie", "TvSeries")
+    tvTypes = listOf("Movie", "TvSeries", "Cartoon")
 
     requiresResources = false
     language = "it"
