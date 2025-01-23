@@ -276,7 +276,7 @@ class CB01 : MainAPI() {
                     name = name,
                     data = listOf(epLink).toJson(),
                     season = season,
-                    episode = epNumber?.toIntOrNull()
+                    episode = null // epNumber?.toIntOrNull()
                 )
             }
             return episodes
