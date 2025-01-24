@@ -1,5 +1,5 @@
 // use an integer for version numbers
-version = 2
+version = 3
 
 
 cloudstream {
@@ -23,4 +23,8 @@ cloudstream {
     language = "it"
 
     iconUrl = "https://cb01.uno/favicon-512x512.png"
+}
+
+dependencies{
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1")
 }

@@ -39,8 +39,8 @@ import org.json.JSONObject
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 
-class CB01 : MainAPI() {
-    override var mainUrl = "https://cb01.uno"
+class CB01(url: String) : MainAPI() {
+    override var mainUrl = url //"https://cb01.uno"
     override var name = "CB01"
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Cartoon)
     override var lang = "it"
@@ -143,15 +143,26 @@ class CB01 : MainAPI() {
         return results
     }
 
+    private fun getActualUrl(url: String) = if (!url.contains(mainUrl)) {
+        val urlComponents = url.split("/")
+        val oldUrl = urlComponents.subList(0, 3).joinToString("/")
+        //            Log.d("StreamingCommunity", oldUrl)
+        url.replace(oldUrl, mainUrl)
+    } else {
+        url
+    }
+
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document
+        val actualUrl = getActualUrl(url)
+
+        val document = app.get(actualUrl).document
         val mainContainer = document.selectFirst(".sequex-main-container")!!
         val poster =
             mainContainer.selectFirst(".sequex-featured-img")!!.selectFirst("img")!!.attr("src")
         val banner = mainContainer.selectFirst("#sequex-page-title-img")?.attr("data-img")
         val title = mainContainer.selectFirst("h1")?.text()!!
 //        val actionTable = mainContainer.selectFirst("table.cbtable:nth-child(5)")
-        val isMovie = !url.contains("serietv")
+        val isMovie = !actualUrl.contains("serietv")
         val type = if (isMovie) TvType.Movie else TvType.TvSeries
         return if (isMovie) {
             val plot = mainContainer.selectFirst(".ignore-css > p:nth-child(2)")?.text()
@@ -169,7 +180,7 @@ class CB01 : MainAPI() {
                 ?.mapNotNull { it.attr("onclick").substringAfter("open('").substringBefore("',") }
 //            Log.d("CB01", "Links: $links")
             val data = links?.toJson() ?: "null"
-            newMovieLoadResponse(fixTitle(title, true), url, type, data) {
+            newMovieLoadResponse(fixTitle(title, true), actualUrl, type, data) {
                 addPoster(poster)
                 this.plot = plot
                 this.backgroundPosterUrl = banner
@@ -185,7 +196,7 @@ class CB01 : MainAPI() {
             val plot = description?.last()?.trim()
             val tags = description?.first()?.split('/')
             val (episodes, seasons) = getEpisodes(document)
-            newTvSeriesLoadResponse(fixTitle(title, false), url, type, episodes) {
+            newTvSeriesLoadResponse(fixTitle(title, false), actualUrl, type, episodes) {
                 addPoster(poster)
                 addSeasonNames(seasons)
                 this.plot = plot
@@ -202,10 +213,13 @@ class CB01 : MainAPI() {
         val seasonsData = mutableListOf<SeasonData>()
         val nestedEps = mutableListOf<Episode>()
         val episodes = seasonDropdowns?.mapIndexedNotNull { index, dropdown ->
+            // Every Season
             val seasonName = dropdown.select("div.sp-head").text()
             val regex = "\\d+".toRegex()
             val seasonNumber = regex.find(seasonName)?.value?.toIntOrNull() ?: index
+
             dropdown.select("div.sp-body > strong > p").amap {
+                // Every episode
                 val epName = it.text().substringBefore('–').trim()
                 val epNumber = regex.find(epName.substringAfter('×'))?.value?.toIntOrNull()
                 val links = it.select("a").map { a -> a.attr("href") }
@@ -223,6 +237,7 @@ class CB01 : MainAPI() {
                     } catch (e: NoSuchElementException) {
                         null
                     }
+                    // Try getting episodes from maxstream
                     val eps = if (uprotLink != null) {
                         getNestedEpisodes(uprotLink, seasonNumber)
                     } else {
@@ -230,6 +245,8 @@ class CB01 : MainAPI() {
                     }
 
                     if (eps.isNullOrEmpty()) {
+                        // If I can't find episodes on maxstream it's very likely
+                        // that I found the video source
                         Episode(
                             name = epName,
                             data = links.toJson(),
@@ -246,7 +263,7 @@ class CB01 : MainAPI() {
             }.filterNotNull()
         }?.flatten()
 
-        if (nestedEps.isNotEmpty()){
+        if (nestedEps.isNotEmpty()) {
             val eps = nestedEps.toMutableList()
             eps.addAll(episodes ?: emptyList())
             return eps to seasonsData
@@ -256,27 +273,26 @@ class CB01 : MainAPI() {
         return (episodes ?: emptyList()) to seasonsData
     }
 
-    private suspend fun getNestedEpisodes(uprotLink: String, season: Int?): List<Episode> {
+    private suspend fun getNestedEpisodes(
+        uprotLink: String,
+        season: Int?,
+    ): List<Episode> {
         val link = ShortLink.unshortenUprot(uprotLink)
         Log.d("Link", "Bypassed Link: $link")
         if (link.toHttpUrlOrNull() != null) {
             val response = app.get(link)
             val trs = response.document.select("tr")
+            var epNum = 0
             val episodes = trs.map {
                 val tds = it.select("td")
                 val epLink = tds[1].select("a").attr("href")
                 val name = tds.first()?.text()
-                val epNumberRegex = Regex("""(\dE)?\d+(?=\.)""")
-                var epNumber = epNumberRegex.find(name ?: "")?.value
-                if (epNumber?.contains("E") == true){
-                    epNumber = epNumber.substringAfter("E")
-                }
-//                Log.d("Episode", "Ep Number: ${epNumber}")
+                epNum++
                 Episode(
                     name = name,
                     data = listOf(epLink).toJson(),
                     season = season,
-                    episode = null // epNumber?.toIntOrNull()
+                    episode = epNum
                 )
             }
             return episodes
