@@ -39,8 +39,8 @@ import org.json.JSONObject
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 
-class CB01(url: String) : MainAPI() {
-    override var mainUrl = "https://cb01new.me/"
+class CB01 : MainAPI() {
+    override var mainUrl = "https://cb01new.video/"
     override var name = "CB01"
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Cartoon)
     override var lang = "it"
