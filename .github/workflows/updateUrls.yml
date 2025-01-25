@@ -1,0 +1,53 @@
+name: Update CB01 URL
+
+on:
+  schedule:
+    # Run every day at 6:00 AM CET (5:00 AM UTC)
+    - cron: "0 5 * * *"
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  update-main-url:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # Find the redirected URL and update the file
+      - name: Update mainUrl
+        run: |
+          # Define the file path
+          FILE_PATH="CB01/src/main/kotlin/it/dogior/hadEnough/CB01.kt"
+          
+          # Ensure the file exists
+          if [ ! -f "$FILE_PATH" ]; then
+            echo "File $FILE_PATH not found!"
+            exit 1
+          fi
+
+          # Perform the request and extract the redirected URL
+          REDIRECTED_URL=$(curl -Ls -o /dev/null -w %{url_effective} "https://cb01.uno")
+          if [ -z "$REDIRECTED_URL" ]; then
+            echo "Failed to retrieve the redirected URL!"
+            exit 1
+          fi
+
+          echo "Redirected URL: $REDIRECTED_URL"
+
+          # Replace the mainUrl value in the file
+          sed -i "s|override var mainUrl = .*|override var mainUrl = \"$REDIRECTED_URL\"|" "$FILE_PATH"
+
+          # Display the updated file for debugging
+          echo "Updated file content:"
+          cat "$FILE_PATH"
+
+      # Commit and push the changes
+      - name: Commit and Push Changes
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add CB01/src/main/kotlin/it/dogior/hadEnough/CB01.kt
+          git commit -m "Update url"
+          git push
