@@ -1,5 +1,8 @@
 name: Update URLS
 
+permissions:
+  contents: write
+
 on:
   schedule:
     # Run every day at 6:00 AM CET (5:00 AM UTC)
