@@ -6,6 +6,7 @@ concurrency:
   cancel-in-progress: true
 
 on:
+  workflow_dispatch:  # Allows manual triggering
   push:
     branches:
       # choose your default branch
@@ -14,6 +15,11 @@ on:
     paths-ignore:
       - '*.md'
       - '*.png'
+  workflow_run:
+    workflows:
+      - Update URLS 
+    types:
+      - success  # Trigger only if the Update URLS workflow was successful
 
 jobs:
   build:
