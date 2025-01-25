@@ -16,11 +16,9 @@ on:
       - '*.md'
       - '*.png'
       - '*.yml'
-  workflow_run:
-    workflows:
-      - Update URLS 
+  repository_dispatch:  # Listen for custom events
     types:
-      - success  # Trigger only if the Update URLS workflow was successful
+      - trigger-build-workflow
 
 jobs:
   build:
