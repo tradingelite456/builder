@@ -15,6 +15,7 @@ on:
     paths-ignore:
       - '*.md'
       - '*.png'
+      - '*.yml'
   workflow_run:
     workflows:
       - Update URLS 
