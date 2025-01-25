@@ -1,4 +1,4 @@
-name: Update CB01 URL
+name: Update URLS
 
 on:
   schedule:
@@ -15,7 +15,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Find the redirected URL and update the file
+      # Find the redirected URL and update the file if necessary
       - name: Update mainUrl
         run: |
           # Define the file path
@@ -27,6 +27,15 @@ jobs:
             exit 1
           fi
 
+          # Extract the current URL from the file
+          CURRENT_URL=$(grep -oP 'override var mainUrl = "\K[^"]+' "$FILE_PATH")
+          if [ -z "$CURRENT_URL" ]; then
+            echo "Could not find the current mainUrl in the file!"
+            exit 1
+          fi
+
+          echo "Current mainUrl: $CURRENT_URL"
+
           # Perform the request and extract the redirected URL
           REDIRECTED_URL=$(curl -Ls -o /dev/null -w %{url_effective} "https://cb01.uno")
           if [ -z "$REDIRECTED_URL" ]; then
@@ -36,15 +45,20 @@ jobs:
 
           echo "Redirected URL: $REDIRECTED_URL"
 
+          # Check if the URLs match
+          if [ "$CURRENT_URL" = "$REDIRECTED_URL" ]; then
+            echo "The redirected URL is the same as the current mainUrl. No update necessary."
+            exit 0
+          fi
+
           # Replace the mainUrl value in the file
           sed -i "s|override var mainUrl = .*|override var mainUrl = \"$REDIRECTED_URL\"|" "$FILE_PATH"
 
-          # Display the updated file for debugging
-          echo "Updated file content:"
-          cat "$FILE_PATH"
+          echo "Updated mainUrl to: $REDIRECTED_URL"
 
       # Commit and push the changes
       - name: Commit and Push Changes
+        if: success()  # Only run if the previous step succeeded and made changes
         run: |
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
