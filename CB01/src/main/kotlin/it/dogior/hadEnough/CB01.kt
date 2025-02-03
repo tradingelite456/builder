@@ -40,7 +40,7 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 
 class CB01 : MainAPI() {
-    override var mainUrl = "https://cb01.uno/"
+    override var mainUrl = "https://cb01.uno"
     override var name = "CB01"
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Cartoon)
     override var lang = "it"
@@ -70,7 +70,7 @@ class CB01 : MainAPI() {
         val response = app.get(url)
 
         if (actualMainUrl.isEmpty()){
-            actualMainUrl = response.okhttpResponse.request.url.toString()
+            actualMainUrl = response.okhttpResponse.request.url.toString().substringBeforeLast('/')
         }
 
         val document = response.document
@@ -113,7 +113,7 @@ class CB01 : MainAPI() {
     // this function gets called when you search for something
     override suspend fun search(query: String): List<SearchResponse> {
         val searchLinks =
-            listOf("https://cb01new.stream/?s=$query", "https://cb01new.stream/serietv/?s=$query")
+            listOf("$mainUrl/?s=$query", "$mainUrl/serietv/?s=$query")
         val results = searchLinks.amap { link ->
             val response = app.get(link)
             val document = response.document
@@ -154,7 +154,7 @@ class CB01 : MainAPI() {
 
     override suspend fun load(url: String): LoadResponse {
         val urlPath = url.substringAfter("//").substringAfter('/')
-        val actualUrl = "$actualMainUrl$urlPath"
+        val actualUrl = "$actualMainUrl/$urlPath"
 
         val document = app.get(actualUrl).document
         val mainContainer = document.selectFirst(".sequex-main-container")!!
