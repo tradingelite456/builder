@@ -153,14 +153,17 @@ class CB01 : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(actualMainUrl).document
+        val urlPath = url.substringAfter("//").substringAfter('/')
+        val actualUrl = "$actualMainUrl$urlPath"
+
+        val document = app.get(actualUrl).document
         val mainContainer = document.selectFirst(".sequex-main-container")!!
         val poster =
             mainContainer.selectFirst(".sequex-featured-img")!!.selectFirst("img")!!.attr("src")
         val banner = mainContainer.selectFirst("#sequex-page-title-img")?.attr("data-img")
         val title = mainContainer.selectFirst("h1")?.text()!!
 //        val actionTable = mainContainer.selectFirst("table.cbtable:nth-child(5)")
-        val isMovie = !actualMainUrl.contains("serietv")
+        val isMovie = !actualUrl.contains("serietv")
         val type = if (isMovie) TvType.Movie else TvType.TvSeries
         return if (isMovie) {
             val plot = mainContainer.selectFirst(".ignore-css > p:nth-child(2)")?.text()
@@ -178,7 +181,7 @@ class CB01 : MainAPI() {
                 ?.mapNotNull { it.attr("onclick").substringAfter("open('").substringBefore("',") }
 //            Log.d("CB01", "Links: $links")
             val data = links?.toJson() ?: "null"
-            newMovieLoadResponse(fixTitle(title, true), actualMainUrl, type, data) {
+            newMovieLoadResponse(fixTitle(title, true), actualUrl, type, data) {
                 addPoster(poster)
                 this.plot = plot
                 this.backgroundPosterUrl = banner
@@ -194,7 +197,7 @@ class CB01 : MainAPI() {
             val plot = description?.last()?.trim()
             val tags = description?.first()?.split('/')
             val (episodes, seasons) = getEpisodes(document)
-            newTvSeriesLoadResponse(fixTitle(title, false), actualMainUrl, type, episodes) {
+            newTvSeriesLoadResponse(fixTitle(title, false), actualUrl, type, episodes) {
                 addPoster(poster)
                 addSeasonNames(seasons)
                 this.plot = plot
