@@ -40,7 +40,7 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 
 class CB01 : MainAPI() {
-    override var mainUrl = "https://cb01new.mobi/"
+    override var mainUrl = "https://cb01.uno/"
     override var name = "CB01"
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Cartoon)
     override var lang = "it"
@@ -50,6 +50,10 @@ class CB01 : MainAPI() {
         mainUrl to "Film",
         "$mainUrl/serietv" to "Serie TV"
     )
+
+    companion object{
+        var actualMainUrl = ""
+    }
 
     private fun fixTitle(title: String, isMovie: Boolean): String {
         if (isMovie) {
@@ -64,6 +68,11 @@ class CB01 : MainAPI() {
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val url = if (page > 1) "${request.data}/page/$page/" else request.data
         val response = app.get(url)
+
+        if (actualMainUrl.isEmpty()){
+            actualMainUrl = response.okhttpResponse.request.url.toString()
+        }
+
         val document = response.document
         val items = document.selectFirst(".sequex-one-columns")!!.select(".post")
         val posts = items.mapNotNull { card ->
@@ -143,26 +152,15 @@ class CB01 : MainAPI() {
         return results
     }
 
-    private fun getActualUrl(url: String) = if (!url.contains(mainUrl)) {
-        val urlComponents = url.split("/")
-        val oldUrl = urlComponents.subList(0, 3).joinToString("/")
-        //            Log.d("StreamingCommunity", oldUrl)
-        url.replace(oldUrl, mainUrl)
-    } else {
-        url
-    }
-
     override suspend fun load(url: String): LoadResponse {
-        val actualUrl = getActualUrl(url)
-
-        val document = app.get(actualUrl).document
+        val document = app.get(actualMainUrl).document
         val mainContainer = document.selectFirst(".sequex-main-container")!!
         val poster =
             mainContainer.selectFirst(".sequex-featured-img")!!.selectFirst("img")!!.attr("src")
         val banner = mainContainer.selectFirst("#sequex-page-title-img")?.attr("data-img")
         val title = mainContainer.selectFirst("h1")?.text()!!
 //        val actionTable = mainContainer.selectFirst("table.cbtable:nth-child(5)")
-        val isMovie = !actualUrl.contains("serietv")
+        val isMovie = !actualMainUrl.contains("serietv")
         val type = if (isMovie) TvType.Movie else TvType.TvSeries
         return if (isMovie) {
             val plot = mainContainer.selectFirst(".ignore-css > p:nth-child(2)")?.text()
@@ -180,7 +178,7 @@ class CB01 : MainAPI() {
                 ?.mapNotNull { it.attr("onclick").substringAfter("open('").substringBefore("',") }
 //            Log.d("CB01", "Links: $links")
             val data = links?.toJson() ?: "null"
-            newMovieLoadResponse(fixTitle(title, true), actualUrl, type, data) {
+            newMovieLoadResponse(fixTitle(title, true), actualMainUrl, type, data) {
                 addPoster(poster)
                 this.plot = plot
                 this.backgroundPosterUrl = banner
@@ -196,7 +194,7 @@ class CB01 : MainAPI() {
             val plot = description?.last()?.trim()
             val tags = description?.first()?.split('/')
             val (episodes, seasons) = getEpisodes(document)
-            newTvSeriesLoadResponse(fixTitle(title, false), actualUrl, type, episodes) {
+            newTvSeriesLoadResponse(fixTitle(title, false), actualMainUrl, type, episodes) {
                 addPoster(poster)
                 addSeasonNames(seasons)
                 this.plot = plot

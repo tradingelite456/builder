@@ -16,9 +16,6 @@ on:
       - '*.md'
       - '*.png'
       - '*.yml'
-  repository_dispatch:  # Listen for custom events
-    types:
-      - trigger-build-workflow
 
 jobs:
   build:
