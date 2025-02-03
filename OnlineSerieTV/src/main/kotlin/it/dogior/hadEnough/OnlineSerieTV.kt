@@ -26,6 +26,7 @@ import it.dogior.hadEnough.extractors.MaxStreamExtractor
 import it.dogior.hadEnough.extractors.StreamTapeExtractor
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import java.net.SocketTimeoutException
 
 class OnlineSerieTV : MainAPI() {
     override var mainUrl = "https://onlineserietv.com"
@@ -38,22 +39,57 @@ class OnlineSerieTV : MainAPI() {
     override val hasMainPage = true
 
     override val mainPage = mainPageOf(
-        mainUrl to "Top 10 Film",
-        mainUrl to "Top 10 Serie TV",
-        "$mainUrl/movies/" to "Film",
-        "$mainUrl/serie-tv/" to "Serie TV",
-        "$mainUrl/serie-tv-generi/animazione/" to "Cartoni e Anime"
-    )
+//        mainUrl to "Top 10 Film",
+//        mainUrl to "Top 10 Serie TV",
+        "$mainUrl/movies/" to "Film: Ultimi aggiunti",
+        "$mainUrl/serie-tv/" to "Serie TV: Ultime aggiunte",
 
-    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val response = app.get(request.data).document
+        "$mainUrl/serie-tv-generi/animazione/" to "Serie TV: Animazione",
+        "$mainUrl/film-generi/animazione/" to "Film: Animazione",
+
+        "$mainUrl/serie-tv-generi/documentario/" to "Serie TV: Documentario",
+        "$mainUrl/film-generi/documentario/" to "Film: Documentario",
+
+        "$mainUrl/serie-tv-generi/action-adventure/" to "Serie TV: Azione e Avventura",
+        "$mainUrl/film-generi/avventura/" to "Film: Avventura",
+        "$mainUrl/film-generi/azione/" to "Film: Azione",
+        "$mainUrl/film-generi/supereroi/" to "Film: Supereroi",
+
+        "$mainUrl/serie-tv-generi/sci-fi-fantasy/" to "Serie TV: Fantascienza e Fantasy",
+        "$mainUrl/film-generi/fantascienza/" to "Film: Fantascienza",
+        "$mainUrl/film-generi/fantasy/" to "Film: Fantasy",
+
+        "$mainUrl/serie-tv-generi/dramma/" to "Serie TV: Dramma",
+        "$mainUrl/film-generi/drammatico/" to "Film: Dramma",
+        "$mainUrl/film-generi/sentimentale/" to "Film: Sentimentale",
+
+        "$mainUrl/serie-tv-generi/commedia/" to "Serie TV: Commedia",
+        "$mainUrl/film-generi/commedia/" to "Film: Commedia",
+
+        "$mainUrl/serie-tv-generi/crime/" to "Serie TV: Crime",
+        "$mainUrl/serie-tv-generi/mistero/" to "Serie TV: Mistero",
+
+        "$mainUrl/serie-tv-generi/war-politics/" to "Serie TV: Guerra e Politica",
+        "$mainUrl/film-generi/horror/" to "Film: Horror",
+        "$mainUrl/film-generi/thriller/" to "Film: Thriller",
+
+        "$mainUrl/serie-tv-generi/reality/" to "Serie TV: Reality",
+
+        )
+
+    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse? {
+        val response = try {
+            app.get(request.data).document
+        } catch (e: SocketTimeoutException) {
+            return null
+        }
         val searchResponses = getItems(request.name, response)
         return newHomePageResponse(HomePageList(request.name, searchResponses), false)
     }
 
     private suspend fun getItems(section: String, page: Document): List<SearchResponse> {
         val searchResponses = when (section) {
-            "Film", "Serie TV" -> {
+            "Film: Ultimi aggiunti", "Serie TV: Ultime aggiunte" -> {
                 val itemGrid = page.selectFirst(".wp-block-uagb-post-grid")!!
                 val items = itemGrid.select(".uagb-post__inner-wrap")
                 items.map {
@@ -77,23 +113,44 @@ class OnlineSerieTV : MainAPI() {
                     bothTop10.first()
                 }
                 val items = currentTop10?.select(".scrolling > li")
-                if (items != null) {
-                    items.amap {
-                        val title = it.select("a").text().trim().replace(Regex("""\d{4}$"""), "")
-                        val url = it.select("a").attr("href")
+                items?.amap {
+                    val title = it.select("a").text().trim().replace(Regex("""\d{4}$"""), "")
+                    val url = it.select("a").attr("href")
 
-                        val showPage = app.get(url).document
-                        val poster = showPage.select(".imgs > img:nth-child(1)").attr("src")
-                        newTvSeriesSearchResponse(title, url) {
-                            this.posterUrl = poster
-                        }
+                    val showPage = try {
+                        app.get(url).document
+                    } catch (e: SocketTimeoutException) {
+                        null
                     }
-                } else {
-                    emptyList()
-                }
+                    val poster = showPage?.select(".imgs > img:nth-child(1)")?.attr("src")
+                    newTvSeriesSearchResponse(title, url) {
+                        this.posterUrl = poster
+                    }
+                } ?: emptyList()
             }
 
-            "Cartoni e Anime" -> {
+            "Film: Avventura",
+            "Film: Azione",
+            "Film: Animazione",
+            "Film: Commedia",
+            "Film: Documentario",
+            "Film: Dramma",
+            "Film: Horror",
+            "Film: Thriller",
+            "Film: Fantascienza",
+            "Film: Fantasy",
+            "Film: Supereroi",
+            "Film: Sentimentale",
+            "Serie TV: Azione e Avventura",
+            "Serie TV: Fantascienza e Fantasy",
+            "Serie TV: Dramma",
+            "Serie TV: Crime",
+            "Serie TV: Mistero",
+            "Serie TV: Commedia",
+            "Serie TV: Reality",
+            "Serie TV: Guerra e Politica",
+            "Serie TV: Documentario",
+            "Serie TV: Animazione" -> {
                 val itemGrid = page.selectFirst("#box_movies")!!
                 val items = itemGrid.select(".movie")
                 items.map {
@@ -135,7 +192,8 @@ class OnlineSerieTV : MainAPI() {
         val response = app.get(url).document
         val dati = response.selectFirst(".headingder")!!
         val poster = dati.select(".imgs > img").attr("src").replace(Regex("""-\d+x\d+"""), "")
-        val title = dati.select(".dataplus > div:nth-child(1) > h1").text().trim().replace(Regex("""\d{4}$"""), "")
+        val title = dati.select(".dataplus > div:nth-child(1) > h1").text().trim()
+            .replace(Regex("""\d{4}$"""), "")
         val rating = dati.select(".stars > span:nth-child(3)").text().trim().removeSuffix("/10")
         val genres = dati.select(".stars > span:nth-child(6) > i:nth-child(1)").text().trim()
         val year = dati.select(".stars > span:nth-child(8) > i:nth-child(1)").text().trim()
