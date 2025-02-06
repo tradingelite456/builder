@@ -51,7 +51,7 @@ class AnimeUnity : MainAPI() {
             "Host" to mainUrl.toHttpUrl().host,
             "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0"
         ).toMutableMap()
-        var cookies = emptyMap<String, String>()
+//        var cookies = emptyMap<String, String>()
     }
 
     private val sectionNamesList = mainPageOf(
@@ -71,26 +71,29 @@ class AnimeUnity : MainAPI() {
         val response = app.get("$mainUrl/archivio", headers = headers)
 
         val csrfToken = response.document.head().select("meta[name=csrf-token]").attr("content")
+        val cookies =
+            "XSRF-TOKEN=${response.cookies["XSRF-TOKEN"]}; animeunity_session=${response.cookies["animeunity_session"]}"
         val h = mapOf(
             "X-Requested-With" to "XMLHttpRequest",
             "Content-Type" to "application/json;charset=utf-8",
             "X-CSRF-Token" to csrfToken,
             "Referer" to "https://www.animeunity.to/archivio",
-            "Referer" to "https://www.animeunity.to"
+            "Referer" to "https://www.animeunity.to",
+            "Cookie" to cookies
         )
         headers.putAll(h)
-        cookies = response.cookies
 //        // Log.d("$TAG:setup", "Headers: $headers")
 
     }
 
     private fun resetHeadersAndCookies() {
-        if(headers.isNotEmpty()) {
+        if (headers.isNotEmpty()) {
             headers.clear()
         }
         headers["Host"] = Companion.mainUrl.toHttpUrl().host
-        headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0"
-        cookies = emptyMap()
+        headers["User-Agent"] =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0"
+//        cookies = emptyMap()
     }
 
     private suspend fun searchResponseBuilder(objectList: List<Anime>): List<SearchResponse> {
@@ -115,7 +118,7 @@ class AnimeUnity : MainAPI() {
         }
     }
 
-    private suspend fun getImage(imageUrl: String?, anilistId: Int): String {
+    private suspend fun getImage(imageUrl: String?, anilistId: Int?): String? {
         // First try the direct image URL if available
         if (!imageUrl.isNullOrEmpty()) {
             try {
@@ -127,7 +130,8 @@ class AnimeUnity : MainAPI() {
         }
 
         // Fallback to Anilist
-        return getAnilistPoster(anilistId)
+
+        return anilistId?.let { getAnilistPoster(it) }
     }
 
     private suspend fun getAnilistPoster(anilistId: Int): String {
@@ -160,7 +164,7 @@ class AnimeUnity : MainAPI() {
 //        val localTag = "$TAG:MainPage"
 
         val url = request.data + "get-animes"
-        if (cookies.isEmpty()) {
+        if (!headers.contains("Cookie")) {
             resetHeadersAndCookies()
             setupHeadersAndCookies()
         }
@@ -178,10 +182,13 @@ class AnimeUnity : MainAPI() {
 
 
         val response =
-            app.post(url, headers = headers, cookies = cookies, requestBody = requestBody)
+            app.post(url, headers = headers, requestBody = requestBody)
+
+        val body = response.text
+        Log.d("$TAG:body", body)
 
 //        // Log.d(localTag, "Cookies: ${response.cookies}")
-        val responseObject = parseJson<ApiResponse>(response.text)
+        val responseObject = parseJson<ApiResponse>(body)
         val titles = responseObject.titles
 //        // Log.d(localTag, "Titles: $titles")
 
@@ -232,7 +239,7 @@ class AnimeUnity : MainAPI() {
 
         val requestBody = RequestData(title = query, dubbed = 0).toRequestBody()
         val response =
-            app.post(url, headers = headers, cookies = cookies, requestBody = requestBody)
+            app.post(url, headers = headers, requestBody = requestBody)
 
         val responseObject = parseJson<ApiResponse>(response.text)
         val titles = responseObject.titles

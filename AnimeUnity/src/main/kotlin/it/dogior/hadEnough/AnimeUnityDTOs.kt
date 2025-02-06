@@ -70,7 +70,7 @@ data class ApiResponse(
 
 data class Anime(
     @JsonProperty("id") val id: Int,
-    @JsonProperty("user_id") val userId: Int,
+//    @JsonProperty("user_id") val userId: Int,
     @JsonProperty("title") val title: String?,
     @JsonProperty("imageurl") val imageUrl: String,
     @JsonProperty("plot") val plot: String,
@@ -78,20 +78,20 @@ data class Anime(
     @JsonProperty("episodes_count") val episodesCount: Int,
     @JsonProperty("episodes_length") val episodesLength: Int,
     @JsonProperty("status") val status: String,
-    @JsonProperty("imageurl_cover") val imageUrlCover: String?,
+//    @JsonProperty("imageurl_cover") val imageUrlCover: String?,
     @JsonProperty("type") val type: String,
     @JsonProperty("slug") val slug: String,
     @JsonProperty("title_eng") val titleEng: String?,
-    @JsonProperty("day") val day: String?,
+//    @JsonProperty("day") val day: String?,
     @JsonProperty("score") val score: String?,
-    @JsonProperty("studio") val studio: String,
+//    @JsonProperty("studio") val studio: String,
     @JsonProperty("dub") val dub: Int,
-    @JsonProperty("always_home") val alwaysHome: Int,
+//    @JsonProperty("always_home") val alwaysHome: Int,
     @JsonProperty("cover") val cover: String?,
-    @JsonProperty("anilist_id") val anilistId: Int,
-    @JsonProperty("season") val season: String,
+    @JsonProperty("anilist_id") val anilistId: Int?,
+//    @JsonProperty("season") val season: String,
     @JsonProperty("title_it") val titleIt: String?,
-    @JsonProperty("mal_id") val malId: Int,
+    @JsonProperty("mal_id") val malId: Int?,
     @JsonProperty("episodes") val episodes: List<Episode>?,
     @JsonProperty("genres") val genres: List<Genre>
 )
@@ -112,7 +112,7 @@ data class Episode(
 data class AnimeInfo(
     @JsonProperty("id") val id: Int,
     @JsonProperty("name") val name: String?,
-    @JsonProperty("slug") val slug: String,
+//    @JsonProperty("slug") val slug: String,
     @JsonProperty("episodes_count") val episodesCount: Int,
     @JsonProperty("current_episode") val currentEpisode: Int,
     @JsonProperty("episodes") val episodes: List<Episode>
