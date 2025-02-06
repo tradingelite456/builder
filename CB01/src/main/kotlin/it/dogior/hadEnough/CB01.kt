@@ -78,7 +78,7 @@ class CB01 : MainAPI() {
         val posts = items.mapNotNull { card ->
             val poster = card.selectFirst("img")?.attr("src")
             val data = card.selectFirst("script")?.data()
-            val fixedData = data?.substringAfter("= ")?.substringBefore(";")
+            val fixedData = data?.substringAfter("=")?.substringBefore(";")
             val post = tryParseJson<Post>(fixedData)
             post?.let { it.poster = poster }
             post
@@ -122,7 +122,7 @@ class CB01 : MainAPI() {
             val posts = items?.mapNotNull { card ->
                 val poster = card.selectFirst("img")?.attr("src")
                 val data = card.selectFirst("script")?.data()
-                val fixedData = data?.substringAfter("= ")?.substringBefore(";")
+                val fixedData = data?.substringAfter("=")?.substringBefore(";")
                 val post = tryParseJson<Post>(fixedData)
                 post?.let { it.poster = poster }
                 post
@@ -177,10 +177,18 @@ class CB01 : MainAPI() {
 
             val table =
                 mainContainer.selectFirst("table.cbtable:nth-child(5) > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(1)")
-            val links = table?.select(".vhst")
-                ?.mapNotNull { it.attr("onclick").substringAfter("open('").substringBefore("',") }
+            val links = table?.select("a")?.mapNotNull {
+                    if(it.text() == "Maxstream" || it.text() == "Mixdrop"){
+                        it.attr("href")
+                    }else{
+                        null
+                    }
+                }
 //            Log.d("CB01", "Links: $links")
-            val data = links?.toJson() ?: "null"
+            val data = links?.let {
+                it.subList(links.size - 2, it.size)
+            }?.toJson() ?: "null"
+
             newMovieLoadResponse(fixTitle(title, true), actualUrl, type, data) {
                 addPoster(poster)
                 this.plot = plot
@@ -208,18 +216,20 @@ class CB01 : MainAPI() {
     }
 
     private suspend fun getEpisodes(page: Document): Pair<List<Episode>, MutableList<SeasonData>> {
-        val table = page.selectFirst("table.cbtable")
-        val column = table?.selectFirst("td")
-        val seasonDropdowns = column?.select("div.sp-wrap")
         val seasonsData = mutableListOf<SeasonData>()
         val nestedEps = mutableListOf<Episode>()
-        val episodes = seasonDropdowns?.mapIndexedNotNull { index, dropdown ->
+
+        val seasonDropdowns = page.select(".sp-wrap ")
+
+        val episodes = seasonDropdowns.mapIndexedNotNull { index, dropdown ->
             // Every Season
             val seasonName = dropdown.select("div.sp-head").text()
             val regex = "\\d+".toRegex()
             val seasonNumber = regex.find(seasonName)?.value?.toIntOrNull() ?: index
 
-            dropdown.select("div.sp-body > strong > p").amap {
+
+            val episodesData = dropdown.select("div.sp-body").select("strong")
+            episodesData.amap {
                 // Every episode
                 val epName = it.text().substringBefore('–').trim()
                 val epNumber = regex.find(epName.substringAfter('×'))?.value?.toIntOrNull()
