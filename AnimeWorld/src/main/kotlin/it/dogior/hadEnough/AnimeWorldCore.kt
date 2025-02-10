@@ -1,5 +1,6 @@
 package it.dogior.hadEnough
 
+import com.lagradost.api.Log
 import com.lagradost.cloudstream3.AnimeSearchResponse
 import com.lagradost.cloudstream3.DubStatus
 import com.lagradost.cloudstream3.Episode
@@ -33,13 +34,14 @@ import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
+import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.nicehttp.NiceResponse
 import org.jsoup.nodes.Element
 import java.text.SimpleDateFormat
 import java.util.Locale
 
 open class AnimeWorldCore(isSplit: Boolean = false) : MainAPI() {
-    override var mainUrl = Companion.mainUrl
+    final override var mainUrl = Companion.mainUrl
     override var name = "AnimeWorld"
     override var lang = "it"
     override val hasMainPage = true
@@ -70,7 +72,7 @@ open class AnimeWorldCore(isSplit: Boolean = false) : MainAPI() {
         private var headers = mutableMapOf<String, String>()
 
         private suspend fun request(url: String): NiceResponse {
-            if (cookies.isEmpty()) {
+            if (!headers.contains("Cookie")) {
                 headers["Cookie"] = getSecurityCookie()
 //                Log.d("AnimeWorld:Cookie", "Cookie: ${headers["Cookie"]}")
             }
@@ -80,15 +82,18 @@ open class AnimeWorldCore(isSplit: Boolean = false) : MainAPI() {
 
         private suspend fun getSecurityCookie(): String {
             val r = app.get(mainUrl, allowRedirects = false)
+            val cookie = r.headers["set-cookie"]!!.substringBefore(";")
+//            Log.d("AnimeWorld:getSecurityCookie", "Cookie: $cookie")
+            return cookie
 
-            val securityCookie =
-                r.document.selectFirst("script")!!.data().substringAfter("\"").substringBefore(" ;")
+//            val securityCookie =
+//                r.document.selectFirst("script")!!.data().substringAfter("\"").substringBefore(" ;")
 //            Log.d("AnimeWorld:getSecurityCookie", "Cookie: ${securityCookie}")
-            val h = mapOf("Cookie" to securityCookie)
-            val r2 = app.get("$mainUrl/?d=1", headers = h, allowRedirects = true)
+//            val h = mapOf("Cookie" to securityCookie)
+//            val r2 = app.get("$mainUrl/?d=1", headers = h, allowRedirects = true)
 //            Log.d("AnimeWorld:getSecurityCookie", "Request: ${r2.body.string()}")
-            val sessionCookie = r2.headers["set-cookie"]!!.substringBefore(";")
-            return "$securityCookie; $sessionCookie"
+//            val sessionCookie = r2.headers["set-cookie"]!!.substringBefore(";")
+//            return "$securityCookie; $sessionCookie"
         }
     }
 
@@ -403,7 +408,8 @@ open class AnimeWorldCore(isSplit: Boolean = false) : MainAPI() {
                 )
 
             } else if (it.target.contains("listeamed.net")) {
-                VidguardExtractor().getUrl(it.grabber, null, subtitleCallback, callback)
+                loadExtractor(it.grabber, null, subtitleCallback, callback)
+//                VidguardExtractor().getUrl(it.grabber, null, subtitleCallback, callback)
             } else {
                 null
             }
