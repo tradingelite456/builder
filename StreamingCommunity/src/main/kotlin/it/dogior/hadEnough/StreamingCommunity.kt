@@ -212,6 +212,7 @@ class StreamingCommunity : MainAPI() {
                 this.episodes = episodes
                 this.year = year
                 this.plot = title.plot
+                title.age?.let{this.contentRating = "$it+"}
                 this.recommendations = related?.titles?.let { searchResponseBuilder(it) }
                 title.imdbId?.let { this.addImdbId(it) }
                 title.tmdbId?.let { this.addTMDbId(it.toString()) }
