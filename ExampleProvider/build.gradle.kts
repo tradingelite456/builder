@@ -5,7 +5,7 @@ version = 1
 cloudstream {
     // All of these properties are optional, you can safely remove them
 
-    description = "Movies and Shows from CB01"
+    description = "Stuff"
     authors = listOf("doGior")
 
     /**
@@ -22,5 +22,5 @@ cloudstream {
     requiresResources = false
     language = "it"
 
-    iconUrl = "https://cb01.uno/favicon-512x512.png"
+    iconUrl = "https://github.githubassets.com/favicons/favicon-dark.svg"
 }

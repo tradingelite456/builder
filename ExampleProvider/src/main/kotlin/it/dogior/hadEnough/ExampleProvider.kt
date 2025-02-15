@@ -45,8 +45,7 @@ class ExampleProvider : MainAPI() {
     override val hasMainPage = true
 
     override val mainPage = mainPageOf(
-        mainUrl to "Film",
-        "$mainUrl/serietv" to "Serie TV"
+        mainUrl to "Home",
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
