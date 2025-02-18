@@ -42,7 +42,7 @@ class StreamingCommunity : MainAPI() {
                 "X-Inertia" to true.toString(),
                 "X-Inertia-Version" to inertiaVersion
             ).toMutableMap()
-        val mainUrl = "https://streamingcommunity.ooo"
+        val mainUrl = "https://streamingcommunity.lu"
         var name = "StreamingCommunity"
     }
 
