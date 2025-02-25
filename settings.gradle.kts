@@ -8,6 +8,7 @@ include(
     "AnimeUnity",
     "AnimeWorld",
     "CalcioStreaming",
+    "DaddyLive",
     "TV",
     "CB01",
     "OnlineSerieTV",
