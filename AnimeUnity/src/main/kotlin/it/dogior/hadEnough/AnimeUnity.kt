@@ -26,7 +26,6 @@ import com.lagradost.cloudstream3.newAnimeSearchResponse
 import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
-import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.util.Locale
@@ -45,7 +44,8 @@ class AnimeUnity : MainAPI() {
     override val hasQuickSearch: Boolean = true
 
     companion object {
-        val mainUrl = "https://www.animeunity.so"
+        @Suppress("ConstPropertyName")
+        const val mainUrl = "https://www.animeunity.so"
         var name = "AnimeUnity"
         var headers = mapOf(
             "Host" to mainUrl.toHttpUrl().host,
@@ -77,8 +77,7 @@ class AnimeUnity : MainAPI() {
             "X-Requested-With" to "XMLHttpRequest",
             "Content-Type" to "application/json;charset=utf-8",
             "X-CSRF-Token" to csrfToken,
-            "Referer" to "https://www.animeunity.to/archivio",
-            "Referer" to "https://www.animeunity.to",
+            "Referer" to mainUrl,
             "Cookie" to cookies
         )
         headers.putAll(h)
@@ -185,7 +184,7 @@ class AnimeUnity : MainAPI() {
             app.post(url, headers = headers, requestBody = requestBody)
 
         val body = response.text
-        Log.d("$TAG:body", body)
+//        Log.d("$TAG:body", body)
 
 //        // Log.d(localTag, "Cookies: ${response.cookies}")
         val responseObject = parseJson<ApiResponse>(body)
@@ -288,7 +287,7 @@ class AnimeUnity : MainAPI() {
                 }
 
                 val infoUrl =
-                    "https://www.animeunity.to/info_api/${anime.id}/1?start_range=${1 + (i - 1) * 120}&end_range=${endRange}"
+                    "$mainUrl/info_api/${anime.id}/1?start_range=${1 + (i - 1) * 120}&end_range=${endRange}"
                 val info = app.get(infoUrl).text
                 val animeInfo = parseJson<AnimeInfo>(info)
                 episodes.addAll(animeInfo.episodes.map {
@@ -357,9 +356,9 @@ class AnimeUnity : MainAPI() {
         if (imageUrl.isNotEmpty()) {
             try {
                 val fileName = imageUrl.substringAfterLast("/")
-                return "https://img.animeunity.so/anime/$fileName"
+                val cdnHost = mainUrl.toHttpUrl().host.replace("www", "img")
+                return "https://$cdnHost/anime/$fileName"
             } catch (_: Exception) {
-                // Fallback to Anilist if direct image fails
             }
         }
         return imageUrl
