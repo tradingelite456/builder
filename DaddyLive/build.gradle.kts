@@ -22,5 +22,5 @@ cloudstream {
     requiresResources = false
     language = "un"
 
-    iconUrl = "https://github.com/doGior/doGiorsHadEnough/blob/master/DaddyLive/live-streaming.png"
+    iconUrl = "https://raw.githubusercontent.com/doGior/doGiorsHadEnough/refs/heads/master/DaddyLive/live-streaming.png"
 }

@@ -41,7 +41,7 @@ class DaddyLiveSportsProvider : MainAPI() {
     @Suppress("ConstPropertyName")
     companion object {
         private val streams = mutableListOf<Event>()
-        private const val posterUrl = "https://github.com/doGior/doGiorsHadEnough/blob/master/DaddyLive/daddylive.jpg"
+        private const val posterUrl = "https://raw.githubusercontent.com/doGior/doGiorsHadEnough/refs/heads/master/DaddyLive/daddylive.jpg"
         fun getFormattedDate(): String {
             val calendar = Calendar.getInstance()
             val day = calendar.get(Calendar.DAY_OF_MONTH)

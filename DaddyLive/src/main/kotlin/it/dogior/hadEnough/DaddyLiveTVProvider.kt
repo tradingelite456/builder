@@ -35,7 +35,7 @@ class DaddyLiveTVProvider : MainAPI() {
     @Suppress("ConstPropertyName")
     companion object {
         val channelsName: MutableMap<String, String> = mutableMapOf()
-        private const val posterUrl = "https://github.com/doGior/doGiorsHadEnough/blob/master/DaddyLive/daddylive.jpg"
+        private const val posterUrl = "https://raw.githubusercontent.com/doGior/doGiorsHadEnough/refs/heads/master/DaddyLive/daddylive.jpg"
         val countries = listOf(
             "Andorra",
             "UAE",

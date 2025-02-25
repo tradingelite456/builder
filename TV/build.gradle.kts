@@ -20,7 +20,7 @@ cloudstream {
 
     requiresResources = true
 
-    iconUrl = "https://github.com/doGior/doGiorsHadEnough/blob/master/TV/television.png"
+    iconUrl = "https://raw.githubusercontent.com/doGior/doGiorsHadEnough/refs/heads/master/TV/television.png"
 }
 
 android {
