@@ -40,7 +40,6 @@ class DaddyLiveSportsProvider : MainAPI() {
 
     @Suppress("ConstPropertyName")
     companion object {
-        private val streams = mutableListOf<Event>()
         private const val posterUrl =
             "https://raw.githubusercontent.com/doGior/doGiorsHadEnough/refs/heads/master/DaddyLive/daddylive.jpg"
 
@@ -82,7 +81,6 @@ class DaddyLiveSportsProvider : MainAPI() {
                 }
             }
         }
-        streams.addAll(events.values.toList().flatten())
         return events.map {
             it.key to it.value.map { event -> event.toSearchResponse(this.name) }
         }
