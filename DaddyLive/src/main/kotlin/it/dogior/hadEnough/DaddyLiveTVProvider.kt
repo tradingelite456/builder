@@ -341,7 +341,7 @@ class DaddyLiveTVProvider : MainAPI() {
                 it.value,
                 false
             )
-        }
+        }.sortedBy { it.name }
 
 
         return newHomePageResponse(
