@@ -20,7 +20,6 @@ cloudstream {
     tvTypes = listOf("Live")
 
     requiresResources = false
-    language = "un"
 
     iconUrl = "https://raw.githubusercontent.com/doGior/doGiorsHadEnough/refs/heads/master/DaddyLive/live-streaming.png"
 }
