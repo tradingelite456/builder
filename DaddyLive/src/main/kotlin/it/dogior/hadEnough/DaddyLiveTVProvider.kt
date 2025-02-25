@@ -290,7 +290,7 @@ class DaddyLiveTVProvider : MainAPI() {
         )
     }
 
-    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+    private suspend fun searchResponseBuilder(): List<LiveSearchResponse> {
         val channelsUrl = "$mainUrl/24-7-channels.php"
         val response = app.post(
             channelsUrl,
@@ -316,12 +316,16 @@ class DaddyLiveTVProvider : MainAPI() {
             chanData.add(listOf(href, target, strongText) as List<String>)
         }
 
-        val searchResponses = chanData.map {
+        return chanData.map {
             val name = it[2]
             val url = it[0]
             channelsName["$mainUrl$url"] = name
             LiveSearchResponse(name, url, this.name, posterUrl = posterUrl)
         }
+    }
+
+    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        val searchResponses = searchResponseBuilder()
         val groupedSearchResponses = searchResponses.groupBy {
             val c = it.name.substringAfterLast(" ")
                 .replace(")", "").trim()
@@ -348,17 +352,13 @@ class DaddyLiveTVProvider : MainAPI() {
 
     // this function gets called when you search for something
     override suspend fun search(query: String): List<SearchResponse> {
-        val matches = channelsName.filter {
+        val searchResponses = searchResponseBuilder()
+        val matches = searchResponses.filter {
             query.lowercase().replace(" ", "") in
-                    it.value.lowercase().replace(" ", "")
+                    it.name.lowercase().replace(" ", "")
         }
-        if (matches.isNotEmpty()) {
-            val results = matches.map {
-                LiveSearchResponse(it.value, it.key, this.name)
-            }
-            return results
-        } else {
-            return emptyList()
+        return matches.ifEmpty {
+            emptyList()
         }
     }
 

@@ -41,7 +41,9 @@ class DaddyLiveSportsProvider : MainAPI() {
     @Suppress("ConstPropertyName")
     companion object {
         private val streams = mutableListOf<Event>()
-        private const val posterUrl = "https://raw.githubusercontent.com/doGior/doGiorsHadEnough/refs/heads/master/DaddyLive/daddylive.jpg"
+        private const val posterUrl =
+            "https://raw.githubusercontent.com/doGior/doGiorsHadEnough/refs/heads/master/DaddyLive/daddylive.jpg"
+
         fun getFormattedDate(): String {
             val calendar = Calendar.getInstance()
             val day = calendar.get(Calendar.DAY_OF_MONTH)
@@ -61,9 +63,8 @@ class DaddyLiveSportsProvider : MainAPI() {
         }
     }
 
-    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+    private suspend fun searchResponseBuilder(): List<Pair<String, List<LiveSearchResponse>>> {
         val headers = mapOf("User-Agent" to userAgent)
-
         val schedule = app.get(
             "$mainUrl/schedule/schedule-generated.json",
             headers,
@@ -82,10 +83,16 @@ class DaddyLiveSportsProvider : MainAPI() {
             }
         }
         streams.addAll(events.values.toList().flatten())
-        val sections = events.map {
+        return events.map {
+            it.key to it.value.map { event -> event.toSearchResponse(this.name) }
+        }
+    }
+    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        val searchResponses = searchResponseBuilder()
+        val sections = searchResponses.map {
             HomePageList(
-                it.key,
-                it.value.map { event -> event.toSearchResponse(this.name) },
+                it.first,
+                it.second,
                 false
             )
         }
@@ -98,15 +105,13 @@ class DaddyLiveSportsProvider : MainAPI() {
 
     // this function gets called when you search for something
     override suspend fun search(query: String): List<SearchResponse> {
-        val matches = streams.filter {
+        val searchResponses = searchResponseBuilder().map { it.second }.flatten()
+        val matches = searchResponses.filter {
             query.lowercase().replace(" ", "") in
                     it.name.lowercase().replace(" ", "")
         }
         if (matches.isNotEmpty()) {
-            val results = matches.map {
-                it.toSearchResponse(this.name)
-            }
-            return results
+            return matches
         } else {
             return emptyList()
         }
@@ -197,11 +202,13 @@ class DaddyLiveSportsProvider : MainAPI() {
         gmtFormat.timeZone = TimeZone.getTimeZone("GMT") // Set the timezone to GMT
 
         // Parse the input time string
-        val date: Date = gmtFormat.parse(gmtTime) ?: throw IllegalArgumentException("Invalid time format")
+        val date: Date =
+            gmtFormat.parse(gmtTime) ?: throw IllegalArgumentException("Invalid time format")
 
         // Define the output format (local time)
         val localFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-        localFormat.timeZone = TimeZone.getDefault() // Set the timezone to the device's local timezone
+        localFormat.timeZone =
+            TimeZone.getDefault() // Set the timezone to the device's local timezone
 
         // Format the date to local time
         return localFormat.format(date)
