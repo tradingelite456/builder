@@ -43,8 +43,7 @@ class DaddyLiveSportsProvider : MainAPI() {
     companion object {
         private const val posterUrl =
             "https://raw.githubusercontent.com/doGior/doGiorsHadEnough/refs/heads/master/DaddyLive/daddylive.jpg"
-
-        fun getFormattedDate(): String {
+        val date = let{
             val calendar = Calendar.getInstance()
             val day = calendar.get(Calendar.DAY_OF_MONTH)
 
@@ -57,9 +56,27 @@ class DaddyLiveSportsProvider : MainAPI() {
             }
 
             // Define the date format
-            val dateFormat = SimpleDateFormat("EEEE dd'$suffix' MMM yyyy", Locale.ENGLISH)
+            val dateFormat = SimpleDateFormat("EEEE dd'$suffix' MMMM yyyy", Locale.UK)
 
-            return dateFormat.format(calendar.time) + " - Schedule Time UK GMT"
+            dateFormat.format(calendar.time) + " - Schedule Time UK GMT"
+        }
+
+        fun convertGMTToLocalTime(gmtTime: String): String {
+            // Define the input format (GMT time)
+            val gmtFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+            gmtFormat.timeZone = TimeZone.getTimeZone("GMT") // Set the timezone to GMT
+
+            // Parse the input time string
+            val date: Date =
+                gmtFormat.parse(gmtTime) ?: throw IllegalArgumentException("Invalid time format")
+
+            // Define the output format (local time)
+            val localFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+            localFormat.timeZone =
+                TimeZone.getDefault() // Set the timezone to the device's local timezone
+
+            // Format the date to local time
+            return localFormat.format(date)
         }
     }
 
@@ -71,7 +88,8 @@ class DaddyLiveSportsProvider : MainAPI() {
             timeout = 10
         ).body.string()
         val jsonSchedule = JSONObject(schedule)
-        val cat = jsonSchedule.getJSONObject(getFormattedDate())
+//        Log.d("DaddyLive Sports", date)
+        val cat = jsonSchedule.getJSONObject(date)
         val events = mutableMapOf<String, List<Event>>()
         cat.keys().forEach {
             if (it != "TV Shows") {
@@ -109,10 +127,8 @@ class DaddyLiveSportsProvider : MainAPI() {
             query.lowercase().replace(" ", "") in
                     it.name.lowercase().replace(" ", "")
         }
-        if (matches.isNotEmpty()) {
-            return matches
-        } else {
-            return emptyList()
+        return matches.ifEmpty {
+            emptyList()
         }
     }
 
@@ -195,24 +211,6 @@ class DaddyLiveSportsProvider : MainAPI() {
         return true
     }
 
-    fun convertGMTToLocalTime(gmtTime: String): String {
-        // Define the input format (GMT time)
-        val gmtFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-        gmtFormat.timeZone = TimeZone.getTimeZone("GMT") // Set the timezone to GMT
-
-        // Parse the input time string
-        val date: Date =
-            gmtFormat.parse(gmtTime) ?: throw IllegalArgumentException("Invalid time format")
-
-        // Define the output format (local time)
-        val localFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-        localFormat.timeZone =
-            TimeZone.getDefault() // Set the timezone to the device's local timezone
-
-        // Format the date to local time
-        return localFormat.format(date)
-    }
-
     data class Event(
         val time: String,
         @JsonProperty("event")
@@ -223,7 +221,7 @@ class DaddyLiveSportsProvider : MainAPI() {
     ) {
         fun toSearchResponse(apiName: String): LiveSearchResponse {
             return LiveSearchResponse(
-                name,
+                convertGMTToLocalTime(time) + " - " + name,
                 this.toJson(),
                 apiName,
                 posterUrl = posterUrl
