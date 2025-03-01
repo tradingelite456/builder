@@ -18,19 +18,16 @@ import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
-import com.lagradost.cloudstream3.utils.Qualities
 import org.json.JSONObject
-import java.net.URL
-import java.net.URLEncoder
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
-class DaddyLiveSportsProvider : MainAPI() {
+class DaddyLiveScheduleProvider : MainAPI() {
     override var mainUrl = "https://daddylive.mp"
-    override var name = "DaddyLive Sports"
+    override var name = "DaddyLive Schedule"
     override val supportedTypes = setOf(TvType.Live)
     override var lang = "un"
     override val hasMainPage = true
@@ -43,7 +40,7 @@ class DaddyLiveSportsProvider : MainAPI() {
     companion object {
         private const val posterUrl =
             "https://raw.githubusercontent.com/doGior/doGiorsHadEnough/refs/heads/master/DaddyLive/daddylive.jpg"
-        val date = let{
+        val formattedDate = let{
             val calendar = Calendar.getInstance()
             val day = calendar.get(Calendar.DAY_OF_MONTH)
 
@@ -60,7 +57,6 @@ class DaddyLiveSportsProvider : MainAPI() {
 
             dateFormat.format(calendar.time) + " - Schedule Time UK GMT"
         }
-
         fun convertGMTToLocalTime(gmtTime: String): String {
             // Define the input format (GMT time)
             val gmtFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
@@ -89,15 +85,13 @@ class DaddyLiveSportsProvider : MainAPI() {
         ).body.string()
         val jsonSchedule = JSONObject(schedule)
 //        Log.d("DaddyLive Sports", date)
-        val cat = jsonSchedule.getJSONObject(date)
+        val cat = jsonSchedule.getJSONObject(formattedDate)
         val events = mutableMapOf<String, List<Event>>()
         cat.keys().forEach {
-            if (it != "TV Shows") {
-                val array = cat.getJSONArray(it)
-                val e = tryParseJson<List<Event>>(array.toString())
-                if (e != null) {
-                    events[it] = e
-                }
+            val array = cat.getJSONArray(it)
+            val e = tryParseJson<List<Event>>(array.toString())
+            if (e != null) {
+                events[it] = e
             }
         }
         return events.map {
@@ -127,9 +121,7 @@ class DaddyLiveSportsProvider : MainAPI() {
             query.lowercase().replace(" ", "") in
                     it.name.lowercase().replace(" ", "")
         }
-        return matches.ifEmpty {
-            emptyList()
-        }
+        return matches
     }
 
     override suspend fun load(url: String): LoadResponse {
@@ -138,7 +130,7 @@ class DaddyLiveSportsProvider : MainAPI() {
 
         return LiveStreamLoadResponse(
             event.name,
-            "",
+            url,
             this.name,
             event.channels.toJson(),
             tags = listOf(time),
@@ -159,55 +151,7 @@ class DaddyLiveSportsProvider : MainAPI() {
             it.channelName to link
         }
 
-        links.map {
-            val headers = mapOf(
-                "Referer" to mainUrl,
-                "user-agent" to userAgent
-            )
-            val resp = app.post(it.second, headers = headers).body.string()
-            val url1 = Regex("iframe src=\"([^\"]*)").find(resp)?.groupValues?.get(1)
-                ?: throw Exception("URL not found")
-            val parsedUrl = URL(url1)
-            val refererBase = "${parsedUrl.protocol}://${parsedUrl.host}"
-            val referer = URLEncoder.encode(refererBase, "UTF-8")
-            val userAgent = URLEncoder.encode(userAgent, "UTF-8")
-
-            val resp2 = app.post(url1, headers).body.string()
-
-
-            val streamId = Regex("fetch\\('([^']*)").find(resp2)?.groupValues?.get(1)
-                ?: throw Exception("Stream ID not found")
-            val url2 = Regex("var channelKey = \"([^\"]*)").find(resp2)?.groupValues?.get(1)
-                ?: throw Exception("Channel Key not found")
-            val m3u8 = Regex("(/mono\\.m3u8)").find(resp2)?.groupValues?.get(1)
-                ?: throw Exception("M3U8 not found")
-
-            val url3 = "$refererBase$streamId$url2"
-            val resp3 = app.post(url3, headers).body.string()
-            val key =
-                Regex(":\"([^\"]*)").find(resp3)?.groupValues?.get(1)
-                    ?: throw Exception("Key not found")
-
-            val finalLink =
-                "https://$key.iosplayer.ru/$key/$url2$m3u8"
-
-            callback(
-                ExtractorLink(
-                    it.first,
-                    it.first,
-                    finalLink,
-                    referer = "",
-                    isM3u8 = true,
-                    headers = mapOf(
-                        "Referer" to referer,
-                        "Origin" to referer,
-                        "Keep-Alive" to "true",
-                        "User-Agent" to userAgent
-                    ),
-                    quality = Qualities.Unknown.value
-                )
-            )
-        }
+        DaddyLiveExtractor().getUrl(links.toJson(), null, subtitleCallback, callback)
         return true
     }
 

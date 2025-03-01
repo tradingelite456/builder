@@ -9,6 +9,7 @@ class DaddyLivePlugin: Plugin() {
     override fun load(context: Context) {
         // All providers should be added in this manner
         registerMainAPI(DaddyLiveTVProvider())
-        registerMainAPI(DaddyLiveSportsProvider())
+        registerMainAPI(DaddyLiveScheduleProvider())
+        registerExtractorAPI(DaddyLiveExtractor())
     }
 }

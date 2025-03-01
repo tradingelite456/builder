@@ -13,12 +13,8 @@ import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.VPNStatus
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.newHomePageResponse
-import com.lagradost.cloudstream3.utils.AppUtils.parseJson
-import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
-import com.lagradost.cloudstream3.utils.Qualities
-import java.net.URL
-import java.net.URLEncoder
+import com.lagradost.cloudstream3.utils.loadExtractor
 import java.util.regex.Pattern
 
 class DaddyLiveTVProvider : MainAPI() {
@@ -29,6 +25,7 @@ class DaddyLiveTVProvider : MainAPI() {
     override val hasMainPage = true
     override val vpnStatus = VPNStatus.MightBeNeeded
     override val hasDownloadSupport = false
+    override val instantLinkLoading = true
 
     private val userAgent =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"
@@ -343,8 +340,6 @@ class DaddyLiveTVProvider : MainAPI() {
                 false
             )
         }.sortedBy { it.name }
-
-
         return newHomePageResponse(
             sections,
             false
@@ -358,54 +353,15 @@ class DaddyLiveTVProvider : MainAPI() {
             query.lowercase().replace(" ", "") in
                     it.name.lowercase().replace(" ", "")
         }
-        return matches.ifEmpty {
-            emptyList()
-        }
+        return matches
     }
 
-    @Suppress("BlockingMethodInNonBlockingContext")
     override suspend fun load(url: String): LoadResponse {
-        val headers = mapOf(
-            "Referer" to mainUrl,
-            "user-agent" to userAgent
-        )
-        val resp = app.post(url, headers = headers).body.string()
-        val url1 = Regex("iframe src=\"([^\"]*)").find(resp)?.groupValues?.get(1)
-            ?: throw Exception("URL not found")
-        val parsedUrl = URL(url1)
-        val refererBase = "${parsedUrl.protocol}://${parsedUrl.host}"
-        val referer = URLEncoder.encode(refererBase, "UTF-8")
-        val userAgent = URLEncoder.encode(userAgent, "UTF-8")
-
-        val resp2 = app.post(url1, headers).body.string()
-
-
-        val streamId = Regex("fetch\\('([^']*)").find(resp2)?.groupValues?.get(1)
-            ?: throw Exception("Stream ID not found")
-        val url2 = Regex("var channelKey = \"([^\"]*)").find(resp2)?.groupValues?.get(1)
-            ?: throw Exception("Channel Key not found")
-        val m3u8 = Regex("(/mono\\.m3u8)").find(resp2)?.groupValues?.get(1)
-            ?: throw Exception("M3U8 not found")
-
-        val url3 = "$refererBase$streamId$url2"
-        val resp3 = app.post(url3, headers).body.string()
-        val key =
-            Regex(":\"([^\"]*)").find(resp3)?.groupValues?.get(1)
-                ?: throw Exception("Key not found")
-
-        val finalLink =
-            "https://$key.iosplayer.ru/$key/$url2$m3u8"
-        val h = mapOf(
-            "Referer" to referer,
-            "Origin" to referer,
-            "Keep-Alive" to "true",
-            "User-Agent" to userAgent
-        )
         return LiveStreamLoadResponse(
             channelsName[url] ?: "Channel",
-            finalLink,
+            url,
             this.name,
-            LoadData(finalLink, h).toJson(),
+            url,
             posterUrl = posterUrl
         )
     }
@@ -417,24 +373,6 @@ class DaddyLiveTVProvider : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit,
     ): Boolean {
-        val loadData = parseJson<LoadData>(data)
-
-        callback(
-            ExtractorLink(
-                this.name,
-                this.name,
-                loadData.link,
-                referer = "",
-                isM3u8 = true,
-                headers = loadData.headers,
-                quality = Qualities.Unknown.value
-            )
-        )
-        return true
+        return loadExtractor(data, null, subtitleCallback, callback)
     }
-
-    data class LoadData(
-        val link: String,
-        val headers: Map<String, String>
-    )
 }
