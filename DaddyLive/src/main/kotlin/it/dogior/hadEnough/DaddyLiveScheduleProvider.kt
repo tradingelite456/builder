@@ -40,23 +40,7 @@ class DaddyLiveScheduleProvider : MainAPI() {
     companion object {
         private const val posterUrl =
             "https://raw.githubusercontent.com/doGior/doGiorsHadEnough/refs/heads/master/DaddyLive/daddylive.jpg"
-        val formattedDate = let{
-            val calendar = Calendar.getInstance()
-            val day = calendar.get(Calendar.DAY_OF_MONTH)
 
-            // Get the correct ordinal suffix
-            val suffix = when (day % 10) {
-                1 -> if (day == 11) "th" else "st"
-                2 -> if (day == 12) "th" else "nd"
-                3 -> if (day == 13) "th" else "rd"
-                else -> "th"
-            }
-
-            // Define the date format
-            val dateFormat = SimpleDateFormat("EEEE dd'$suffix' MMMM yyyy", Locale.UK)
-
-            dateFormat.format(calendar.time) + " - Schedule Time UK GMT"
-        }
         fun convertGMTToLocalTime(gmtTime: String): String {
             // Define the input format (GMT time)
             val gmtFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
@@ -74,6 +58,26 @@ class DaddyLiveScheduleProvider : MainAPI() {
             // Format the date to local time
             return localFormat.format(date)
         }
+
+        fun convertStringToLocalDate(objectKey: String): String {
+            val dateString = objectKey.substringBeforeLast(" -")
+
+            // Remove the ordinal suffix (e.g., "nd" in "02nd")
+            val cleanedDateString = dateString.replace(Regex("(?<=\\d)(st|nd|rd|th)"), "")
+
+            // Define the date format
+            val dateFormat = SimpleDateFormat("EEEE dd MMMM yyyy", Locale.ENGLISH)
+
+            // Parse the date string into a Date object
+            val date = dateFormat.parse(cleanedDateString)
+
+            // Convert the Date to a Calendar object in the system's default time zone
+            val calendar = Calendar.getInstance()
+            calendar.time = date!!
+
+            val outputFormat = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault())
+            return outputFormat.format(calendar.time)
+        }
     }
 
     private suspend fun searchResponseBuilder(): List<Pair<String, List<LiveSearchResponse>>> {
@@ -84,20 +88,32 @@ class DaddyLiveScheduleProvider : MainAPI() {
             timeout = 10
         ).body.string()
         val jsonSchedule = JSONObject(schedule)
-//        Log.d("DaddyLive Sports", date)
-        val cat = jsonSchedule.getJSONObject(formattedDate)
-        val events = mutableMapOf<String, List<Event>>()
-        cat.keys().forEach {
-            val array = cat.getJSONArray(it)
-            val e = tryParseJson<List<Event>>(array.toString())
-            if (e != null) {
-                events[it] = e
+
+        val events = mutableMapOf<String, List<LiveSearchResponse>>()
+        val keys = mutableListOf<String>()
+        jsonSchedule.keys().forEach { date ->
+            keys.add(date)
+            val categories = jsonSchedule.getJSONObject(date)
+            categories.keys().forEach { cat ->
+                val array = categories.getJSONArray(cat)
+                val e = tryParseJson<List<Event>>(array.toString())
+                if (e != null) {
+                    events[cat] =
+                        e.map {
+                            it.date = convertStringToLocalDate(date)
+                            it.toSearchResponse(this.name)
+                        }
+                }
             }
         }
+//        Log.d("DaddyLive Sports", keys.toJson())
+
+
         return events.map {
-            it.key to it.value.map { event -> event.toSearchResponse(this.name) }
+            it.key to it.value
         }
     }
+
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val searchResponses = searchResponseBuilder()
         val sections = searchResponses.map {
@@ -133,7 +149,7 @@ class DaddyLiveScheduleProvider : MainAPI() {
             url,
             this.name,
             event.channels.toJson(),
-            tags = listOf(time),
+            tags = listOf(event.date + " " + time),
             posterUrl = posterUrl
         )
     }
@@ -156,6 +172,7 @@ class DaddyLiveScheduleProvider : MainAPI() {
     }
 
     data class Event(
+        var date: String?,
         val time: String,
         @JsonProperty("event")
         val name: String,
@@ -164,11 +181,15 @@ class DaddyLiveScheduleProvider : MainAPI() {
         val channels2: List<Channel>
     ) {
         fun toSearchResponse(apiName: String): LiveSearchResponse {
+            val title = this.date?.let { it + " " + convertGMTToLocalTime(time) + " - " + name }
+                ?: (convertGMTToLocalTime(time) + " - " + name)
+
             return LiveSearchResponse(
-                convertGMTToLocalTime(time) + " - " + name,
+                title,
                 this.toJson(),
                 apiName,
-                posterUrl = posterUrl
+                posterUrl = posterUrl,
+                type = TvType.Live
             )
         }
     }
