@@ -10,6 +10,7 @@ include(
     "CalcioStreaming",
     "DaddyLive",
     "TV",
+    "TV2",
     "CB01",
     "OnlineSerieTV",
     "StreamingCommunity",
