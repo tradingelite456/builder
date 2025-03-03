@@ -21,7 +21,7 @@ import com.lagradost.cloudstream3.utils.Qualities
 
 class TV2 : MainAPI() {
     override var mainUrl = "https://huhu.to"
-    override var name = "🏴‍☠️"
+    override var name = "TV 🏴‍☠️"
     override val supportedTypes = setOf(TvType.Live)
     override var lang = "un"
     override val hasMainPage = true
