@@ -1,6 +1,7 @@
 package it.dogior.hadEnough
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.lagradost.api.Log
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LiveSearchResponse
@@ -89,25 +90,30 @@ class DaddyLiveScheduleProvider : MainAPI() {
         ).body.string()
         val jsonSchedule = JSONObject(schedule)
 
-        val events = mutableMapOf<String, List<LiveSearchResponse>>()
-        val keys = mutableListOf<String>()
+        val events = mutableMapOf<String, MutableList<LiveSearchResponse>>()
+
         jsonSchedule.keys().forEach { date ->
-            keys.add(date)
             val categories = jsonSchedule.getJSONObject(date)
             categories.keys().forEach { cat ->
                 val array = categories.getJSONArray(cat)
                 val e = tryParseJson<List<Event>>(array.toString())
+                if (e==null){
+                    Log.d("DaddyLive Schedule - Parsing Error", array.toString())
+                }
                 if (e != null) {
-                    events[cat] =
-                        e.map {
-                            it.date = convertStringToLocalDate(date)
-                            it.toSearchResponse(this.name)
-                        }
+                    val searchResponses = e.map {
+                        it.date = convertStringToLocalDate(date)
+                        it.toSearchResponse(this.name)
+                    }.toMutableList()
+
+                    if (events[cat] == null) {
+                        events[cat] = searchResponses
+                    } else {
+                        events[cat]?.addAll(searchResponses)
+                    }
                 }
             }
         }
-//        Log.d("DaddyLive Sports", keys.toJson())
-
 
         return events.map {
             it.key to it.value
