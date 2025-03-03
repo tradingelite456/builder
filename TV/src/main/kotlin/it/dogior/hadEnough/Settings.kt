@@ -107,7 +107,7 @@ class Settings(
                 }
                 this?.apply()
             }
-            showToast("Impostazioni salvate. Riavvia l'applicazione per applicarle")
+            showToast("Saved. Restart the app to apply the settings")
             dismiss()
         }
 
