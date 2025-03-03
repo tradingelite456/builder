@@ -74,7 +74,8 @@ class TV2 : MainAPI() {
             url,
             this.name,
             "https://huhu.to/play/${channel.id}/index.m3u8",
-            posterUrl = posterUrl
+            posterUrl = posterUrl,
+            tags = listOf(channel.country)
         )
     }
 
