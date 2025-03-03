@@ -51,7 +51,7 @@ class TV2 : MainAPI() {
         }.sortedBy { it.name }
 
         return newHomePageResponse(
-            sections
+            sections, false
         )
     }
 
