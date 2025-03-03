@@ -21,5 +21,5 @@ cloudstream {
 
     requiresResources = false
 
-    iconUrl = "https://github.githubassets.com/favicons/favicon-dark.svg"
+    iconUrl = "https://raw.githubusercontent.com/doGior/doGiorsHadEnough/master/TV2/icon.png"
 }
