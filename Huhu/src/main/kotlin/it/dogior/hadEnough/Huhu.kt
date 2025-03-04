@@ -12,6 +12,7 @@ import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.VPNStatus
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
@@ -19,20 +20,24 @@ import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
 
-class TV2 : MainAPI() {
+class Huhu(private val countries: Map<String, Boolean>, language: String) : MainAPI() {
     override var mainUrl = "https://huhu.to"
-    override var name = "TV 🏴‍☠️"
+    override var name = "Huhu"
     override val supportedTypes = setOf(TvType.Live)
-    override var lang = "un"
+    override var lang = language
     override val hasMainPage = true
+    override val hasDownloadSupport = false
+    override val vpnStatus = VPNStatus.MightBeNeeded
 
     private suspend fun getChannels(): List<Channel> {
+        val enabledCountries = countries.filter { it.value }.keys.toList()
         val response = app.get("$mainUrl/channels").body.string()
-        return parseJson<List<Channel>>(response)
+        return parseJson<List<Channel>>(response).filter { it.country in enabledCountries }
     }
 
     companion object {
         var channels = emptyList<Channel>()
+
         @Suppress("ConstPropertyName")
         const val posterUrl =
             "https://raw.githubusercontent.com/doGior/doGiorsHadEnough/master/TV2/tv.png"
@@ -42,13 +47,14 @@ class TV2 : MainAPI() {
         if (channels.isEmpty()) {
             channels = getChannels()
         }
-        val sections = channels.groupBy { it.country }.map {
-            HomePageList(
-                it.key,
-                it.value.map { channel -> channel.toSearchResponse(this.name) },
-                false
-            )
-        }.sortedBy { it.name }
+        val sections =
+            channels.groupBy { it.country }.map {
+                HomePageList(
+                    it.key,
+                    it.value.map { channel -> channel.toSearchResponse(this.name) },
+                    false
+                )
+            }.sortedBy { it.name }
 
         return newHomePageResponse(
             sections, false

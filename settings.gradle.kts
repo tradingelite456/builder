@@ -8,12 +8,12 @@ include(
     "AnimeUnity",
     "AnimeWorld",
     "CalcioStreaming",
-    "DaddyLive",
-    "TV",
-    "TV2",
     "CB01",
+    "DaddyLive",
+    "Huhu",
     "OnlineSerieTV",
     "StreamingCommunity",
+    "TV",
     "ToonItalia",
     "YouTube"
 )

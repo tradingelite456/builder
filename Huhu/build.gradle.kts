@@ -1,5 +1,5 @@
 // use an integer for version numbers
-version = 1
+version = 2
 
 
 cloudstream {
@@ -19,7 +19,18 @@ cloudstream {
 
     tvTypes = listOf("Live")
 
-    requiresResources = false
+    requiresResources = true
 
-    iconUrl = "https://raw.githubusercontent.com/doGior/doGiorsHadEnough/master/TV2/icon.png"
+    iconUrl = "https://huhu.to/favicon.ico"
+}
+
+android {
+    buildFeatures {
+        buildConfig = true
+        viewBinding = true
+    }
+}
+
+dependencies {
+    implementation("com.google.android.material:material:1.12.0")
 }
