@@ -5,7 +5,7 @@ version = 1
 cloudstream {
     // All of these properties are optional, you can safely remove them
 
-    description = "Test. This plugin may or may not be supported in the future"
+    description = "TV channels from huhu.to"
     authors = listOf("doGior")
 
     /**
