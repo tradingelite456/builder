@@ -40,7 +40,7 @@ class Huhu(domain: String, private val countries: Map<String, Boolean>, language
 
         @Suppress("ConstPropertyName")
         const val posterUrl =
-            "https://raw.githubusercontent.com/doGior/doGiorsHadEnough/master/TV2/tv.png"
+            "https://raw.githubusercontent.com/doGior/doGiorsHadEnough/master/Huhu/tv.png"
     }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
