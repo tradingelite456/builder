@@ -91,25 +91,25 @@ class DaddyLiveScheduleProvider : MainAPI() {
         val jsonSchedule = JSONObject(schedule)
 
         val events = mutableMapOf<String, MutableList<LiveSearchResponse>>()
-
         jsonSchedule.keys().forEach { date ->
             val categories = jsonSchedule.getJSONObject(date)
             categories.keys().forEach { cat ->
                 val array = categories.getJSONArray(cat)
-                val e = tryParseJson<List<Event>>(array.toString())
-                if (e==null){
+                val event = tryParseJson<List<Event>>(array.toString())
+                if (event==null){
                     Log.d("DaddyLive Schedule - Parsing Error", array.toString())
                 }
-                if (e != null) {
-                    val searchResponses = e.map {
+                if (event != null) {
+                    val searchResponses = event.map {
                         it.date = convertStringToLocalDate(date)
                         it.toSearchResponse(this.name)
                     }.toMutableList()
 
-                    if (events[cat] == null) {
-                        events[cat] = searchResponses
+                    val fixedCat = cat.replace("</span>", "")
+                    if (events[fixedCat] == null) {
+                        events[fixedCat] = searchResponses
                     } else {
-                        events[cat]?.addAll(searchResponses)
+                        events[fixedCat]?.addAll(searchResponses)
                     }
                 }
             }
