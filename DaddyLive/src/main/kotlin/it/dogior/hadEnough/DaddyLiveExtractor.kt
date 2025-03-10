@@ -9,7 +9,7 @@ import com.lagradost.cloudstream3.utils.Qualities
 import java.net.URL
 import java.net.URLEncoder
 
-class DaddyLiveExtractor: ExtractorApi() {
+class DaddyLiveExtractor : ExtractorApi() {
     override val mainUrl = ""
     override val name = "DaddyLive"
     override val requiresReferer = false
@@ -29,19 +29,21 @@ class DaddyLiveExtractor: ExtractorApi() {
         } ?: listOf(extractVideo(url))
 
         extractors.forEach {
-            callback(it)
+            if (it != null) {
+                callback(it)
+            }
         }
     }
 
     @Suppress("BlockingMethodInNonBlockingContext")
-    private suspend fun extractVideo(url: String, sourceName: String = this.name): ExtractorLink {
+    private suspend fun extractVideo(url: String, sourceName: String = this.name): ExtractorLink? {
         val headers = mapOf(
             "Referer" to mainUrl,
             "user-agent" to userAgent
         )
         val resp = app.post(url, headers = headers).body.string()
         val url1 = Regex("iframe src=\"([^\"]*)").find(resp)?.groupValues?.get(1)
-            ?: throw Exception("URL not found")
+            ?: return null
         val parsedUrl = URL(url1)
         val refererBase = "${parsedUrl.protocol}://${parsedUrl.host}"
         val ref = URLEncoder.encode(refererBase, "UTF-8")
@@ -51,19 +53,19 @@ class DaddyLiveExtractor: ExtractorApi() {
 
 
         val streamId = Regex("fetch\\('([^']*)").find(resp2)?.groupValues?.get(1)
-            ?: throw Exception("Stream ID not found")
+            ?: return null
         val url2 = Regex("var channelKey = \"([^\"]*)").find(resp2)?.groupValues?.get(1)
-            ?: throw Exception("Channel Key not found")
+            ?: return null
         val m3u8 = Regex("(/mono\\.m3u8)").find(resp2)?.groupValues?.get(1)
-            ?: throw Exception("M3U8 not found")
+            ?: return null
 
         val url3 = "$refererBase$streamId$url2"
         val resp3 = app.post(url3, headers).body.string()
         val key =
             Regex(":\"([^\"]*)").find(resp3)?.groupValues?.get(1)
-                ?: throw Exception("Key not found")
+                ?: return null
 
-        val finalLink =  "https://$key.iosplayer.ru/$key/$url2$m3u8"
+        val finalLink = "https://$key.iosplayer.ru/$key/$url2$m3u8"
 
         return ExtractorLink(
             sourceName,
