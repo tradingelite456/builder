@@ -20,8 +20,8 @@ import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
 
-class Huhu(private val countries: Map<String, Boolean>, language: String) : MainAPI() {
-    override var mainUrl = "https://huhu.to"
+class Huhu(domain: String, private val countries: Map<String, Boolean>, language: String) : MainAPI() {
+    override var mainUrl = "https://$domain"
     override var name = "Huhu"
     override val supportedTypes = setOf(TvType.Live)
     override var lang = language

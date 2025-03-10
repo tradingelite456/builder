@@ -7,10 +7,13 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.CheckBox
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
+import android.widget.Spinner
 import android.widget.TextView
 import androidx.core.content.res.ResourcesCompat
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -23,7 +26,15 @@ class Settings(
     private val sharedPref: SharedPreferences,
     countries: Map<String, Boolean>
 ) : BottomSheetDialogFragment() {
-    val savedContries = let {
+    private var currentDomain: String? = null
+    private var currentDomainPosition: Int = sharedPref.getInt("domainPosition", 0)
+    private val domains = arrayOf(
+        "huhu.to",
+        "vavoo.to",
+        "kool.to",
+        "oha.to"
+    )
+    private val savedContries = let {
         val c = sharedPref.getString("countries", "")
         if (!c.isNullOrEmpty()) {
             parseJson<Map<String, Boolean>>(c)
@@ -92,13 +103,36 @@ class Settings(
         val header2Tw: TextView? = view.findViewByName("header2_tw")
         header2Tw?.text = getString("header2_tw")
 
+        val domainTw: TextView? = view.findViewByName("domain_tw")
+        domainTw?.text = getString("domain_tw")
+
+        val domainsDropdown: Spinner? = view.findViewByName("domains_dropdown")
+        domainsDropdown?.adapter = ArrayAdapter(
+            requireContext(), android.R.layout.simple_spinner_dropdown_item, domains
+        )
+        domainsDropdown?.setSelection(currentDomainPosition)
+
+        domainsDropdown?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(
+                parent: AdapterView<*>?,
+                view: View?,
+                position: Int,
+                id: Long
+            ) {
+                currentDomain = domains[position]
+            }
+            override fun onNothingSelected(p0: AdapterView<*>?) {
+            }
+        }
+
+
         val saveBtn: ImageButton? = view.findViewByName("save_btn")
         saveBtn?.makeTvCompatible()
         saveBtn?.setImageDrawable(getDrawable("save_icon"))
 
         val scrollView: LinearLayout? = view.findViewByName("list")
         enabledCountries.toSortedMap().forEach {
-            scrollView?.addView(getPlaylistRow(it))
+            scrollView?.addView(createRow(it))
         }
 
         saveBtn?.setOnClickListener {
@@ -108,6 +142,8 @@ class Settings(
                 with(sharedPref.edit()) {
                     this.clear()
                     this.putString("countries", enabledCountries.toJson())
+                    this.putInt("domainPosition", domains.indexOf(currentDomain))
+                    this.putString("domain", currentDomain)
                     this.apply()
                 }
                 showToast("Saved. Restart the app to apply the settings")
@@ -117,7 +153,7 @@ class Settings(
 
     }
 
-    private fun getPlaylistRow(country: Map.Entry<String, Boolean>): RelativeLayout {
+    private fun createRow(country: Map.Entry<String, Boolean>): RelativeLayout {
         // Create RelativeLayout
         val relativeLayout = RelativeLayout(this@Settings.requireContext()).apply {
             layoutParams = RelativeLayout.LayoutParams(

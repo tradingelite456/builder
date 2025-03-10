@@ -55,6 +55,7 @@ class HuhuPlugin : Plugin() {
                 null
             }
         }
+        val domain = sharedPref.getString("domain", "huhu.to") ?: "huhu.to"
 
         val lang = savedContries?.let {
             val enabledCountries = it.filter { pair -> pair.value }
@@ -66,7 +67,7 @@ class HuhuPlugin : Plugin() {
         } ?: "un"
 
         // Register Plugin
-        registerMainAPI(Huhu(savedContries ?: countries, lang))
+        registerMainAPI(Huhu(domain, savedContries ?: countries, lang))
 
         // Enable settings
         val activity = context as AppCompatActivity

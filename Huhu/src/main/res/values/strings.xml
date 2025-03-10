@@ -2,4 +2,5 @@
 <resources>
     <string name="header_tw">HUHU Settings</string>
     <string name="header2_tw">Select the countries you want to enable</string>
+    <string name="domain_tw">Change domain</string>
 </resources>
