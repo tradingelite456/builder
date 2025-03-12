@@ -176,7 +176,7 @@ class CB01 : MainAPI() {
                 ?.removeSuffix("′")?.trim()?.toInt()
 
             val table =
-                mainContainer.selectFirst("table.cbtable:nth-child(5) > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(1)")
+                mainContainer.selectFirst("table.cbtable > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(1)")
             val links = table?.select("a")?.mapNotNull {
                     if(it.text() == "Maxstream" || it.text() == "Mixdrop"){
                         it.attr("href")
