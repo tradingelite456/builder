@@ -36,6 +36,7 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.nicehttp.NiceResponse
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.jsoup.nodes.Element
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -49,7 +50,6 @@ open class AnimeWorldCore(isSplit: Boolean = false) : MainAPI() {
 
     open val currentExtension = CurrentExtension.CORE
 
-    //    override val mainPage = emptyList<MainPageData>()
     override val mainPage = if (isSplit) {
         emptyList()
     } else {
@@ -263,16 +263,9 @@ open class AnimeWorldCore(isSplit: Boolean = false) : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        if (url == "https://it.surveymonkey.com/r/5GSWRYR") {
-            return newMovieLoadResponse("Sondaggio", url, TvType.Movie, url) {
-                this.posterUrl = "https://img.animeworld.so/general/Dark-AW.gif"
-                this.plot =
-                    "Un utente mi chiesto di unire AnimeWorld in un singolo plugin con anime sia doppiati che sottotitolati, potresti rispondere a questo sondaggio per farmi sapere cosa ne pensi? Per partecipare clicca l'icona del pianeta in alto ⬆️"
-                this.comingSoon = true
-            }
-        }
-        val document = request(url).document
-//        Log.d("AnimeWorld:load", "Url: $url")
+        val actualUrl = url.replace(Regex("""www\.animeworld\..."""), mainUrl.toHttpUrl().host)
+        val document = request(actualUrl).document
+//        Log.d("AnimeWorld:load", "Url: actualUrl")
 
 
         val widget = document.select("div.widget.info")
@@ -323,7 +316,7 @@ open class AnimeWorldCore(isSplit: Boolean = false) : MainAPI() {
         val episodes = servers.select(".server[data-name=\"9\"] .episode").map {
             val number = it.select("a").attr("data-episode-num").toIntOrNull()
             Episode(
-                "$number¿$url",
+                "$number¿$actualUrl",
                 episode = number,
             )
         }
@@ -342,7 +335,7 @@ open class AnimeWorldCore(isSplit: Boolean = false) : MainAPI() {
         val recommendations = document.select(".film-list.interesting .item").map {
             it.toSearchResult(false)
         }
-        return newAnimeLoadResponse(title, url, type) {
+        return newAnimeLoadResponse(title, actualUrl, type) {
             engName = title
             japName = otherTitle
             addPoster(poster)
