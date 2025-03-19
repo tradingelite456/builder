@@ -67,7 +67,7 @@ open class AnimeWorldCore(isSplit: Boolean = false) : MainAPI() {
     )
 
     companion object {
-        private var mainUrl = "https://www.animeworld.so"
+        private var mainUrl = "https://www.animeworld.ac"
         private var cookies = mutableMapOf<String, String>()
         private var headers = mutableMapOf<String, String>()
 
@@ -81,19 +81,10 @@ open class AnimeWorldCore(isSplit: Boolean = false) : MainAPI() {
         }
 
         private suspend fun getSecurityCookie(): String {
-            val r = app.get(mainUrl, allowRedirects = false)
+            val r = app.get(mainUrl)
             val cookie = r.headers["set-cookie"]!!.substringBefore(";")
 //            Log.d("AnimeWorld:getSecurityCookie", "Cookie: $cookie")
             return cookie
-
-//            val securityCookie =
-//                r.document.selectFirst("script")!!.data().substringAfter("\"").substringBefore(" ;")
-//            Log.d("AnimeWorld:getSecurityCookie", "Cookie: ${securityCookie}")
-//            val h = mapOf("Cookie" to securityCookie)
-//            val r2 = app.get("$mainUrl/?d=1", headers = h, allowRedirects = true)
-//            Log.d("AnimeWorld:getSecurityCookie", "Request: ${r2.body.string()}")
-//            val sessionCookie = r2.headers["set-cookie"]!!.substringBefore(";")
-//            return "$securityCookie; $sessionCookie"
         }
     }
 
