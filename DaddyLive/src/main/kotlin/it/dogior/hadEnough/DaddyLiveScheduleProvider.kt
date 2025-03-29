@@ -82,12 +82,15 @@ class DaddyLiveScheduleProvider : MainAPI() {
     }
 
     private suspend fun searchResponseBuilder(): List<Pair<String, List<LiveSearchResponse>>> {
-        val headers = mapOf("User-Agent" to userAgent)
+        val headers = mapOf("User-Agent" to userAgent,
+            "Referer" to "$mainUrl/"
+        )
         val schedule = app.get(
-            "$mainUrl/schedule/schedule-generated.json",
+            "$mainUrl/schedule/schedule-generated.php",
             headers,
             timeout = 10
         ).body.string()
+        Log.d("Sports", schedule)
         val jsonSchedule = JSONObject(schedule)
 
         val events = mutableMapOf<String, MutableList<LiveSearchResponse>>()
