@@ -90,7 +90,6 @@ class DaddyLiveScheduleProvider : MainAPI() {
             headers,
             timeout = 10
         ).body.string()
-        Log.d("Sports", schedule)
         val jsonSchedule = JSONObject(schedule)
 
         val events = mutableMapOf<String, MutableList<LiveSearchResponse>>()

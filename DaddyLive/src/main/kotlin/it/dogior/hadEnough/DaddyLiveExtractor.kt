@@ -1,5 +1,6 @@
 package it.dogior.hadEnough
 
+import com.lagradost.api.Log
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
@@ -65,7 +66,7 @@ class DaddyLiveExtractor : ExtractorApi() {
             Regex(":\"([^\"]*)").find(resp3)?.groupValues?.get(1)
                 ?: return null
 
-        val finalLink = "https://$key.iosplayer.ru/$key/$url2$m3u8"
+        val finalLink = "https://$key.newkso.ru/$key/$url2$m3u8"
 
         return ExtractorLink(
             sourceName,
