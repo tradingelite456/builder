@@ -32,6 +32,7 @@ class AnimeUnityExtractor : ExtractorApi() {
                     source = "Vixcloud",
                     name = "AnimeUnity",
                     url = masterPlaylist,
+                    type = ExtractorLinkType.M3U8
                 ) {
                     this.referer = referer!!
                     this.quality = Qualities.Unknown.value
