@@ -18,6 +18,7 @@ import com.lagradost.cloudstream3.addSeasonNames
 import com.lagradost.cloudstream3.amap
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.mainPageOf
+import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
@@ -26,10 +27,11 @@ import com.lagradost.cloudstream3.newTvSeriesSearchResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
+import com.lagradost.cloudstream3.utils.Coroutines.ioSafe
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.ShortLink
-import com.lagradost.cloudstream3.utils.loadExtractor
 import it.dogior.hadEnough.extractors.MaxStreamExtractor
+import it.dogior.hadEnough.extractors.MixDropExtractor
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -51,7 +53,7 @@ class CB01 : MainAPI() {
         "$mainUrl/serietv" to "Serie TV"
     )
 
-    companion object{
+    companion object {
         var actualMainUrl = ""
     }
 
@@ -69,7 +71,7 @@ class CB01 : MainAPI() {
         val url = if (page > 1) "${request.data}/page/$page/" else request.data
         val response = app.get(url)
 
-        if (actualMainUrl.isEmpty()){
+        if (actualMainUrl.isEmpty()) {
             actualMainUrl = response.okhttpResponse.request.url.toString().substringBeforeLast('/')
         }
 
@@ -154,9 +156,16 @@ class CB01 : MainAPI() {
 
     override suspend fun load(url: String): LoadResponse {
         val urlPath = url.substringAfter("//").substringAfter('/')
+        if (actualMainUrl.isEmpty()) {
+            val r = app.get(url)
+            actualMainUrl = r.okhttpResponse.request.url.toString().substringBeforeLast('/')
+        }
         val actualUrl = "$actualMainUrl/$urlPath"
+        Log.d("BANANA", url)
 
-        val document = app.get(actualUrl).document
+        val document =
+            app.get(actualUrl, headers = mapOf("Host" to actualUrl.toHttpUrl().host)).document
+//        Log.d("BANANA", document.toString())
         val mainContainer = document.selectFirst(".sequex-main-container")!!
         val poster =
             mainContainer.selectFirst(".sequex-featured-img")!!.selectFirst("img")!!.attr("src")
@@ -178,12 +187,12 @@ class CB01 : MainAPI() {
             val table =
                 mainContainer.selectFirst("table.cbtable > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(1)")
             val links = table?.select("a")?.mapNotNull {
-                    if(it.text() == "Maxstream" || it.text() == "Mixdrop"){
-                        it.attr("href")
-                    }else{
-                        null
-                    }
+                if (it.text() == "Maxstream" || it.text() == "Mixdrop") {
+                    it.attr("href")
+                } else {
+                    null
                 }
+            }
 //            Log.d("CB01", "Links: $links")
             val data = links?.let {
                 it.subList(links.size - 2, it.size)
@@ -199,7 +208,6 @@ class CB01 : MainAPI() {
                 this.duration = runtime
             }
         } else {
-
             val description = mainContainer.selectFirst(".ignore-css > p:nth-child(1)")?.text()
                 ?.split(Regex("""\(\d{4}-(\d{4})?\)"""))
             val plot = description?.last()?.trim()
@@ -258,12 +266,11 @@ class CB01 : MainAPI() {
                     if (eps.isNullOrEmpty()) {
                         // If I can't find episodes on maxstream it's very likely
                         // that I found the video source
-                        Episode(
-                            name = epName,
-                            data = links.toJson(),
-                            season = seasonNumber,
+                        newEpisode(links.toJson()) {
+                            name = epName
+                            season = seasonNumber
                             episode = epNumber
-                        )
+                        }
                     } else {
                         nestedEps.addAll(eps)
                         null
@@ -289,7 +296,7 @@ class CB01 : MainAPI() {
         season: Int?,
     ): List<Episode> {
         val link = ShortLink.unshortenUprot(uprotLink)
-        Log.d("Link", "Bypassed Link: $link")
+//        Log.d("Link", "Bypassed Link: $link")
         if (link.toHttpUrlOrNull() != null) {
             val response = app.get(link)
             val trs = response.document.select("tr")
@@ -299,12 +306,11 @@ class CB01 : MainAPI() {
                 val epLink = tds[1].select("a").attr("href")
                 val name = tds.first()?.text()
                 epNum++
-                Episode(
-                    name = name,
-                    data = listOf(epLink).toJson(),
-                    season = season,
-                    episode = epNum
-                )
+                newEpisode(listOf(epLink).toJson()) {
+                    this.name = name
+                    this.season = season
+                    this.episode = epNum
+                }
             }
             return episodes
 //            Log.d("Link", "Response: $trs")
@@ -329,31 +335,42 @@ class CB01 : MainAPI() {
         links.mapNotNull {
 //            Log.d("CB01", "Base Link: $it")
             var link = if (it.contains("uprot")) {
-                bypassUprot(it)
+                ShortLink.unshortenUprot(it)
             } else if (it.contains("stayonline")) {
                 bypassStayOnline(it)
             } else {
                 null
             }
-            link?.let { l ->
+
+            var finalBypass: String? = ""
+            ioSafe {
                 if (link!!.contains("uprot.net")) {
-//                    Log.d("CB01", "Bypassed Link: $link")
-                    link = bypassUprot(l)
+                    while (link?.contains("uprot.net") == true) {
+                        link = ShortLink.unshortenUprot(link!!)
+                    }
                 } else if (link!!.contains("stayonline")) {
-//                    Log.d("CB01", "Bypassed Link: $link")
-                    link = bypassStayOnline(l)
+                    while (link?.contains("stayonline") == true) {
+                        link = bypassStayOnline(link!!)
+                    }
                 }
+//                Log.d("CB01", "Final bypass: $link")
+                finalBypass = link
             }
 
-            link?.let { l ->
-//                Log.d("CB01", "Final Link: $link")
+            finalBypass?.let { l ->
+                if (l.contains("uprot")) {
+                    val x = bypassUprot(l)
+                    val y = ShortLink.unshortenUprot(l)
+                    Log.d("CB01", "x=$x \t y=$y")
+                }
 //                loadExtractor(l, "", subtitleCallback, callback)
                 if (link!!.contains("maxstream")) {
                     MaxStreamExtractor().getUrl(l, null, subtitleCallback, callback)
                 } else if (link!!.contains("mixdrop")) {
-                    val videoId = l.split('/')[4]
-                    val finalUrl = "https://mixdrop.ag/e/$videoId"
-                    loadExtractor(finalUrl, "", subtitleCallback, callback)
+                    val finalUrl = link!!.replace(".club", ".ps")
+                        .substringBeforeLast("/")
+                        .substringBeforeLast("/")
+                    MixDropExtractor().getUrl(finalUrl, "", subtitleCallback, callback)
                 }
             }
         }
