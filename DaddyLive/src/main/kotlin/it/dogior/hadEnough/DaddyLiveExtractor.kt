@@ -43,6 +43,7 @@ class DaddyLiveExtractor : ExtractorApi() {
 
     @Suppress("BlockingMethodInNonBlockingContext")
     private suspend fun extractVideo(url: String, sourceName: String = this.name): ExtractorLink? {
+        if (!url.contains("daddylive")) return null
         val headers = mapOf(
             "Referer" to mainUrl,
             "user-agent" to userAgent
