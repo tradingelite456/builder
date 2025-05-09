@@ -161,11 +161,10 @@ class CB01 : MainAPI() {
             actualMainUrl = r.okhttpResponse.request.url.toString().substringBeforeLast('/')
         }
         val actualUrl = "$actualMainUrl/$urlPath"
-        Log.d("BANANA", url)
+        Log.d("CB01:load", url)
 
         val document =
             app.get(actualUrl, headers = mapOf("Host" to actualUrl.toHttpUrl().host)).document
-//        Log.d("BANANA", document.toString())
         val mainContainer = document.selectFirst(".sequex-main-container")!!
         val poster =
             mainContainer.selectFirst(".sequex-featured-img")!!.selectFirst("img")!!.attr("src")
@@ -236,7 +235,7 @@ class CB01 : MainAPI() {
             val seasonNumber = regex.find(seasonName)?.value?.toIntOrNull() ?: index
 
 
-            val episodesData = dropdown.select("div.sp-body").select("strong")
+            val episodesData = dropdown.select("div.sp-body").select("strong").select("p")
             episodesData.amap {
                 // Every episode
                 val epName = it.text().substringBefore('–').trim()
