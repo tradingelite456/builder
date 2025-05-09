@@ -9,6 +9,7 @@ include(
     "AnimeWorld",
     "CalcioStreaming",
     "CB01",
+    "CorsaroNero",
     "DaddyLive",
     "Huhu",
     "OnlineSerieTV",

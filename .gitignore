@@ -8,5 +8,5 @@
 /captures
 .externalNativeBuild
 .cxx
-local.properties
+*.properties
 .vscode

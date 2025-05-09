@@ -44,6 +44,13 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3.2.2
 
+      - name: Access Secrets
+        env:
+          TMDB_API: ${{ secrets.TMDB_API }}
+        run: |
+          cd $GITHUB_WORKSPACE/src
+          echo TMDB_API=$TMDB_API >> secrets.properties
+
       - name: Build Plugins
         run: |
           cd $GITHUB_WORKSPACE/src
