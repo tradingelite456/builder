@@ -29,5 +29,5 @@ These are the plugins available at the moment:
 | YouTube            | https://www.youtube.com/                               |                   Other                   |     🇺🇳     |      ❌      | You can paste the url of a channel or a playlists in the plugin settings to have it as a homepage section. If you want it as a "tv show" enable the relative plugin in the search and search its name |
 
 [All cloudstream repositories](https://rentry.org/cs3-repos)
-## Donazioni
+## Donations
 [Support me <3](https://buymeacoffee.com/dogior)
