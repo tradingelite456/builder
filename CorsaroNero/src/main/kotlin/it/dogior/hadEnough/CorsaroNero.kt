@@ -25,6 +25,8 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.INFER_TYPE
 import com.lagradost.cloudstream3.utils.newExtractorLink
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
+import com.lagradost.cloudstream3.CommonActivity.showToast
+
 
 class CorsaroNero : TmdbProvider() {
     override var mainUrl = "https://ilcorsaronero.link"
@@ -135,6 +137,11 @@ class CorsaroNero : TmdbProvider() {
     ): Boolean {
         val torrents = getMagnetFromData(data)
         var success = false
+        Log.d("CorsaroNero:torrents", torrents.toJson())
+        if (torrents.isEmpty()){
+            showToast("No torrents found")
+            return success
+        }
         torrents.forEach {
             if (it.magnet != null) {
                 success = true
