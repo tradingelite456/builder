@@ -1,11 +1,11 @@
 // use an integer for version numbers
-version = 16
+version = 17
 
 
 cloudstream {
     // All of these properties are optional, you can safely remove them
 
-    description = "TV Shows and Movies from StreamingCommunity"
+    description = "TV Shows and Movies from StreamingCommunity (now StreamingUnity)"
     authors = listOf("doGior")
 
     /**
@@ -19,6 +19,7 @@ cloudstream {
     tvTypes = listOf(
         "TvSeries",
         "Movie",
+        "Documentary",
         "Cartoon"
     )
 
@@ -26,5 +27,5 @@ cloudstream {
     requiresResources = false
     language = "it"
 
-    iconUrl = "https://streamingcommunity.lu/apple-touch-icon.png?v=2"
+    iconUrl = "https://streamingunity.to/apple-touch-icon.png?v=2"
 }

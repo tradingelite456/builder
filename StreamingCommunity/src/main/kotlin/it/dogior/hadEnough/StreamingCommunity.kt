@@ -14,18 +14,20 @@ import com.lagradost.cloudstream3.LoadResponse.Companion.addTMDbId
 import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
-import com.lagradost.cloudstream3.MovieSearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
-import com.lagradost.cloudstream3.TvSeriesSearchResponse
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.app
 
 import com.lagradost.cloudstream3.mainPageOf
+import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newMovieLoadResponse
+import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.newTvSeriesLoadResponse
+import com.lagradost.cloudstream3.newTvSeriesSearchResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import okhttp3.HttpUrl.Companion.toHttpUrl
 
 
 class StreamingCommunity : MainAPI() {
@@ -39,10 +41,12 @@ class StreamingCommunity : MainAPI() {
     companion object {
         private var inertiaVersion = ""
         private val headers = mapOf(
-                "X-Inertia" to true.toString(),
-                "X-Inertia-Version" to inertiaVersion
-            ).toMutableMap()
-        val mainUrl = "https://streamingcommunity.spa"
+            "Cookie" to "",
+            "X-Inertia" to true.toString(),
+            "X-Inertia-Version" to inertiaVersion,
+            "X-Requested-With" to "XMLHttpRequest",
+        ).toMutableMap()
+        val mainUrl = "https://streamingunity.to"
         var name = "StreamingCommunity"
     }
 
@@ -50,15 +54,15 @@ class StreamingCommunity : MainAPI() {
         "$mainUrl/browse/top10" to "Top 10 di oggi",
         "$mainUrl/browse/trending" to "I Titoli Del Momento",
         "$mainUrl/browse/latest" to "Aggiunti di Recente",
-        "$mainUrl/browse/genre?g=Animazione" to "Animazione",
-        "$mainUrl/browse/genre?g=Avventura" to "Avventura",
-        "$mainUrl/browse/genre?g=Azione" to "Azione",
-        "$mainUrl/browse/genre?g=Commedia" to "Commedia",
+        "$mainUrl/browse/genre?g=Animation" to "Animazione",
+        "$mainUrl/browse/genre?g=Adventure" to "Avventura",
+        "$mainUrl/browse/genre?g=Action" to "Azione",
+        "$mainUrl/browse/genre?g=Comedy" to "Commedia",
         "$mainUrl/browse/genre?g=Crime" to "Crime",
-        "$mainUrl/browse/genre?g=Documentario" to "Documentario",
-        "$mainUrl/browse/genre?g=Dramma" to "Dramma",
-        "$mainUrl/browse/genre?g=Famiglia" to "Famiglia",
-        "$mainUrl/browse/genre?g=Fantascienza" to "Fantascienza",
+        "$mainUrl/browse/genre?g=Documentary" to "Documentario",
+        "$mainUrl/browse/genre?g=Drama" to "Dramma",
+        "$mainUrl/browse/genre?g=Family" to "Famiglia",
+        "$mainUrl/browse/genre?g=Science Fiction" to "Fantascienza",
         "$mainUrl/browse/genre?g=Fantasy" to "Fantasy",
         "$mainUrl/browse/genre?g=Horror" to "Horror",
         "$mainUrl/browse/genre?g=Reality" to "Reality",
@@ -67,37 +71,34 @@ class StreamingCommunity : MainAPI() {
     )
     override val mainPage = sectionNamesList
 
-    private suspend fun setInertiaVersion() {
-        val response = app.get("$mainUrl/browse/top10")
+    private suspend fun setupHeaders() {
+        val response = app.get("$mainUrl/archive")
+        val cookies = response.cookies
+        headers["Cookie"] = cookies.map { it.key + "=" + it.value }.joinToString(separator = "; ")
 //        Log.d("Inertia", response.headers.toString())
         val page = response.document
 //        Log.d("Inertia", page.toString())
         val inertiaPageObject = page.select("#app").attr("data-page")
-        inertiaVersion =
-            inertiaPageObject.substringAfter("\"version\":\"").substringBefore("\"")
+        inertiaVersion = inertiaPageObject
+            .substringAfter("\"version\":\"")
+            .substringBefore("\"")
         headers["X-Inertia-Version"] = inertiaVersion
     }
 
     private fun searchResponseBuilder(listJson: List<Title>): List<SearchResponse> {
-        val domain = mainUrl.substringAfter("://")
+        val domain = mainUrl.substringAfter("://").substringBeforeLast("/")
         val list: List<SearchResponse> =
             listJson.filter { it.type == "movie" || it.type == "tv" }.map { title ->
                 val url = "$mainUrl/titles/${title.id}-${title.slug}"
 
                 if (title.type == "tv") {
-                    TvSeriesSearchResponse(
-                        name = title.name,
-                        url = url,
-                        apiName = this@StreamingCommunity.name,
-                        posterUrl = "https://cdn.$domain/images/" + title.getPoster(),
-                    )
+                    newTvSeriesSearchResponse(title.name, url) {
+                        posterUrl = "https://cdn.${domain}/images/" + title.getPoster()
+                    }
                 } else {
-                    MovieSearchResponse(
-                        name = title.name,
-                        url = url,
-                        apiName = this@StreamingCommunity.name,
-                        posterUrl = "https://cdn.$domain/images/" + title.getPoster(),
-                    )
+                    newMovieSearchResponse(title.name, url) {
+                        posterUrl = "https://cdn.$domain/images/" + title.getPoster()
+                    }
                 }
             }
         return list
@@ -155,6 +156,7 @@ class StreamingCommunity : MainAPI() {
         )
     }
 
+
     // This function gets called when you search for something also
     //This is to get Title,Href,Posters for Homepage
     override suspend fun search(query: String): List<SearchResponse> {
@@ -162,6 +164,9 @@ class StreamingCommunity : MainAPI() {
         val url = "$mainUrl/api/search"
         val params = mapOf("q" to query)
 
+        if (headers["Cookie"].isNullOrEmpty()) {
+            setupHeaders()
+        }
         val response = app.get(url, params = params).body.string()
 //        Log.d(TAG, "Response: $response")
         val result = parseJson<SearchData>(response)
@@ -174,19 +179,13 @@ class StreamingCommunity : MainAPI() {
 //        val TAG = "STREAMINGCOMMUNITY:Item"
 
 //        Log.d(TAG, "URL: $url")
-        val actualUrl = getActualUrl(url)
+        val actualUrl = getActualUrl(url).replace(mainUrl, "$mainUrl/it")
 
-        if (inertiaVersion == "") {
-            setInertiaVersion()
+//        Log.d(TAG, actualUrl)
+
+        if (headers["Cookie"].isNullOrEmpty()) {
+            setupHeaders()
         }
-
-        if (headers["XSRF-TOKEN"].isNullOrEmpty()){
-            val response = app.get(actualUrl, headers = headers)
-            val token = response.cookies["XSRF-TOKEN"]?.replace("%3D", "=")
-            headers["X-Requested-With"] = "XMLHttpRequest"
-            headers["X-XSRF-TOKEN"] = token!!
-        }
-
 //        Log.d(TAG, "Headers: ${headers}")
         val response = app.get(actualUrl, headers = headers)
         val responseBody = response.body.string()
@@ -195,10 +194,11 @@ class StreamingCommunity : MainAPI() {
 //        Log.d(TAG, "Response: $responseBody")
 
         val props = parseJson<InertiaResponse>(responseBody).props
+//        Log.d(TAG, "$props")
         val title = props.title!!
         val genres = title.genres.map { it.name.capitalize() }
         val domain = mainUrl.substringAfter("://")
-        val year = title.releaseDate.substringBefore('-').toIntOrNull()
+        val year = title.releaseDate?.substringBefore('-')?.toIntOrNull()
         val related = props.sliders?.get(0)
         val trailers = title.trailers?.mapNotNull { it.getYoutubeUrl() }
 //        Log.d(TAG, "Trailer List: $trailers")
@@ -212,7 +212,7 @@ class StreamingCommunity : MainAPI() {
                 this.episodes = episodes
                 this.year = year
                 this.plot = title.plot
-                title.age?.let{this.contentRating = "$it+"}
+                title.age?.let { this.contentRating = "$it+" }
                 this.recommendations = related?.titles?.let { searchResponseBuilder(it) }
                 title.imdbId?.let { this.addImdbId(it) }
                 title.tmdbId?.let { this.addTMDbId(it.toString()) }
@@ -232,14 +232,14 @@ class StreamingCommunity : MainAPI() {
                 title.name,
                 actualUrl,
                 TvType.Movie,
-                dataUrl = "$mainUrl/iframe/${title.id}&canPlayFHD=1"
+                dataUrl = "$mainUrl/it/iframe/${title.id}&canPlayFHD=1"
             ) {
 //                this.backgroundPosterUrl = "https://cdn.$domain/images/" + title.getBackgroundImageId()
                 this.posterUrl = "https://cdn.$domain/images/" + title.getBackgroundImageId()
                 this.tags = genres
                 this.year = year
                 this.plot = title.plot
-                title.age?.let{this.contentRating = "$it+"}
+                title.age?.let { this.contentRating = "$it+" }
                 this.recommendations = related?.titles?.let { searchResponseBuilder(it) }
                 this.addActors(title.mainActors?.map { it.name })
                 this.addRating(title.score)
@@ -259,14 +259,17 @@ class StreamingCommunity : MainAPI() {
         }
     }
 
-    private fun getActualUrl(url: String) = if (!url.contains(mainUrl)) {
-        val urlComponents = url.split("/")
-        val oldUrl = urlComponents.subList(0, 3).joinToString("/")
-        //            Log.d("StreamingCommunity", oldUrl)
-        url.replace(oldUrl, mainUrl)
-    } else {
-        url
-    }
+    private fun getActualUrl(url: String) =
+        if (!url.contains(mainUrl)) {
+//            val urlComponents = url.split("/")
+//            val oldUrl = urlComponents.subList(0, 3).joinToString("/")
+//            url.replace(oldUrl, mainUrl)
+            val actualUrl = url.replace(url.toHttpUrl().host, mainUrl.toHttpUrl().host)
+            Log.d("StreamingCommunity:UrlFix", "Old: $url\nNew: $actualUrl")
+            actualUrl
+        } else {
+            url
+        }
 
     private suspend fun getEpisodes(props: Props): List<Episode> {
 //        val TAG = "STREAMINGCOMMUNITY:getEpisodes"
@@ -280,26 +283,24 @@ class StreamingCommunity : MainAPI() {
                 responseEpisodes.addAll(props.loadedSeason.episodes!!)
             } else {
                 if (inertiaVersion == "") {
-                    setInertiaVersion()
+                    setupHeaders()
                 }
-                val url = "$mainUrl/titles/${title.id}-${title.slug}/stagione-${season.number}"
+                val url = "$mainUrl/it/titles/${title.id}-${title.slug}/season-${season.number}"
                 val obj =
                     parseJson<InertiaResponse>(app.get(url, headers = headers).body.string())
-//                Log.d(TAG, "Parsed Response: $obj")
                 responseEpisodes.addAll(obj.props.loadedSeason?.episodes!!)
             }
             responseEpisodes.forEach { ep ->
 
                 episodeList.add(
-                    Episode(
-                        data = "$mainUrl/iframe/${title.id}?episode_id=${ep.id}&canPlayFHD=1",
-                        name = ep.name,
-                        posterUrl = props.cdnUrl + "/images/" + ep.getCover(),
-                        description = ep.plot,
-                        episode = ep.number,
-                        season = season.number,
-                        runTime = ep.duration
-                    )
+                    newEpisode("$mainUrl/it/iframe/${title.id}?episode_id=${ep.id}&canPlayFHD=1") {
+                        this.name = ep.name
+                        this.posterUrl = props.cdnUrl + "/images/" + ep.getCover()
+                        this.description = ep.plot
+                        this.episode = ep.number
+                        this.season = season.number
+                        this.runTime = ep.duration
+                    }
                 )
             }
         }
@@ -314,9 +315,9 @@ class StreamingCommunity : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-//        val TAG = "STREAMINGCOMMUNITY:Links"
+        val TAG = "STREAMINGCOMMUNITY:Links"
 
-//        Log.d(TAG, "Url : $data")
+        Log.d(TAG, "Url : $data")
 
         StreamingCommunityExtractor().getUrl(
             url = data,
