@@ -36,15 +36,30 @@ class CorsaroNero : TmdbProvider() {
     override val hasMainPage = true
     private val tmdbAPI = "https://api.themoviedb.org/3"
 
-        private val apiKey = BuildConfig.TMDB_API
+    private val apiKey = BuildConfig.TMDB_API
     private val authHeaders =
         mapOf("Authorization" to "Bearer $apiKey")
 
     override val mainPage = mainPageOf(
         "$tmdbAPI/trending/movie/day?region=IT&language=it-IT" to "Di Tendenza",
+        "$tmdbAPI/movie/popular?region=IT&language=it-IT" to "Popolari",
         "$tmdbAPI/movie/top_rated?region=IT&language=it-IT" to "Valutazione più alta",
-        "$tmdbAPI/movie/popular?region=IT&language=it-IT" to "Film Popolari",
-        "$tmdbAPI/discover/movie?language=it-IT&sort_by=popularity.desc&with_origin_country=IT" to "Film Italiani",
+        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=28" to "Azione",
+        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=12" to "Avventura",
+        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=16" to "Animazione",
+        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=35" to "Commedia",
+        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=80" to "Crime",
+        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=99" to "Documentario",
+        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=18" to "Drama",
+        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=10751" to "Famiglia",
+        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=878" to "Fantascienza",
+        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=14" to "Fantasy",
+        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=27" to "Horror",
+        "$tmdbAPI/discover/movie?language=it-IT&sort_by=popularity.desc&with_origin_country=IT" to "Italiani",
+        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=9648" to "Mistero",
+        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=10749" to "Romantico",
+        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=36" to "Storico",
+        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=53" to "Thriller",
     )
 
 
@@ -59,8 +74,10 @@ class CorsaroNero : TmdbProvider() {
 
 
     override suspend fun search(query: String): List<SearchResponse>? {
-        return app.get("$tmdbAPI/search/multi?language=en-US&query=$query&page=1&include_adult=${settingsForProvider.enableAdult}",
-            headers = authHeaders)
+        return app.get(
+            "$tmdbAPI/search/multi?language=en-US&query=$query&page=1&include_adult=${settingsForProvider.enableAdult}",
+            headers = authHeaders
+        )
             .parsedSafe<Results>()?.results?.mapNotNull { media ->
                 media.toSearchResponse()
             }
@@ -138,7 +155,7 @@ class CorsaroNero : TmdbProvider() {
         val torrents = getMagnetFromData(data)
         var success = false
         Log.d("CorsaroNero:torrents", torrents.toJson())
-        if (torrents.isEmpty()){
+        if (torrents.isEmpty()) {
             showToast("No torrents found")
             return success
         }
