@@ -161,7 +161,7 @@ class StreamingCommunity : MainAPI() {
     //This is to get Title,Href,Posters for Homepage
     override suspend fun search(query: String): List<SearchResponse> {
 //        val TAG = "STREAMINGCOMMUNITY:search"
-        val url = "$mainUrl/api/search"
+        val url = "$mainUrl/it/api/search"
         val params = mapOf("q" to query)
 
         if (headers["Cookie"].isNullOrEmpty()) {
