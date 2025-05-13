@@ -161,27 +161,26 @@ class StreamingCommunity : MainAPI() {
     //This is to get Title,Href,Posters for Homepage
     override suspend fun search(query: String): List<SearchResponse> {
 //        val TAG = "STREAMINGCOMMUNITY:search"
-        val url = "$mainUrl/it/api/search"
+        val url = "$mainUrl/it/search"
         val params = mapOf("q" to query)
 
         if (headers["Cookie"].isNullOrEmpty()) {
             setupHeaders()
         }
-        val response = app.get(url, params = params).body.string()
-//        Log.d(TAG, "Response: $response")
-        val result = parseJson<SearchData>(response)
+        val response = app.get(url, params = params, headers = headers).body.string()
+        val result = parseJson<InertiaResponse>(response)
 
-        return searchResponseBuilder(result.titles)
+        return searchResponseBuilder(result.props.titles!!)
     }
 
     // This function gets called when you enter the page/show
     override suspend fun load(url: String): LoadResponse {
-        val TAG = "STREAMINGCOMMUNITY:Item"
+//        val TAG = "STREAMINGCOMMUNITY:Item"
 
 //        Log.d(TAG, "URL: $url")
         val actualUrl = getActualUrl(url).replace(mainUrl, "$mainUrl/it")
 
-        Log.d(TAG, actualUrl)
+//        Log.d(TAG, actualUrl)
 
         if (headers["Cookie"].isNullOrEmpty()) {
             setupHeaders()
@@ -206,7 +205,12 @@ class StreamingCommunity : MainAPI() {
             val episodes: List<Episode> = getEpisodes(props)
 //            Log.d(TAG, "Episode List: $episodes")
 
-            val tvShow = newTvSeriesLoadResponse(title.name, actualUrl, TvType.TvSeries, episodes) {
+            val tvShow = newTvSeriesLoadResponse(
+                title.name,
+                actualUrl.replaceFirst("/it/", "/"),
+                TvType.TvSeries,
+                episodes
+            ) {
                 this.posterUrl = "https://cdn.$domain/images/" + title.getBackgroundImageId()
                 this.tags = genres
                 this.episodes = episodes
