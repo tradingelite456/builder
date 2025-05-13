@@ -36,7 +36,7 @@ import com.lagradost.cloudstream3.utils.Qualities
 class Torrentio : TmdbProvider() {
     override var mainUrl = "https://torrentio.strem.fun"
     override var name = "Torrentio"
-    override val supportedTypes = setOf(TvType.Movie, TvType.Torrent)
+    override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Torrent)
     override var lang = "it"
     override val hasMainPage = true
     private val tmdbAPI = "https://api.themoviedb.org/3"
