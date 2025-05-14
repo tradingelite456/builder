@@ -107,7 +107,7 @@ class StreamingCommunity : MainAPI() {
     //Get the Homepage
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
 //        val TAG = "STREAMINGCOMMUNITY:MainPage"
-        var url: String = mainUrl + "/api" + request.data.substringAfter(mainUrl)
+        var url: String = mainUrl + "/it/api" + request.data.substringAfter(mainUrl)
         val params = emptyMap<String, String>().toMutableMap()
 
         val section = request.data.substringAfterLast("/")
