@@ -1,6 +1,5 @@
 package it.dogior.hadEnough
 
-import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.Actor
 import com.lagradost.cloudstream3.ActorData
@@ -25,95 +24,68 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.INFER_TYPE
 import com.lagradost.cloudstream3.utils.newExtractorLink
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
-import com.lagradost.cloudstream3.CommonActivity.showToast
 import com.lagradost.cloudstream3.Episode
 import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newTvSeriesLoadResponse
-import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.Qualities
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 
 class Torrentio : TmdbProvider() {
-    override var mainUrl = "https://torrentio.strem.fun"
+    private val torrentioUrl = "https://torrentio.strem.fun"
+    override var mainUrl =
+        "$torrentioUrl/providers=yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,torrentgalaxy,ilcorsaronero,magnetdl|sort=seeders|language=italian"
     override var name = "Torrentio"
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Torrent)
     override var lang = "it"
     override val hasMainPage = true
     private val tmdbAPI = "https://api.themoviedb.org/3"
-    private val torrentioUrl =
-        "$mainUrl/providers=yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,torrentgalaxy,ilcorsaronero,magnetdl|sort=seeders|language=italian"
     private val TRACKER_LIST_URL = "https://newtrackon.com/api/stable"
 
     private val apiKey = BuildConfig.TMDB_API
     private val authHeaders =
         mapOf("Authorization" to "Bearer $apiKey")
 
+    private val today = getDate()
+    private val tvFilters =
+        "&language=it-IT&watch_region=IT&with_watch_providers=359|222|524|283|39|8|337|119|350"
+
     override val mainPage = mainPageOf(
-        "$tmdbAPI/trending/movie/day?region=IT&language=it-IT" to "Di Tendenza",
-        "$tmdbAPI/movie/popular?region=IT&language=it-IT" to "Popolari",
-        "$tmdbAPI/movie/top_rated?region=IT&language=it-IT" to "Valutazione più alta",
-        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=28" to "Azione",
-        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=12" to "Avventura",
-        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=16" to "Animazione",
-        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=35" to "Commedia",
-        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=80" to "Crime",
-        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=99" to "Documentario",
-        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=18" to "Drama",
-        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=10751" to "Famiglia",
-        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=878" to "Fantascienza",
-        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=14" to "Fantasy",
-        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=27" to "Horror",
-        "$tmdbAPI/discover/movie?language=it-IT&sort_by=popularity.desc&with_origin_country=IT" to "Italiani",
-        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=9648" to "Mistero",
-        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=10749" to "Romantico",
-        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=36" to "Storico",
-        "$tmdbAPI/discover/movie?region=IT&language=it-IT&with_genres=53" to "Thriller",
+        "$tmdbAPI/trending/all/day?language=it-IT" to "Di Tendenza",
+        "$tmdbAPI/movie/now_playing?region=IT&language=it-IT" to "Ora al Cinema",
+        "$tmdbAPI/discover/tv?air_date.gte=$today&air_date.lte=$today&sort_by=vote_average.desc$tvFilters" to "Serie in onda oggi",
+        "$tmdbAPI/movie/popular?region=IT&language=it-IT" to "Film Popolari",
+        "$tmdbAPI/discover/tv?vote_count.gte=100$tvFilters" to "Serie TV Popolari",
+        "$tmdbAPI/movie/top_rated?region=IT&language=it-IT" to "Film per valutazione",
+        "$tmdbAPI/discover/tv?sort_by=vote_average.desc&vote_count.gte=100$tvFilters" to "Serie TV per valutazione",
+        "$tmdbAPI/discover/tv?with_networks=213&region=IT&language=it-IT" to "Netflix",
+        "$tmdbAPI/discover/tv?with_networks=1024&region=IT&language=it-IT" to "Amazon",
+        "$tmdbAPI/discover/tv?with_networks=2739&region=IT&language=it-IT" to "Disney+",
+        "$tmdbAPI/discover/tv?with_watch_providers=39&watch_region=IT&language=it-IT&without_watch_providers=359,110,222" to "Now TV",
+        "$tmdbAPI/discover/tv?with_networks=2552&region=IT&language=it-IT" to "Apple TV+",
+        "$tmdbAPI/discover/tv?with_watch_providers=283&watch_region=IT&language=it-IT" to "Crunchyroll",
+        "$tmdbAPI/discover/tv?with_watch_providers=222&watch_region=IT&language=it-IT&without_watch_providers=359,110,39" to "RaiPlay",
+        "$tmdbAPI/discover/tv?with_watch_providers=359|110&watch_region=IT&language=it-IT&without_watch_providers=39,222" to "Mediaset Infinity",
+        "$tmdbAPI/discover/tv?with_watch_providers=524&watch_region=IT&language=it-IT&without_watch_providers=359,110,39,222" to "Discovery+",
     )
 
+    private fun getDate(): String {
+        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val calendar = Calendar.getInstance()
+        val today = formatter.format(calendar.time)
+        return today
+    }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val urlTv = when (request.name) {
-            "Azione", "Avventura" -> {
-                request.data.replace("movie?", "tv?")
-                    .replace(Regex("=\\d+"), "=10759")
-            }
-
-            "Fantasy", "Fantascienza" -> {
-                request.data.replace("movie?", "tv?")
-                    .replace(Regex("=\\d+"), "=10765")
-            }
-
-            "Di Tendenza", "Popolari",
-            "Valutazione più alta" -> {
-                request.data.replace("/movie/", "/tv/")
-            }
-
-            "Horror", "Thriller" -> {
-                null
-            }
-
-            else -> {
-                request.data.replace("movie?", "tv?")
-            }
-        }
-
         val resp = app.get("${request.data}&page=$page", headers = authHeaders).body.string()
-        val respTv = urlTv?.let { app.get("${it}&page=$page", headers = authHeaders).body.string() }
-        val joinedResponses = parseJson<Results>(resp).results?.mapNotNull { media ->
-            media.toSearchResponse(type = "movie")
+        val parsedResponse = parseJson<Results>(resp).results?.mapNotNull { media ->
+            val type = if (request.data.contains("tv")) "tv" else "movie"
+            media.toSearchResponse(type = type)
         }?.toMutableList()
 
-        if (respTv != null) {
-            val parsedResponse = parseJson<Results>(respTv).results
-            val searchResponses = parsedResponse?.mapNotNull { media ->
-                media.toSearchResponse(type = "tv")
-            }
-            searchResponses?.let {
-                joinedResponses?.addAll(it)
-            }
-        }
-
-        val home = joinedResponses ?: throw ErrorLoadingException("Invalid Json reponse")
+        val home = parsedResponse ?: throw ErrorLoadingException("Invalid Json reponse")
         return newHomePageResponse(request.name, home)
     }
 
@@ -139,7 +111,7 @@ class Torrentio : TmdbProvider() {
         }
         val res = app.get(resUrl, headers = authHeaders).parsedSafe<MediaDetail>()
             ?: throw ErrorLoadingException("Invalid Json Response")
-        Log.d("Torrentio", res.toJson())
+//        Log.d("Torrentio", res.toJson())
 
         val title = res.title ?: res.name ?: return null
         val poster = getImageUrl(res.posterPath, getOriginal = true)
@@ -193,7 +165,6 @@ class Torrentio : TmdbProvider() {
             }
         } else {
             val episodes = getEpisodes(res, data.id)
-            Log.d("BANANA", "IMDB: ${res.imdbId}       Ext: ${res.externalIds?.imdbId}")
             newTvSeriesLoadResponse(
                 title,
                 url,
@@ -251,23 +222,19 @@ class Torrentio : TmdbProvider() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit,
     ): Boolean {
-        Log.d("BANANA", data)
         val show = parseJson<LinkData>(data)
         var success = false
         val url = if (show.season == null) {
-            "$torrentioUrl/stream/movie/${show.imdbId}.json"
+            "$mainUrl/stream/movie/${show.imdbId}.json"
         } else {
-            "$torrentioUrl/stream/series/${show.imdbId}:${show.season}:${show.episode}.json"
+            "$mainUrl/stream/series/${show.imdbId}:${show.season}:${show.episode}.json"
         }
         val headers = mapOf(
             "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
             "User-Agent" to "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
         )
-        Log.d("Torrentio", url)
-        Log.d("Torrentio", data)
         val res = app.get(url, headers = headers, timeout = 100L)
         val body = res.body.string()
-        Log.d("Torrentio", body)
         val response = parseJson<TorrentioResponse>(body)
 
         response.streams.forEach { stream ->
