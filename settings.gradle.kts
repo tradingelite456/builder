@@ -14,10 +14,10 @@ include(
     "CorsaroNero",
     "DaddyLive",
     "Huhu",
-    "OnlineSerieTV",
+//    "OnlineSerieTV",
     "StreamingCommunity",
     "TV",
-    "ToonItalia",
+//    "ToonItalia",
     "Torrentio"
 //    "YouTube"
 )
