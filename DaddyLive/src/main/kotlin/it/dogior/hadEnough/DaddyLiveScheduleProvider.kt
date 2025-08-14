@@ -5,7 +5,6 @@ import com.lagradost.api.Log
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LiveSearchResponse
-import com.lagradost.cloudstream3.LiveStreamLoadResponse
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.MainAPI
@@ -15,6 +14,8 @@ import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.VPNStatus
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.newHomePageResponse
+import com.lagradost.cloudstream3.newLiveSearchResponse
+import com.lagradost.cloudstream3.newLiveStreamLoadResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
@@ -104,7 +105,7 @@ class DaddyLiveScheduleProvider : MainAPI() {
                 if (event != null) {
                     val searchResponses = event.map {
                         it.date = convertStringToLocalDate(date)
-                        it.toSearchResponse(this.name)
+                        eventToSearchResponse(it)
                     }.toMutableList()
 
                     val fixedCat = cat.replace("</span>", "")
@@ -152,14 +153,18 @@ class DaddyLiveScheduleProvider : MainAPI() {
         val event = parseJson<Event>(url)
         val time = convertGMTToLocalTime(event.time)
 
-        return LiveStreamLoadResponse(
-            event.name,
-            url,
-            this.name,
-            event.channels.toJson(),
-            tags = listOf(event.date + " " + time),
-            posterUrl = posterUrl
-        )
+        return newLiveStreamLoadResponse(event.name,url, event.channels.toJson()) {
+            this.tags = listOf(event.date + " " + time)
+            this.posterUrl = Companion.posterUrl
+        }
+//        LiveStreamLoadResponse(
+//            event.name,
+//            url,
+//            this.name,
+//            event.channels.toJson(),
+//            tags = listOf(event.date + " " + time),
+//            posterUrl = posterUrl
+//        )
     }
 
 
@@ -188,17 +193,25 @@ class DaddyLiveScheduleProvider : MainAPI() {
         @JsonProperty("channels2")
         val channels2: List<Channel>
     ) {
-        fun toSearchResponse(apiName: String): LiveSearchResponse {
-            val title = this.date?.let { it + " " + convertGMTToLocalTime(time) + " - " + name }
-                ?: (convertGMTToLocalTime(time) + " - " + name)
+//        fun toSearchResponse(apiName: String): LiveSearchResponse {
+//            val title = this.date?.let { it + " " + convertGMTToLocalTime(time) + " - " + name }
+//                ?: (convertGMTToLocalTime(time) + " - " + name)
+//
+//            return LiveSearchResponse(
+//                title,
+//                this.toJson(),
+//                apiName,
+//                posterUrl = posterUrl,
+//                type = TvType.Live
+//            )
+//        }
+    }
+    private fun eventToSearchResponse(event: Event): LiveSearchResponse {
+        val title = event.date?.let { it + " " + convertGMTToLocalTime(event.time) + " - " + name }
+            ?: (convertGMTToLocalTime(event.time) + " - " + name)
 
-            return LiveSearchResponse(
-                title,
-                this.toJson(),
-                apiName,
-                posterUrl = posterUrl,
-                type = TvType.Live
-            )
+        return newLiveSearchResponse(title, event.toJson(), TvType.Live){
+            posterUrl = Companion.posterUrl
         }
     }
 
