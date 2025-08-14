@@ -1,0 +1,229 @@
+[
+    {
+        "url": "https://raw.githubusercontent.com/tradingelite456/builder/builds/AltaDefinizione.cs3",
+        "status": 1,
+        "version": 2,
+        "name": "AltaDefinizione",
+        "internalName": "AltaDefinizione",
+        "authors": [
+            "doGior"
+        ],
+        "description": "Movies and Tv Series from Altadefinizione",
+        "fileSize": 20880,
+        "repositoryUrl": "https://github.com/tradingelite456/builder",
+        "language": "it",
+        "tvTypes": [
+            "Movie",
+            "TvSeries",
+            "Documentary"
+        ],
+        "iconUrl": "https://altadefinizionegratis.art/templates/Dark/img/favicon.ico",
+        "apiVersion": 1
+    },
+    {
+        "url": "https://raw.githubusercontent.com/tradingelite456/builder/builds/AnimeUnity.cs3",
+        "status": 1,
+        "version": 13,
+        "name": "AnimeUnity",
+        "internalName": "AnimeUnity",
+        "authors": [
+            "doGior"
+        ],
+        "description": "Anime from AnimeUnity",
+        "fileSize": 38663,
+        "repositoryUrl": "https://github.com/tradingelite456/builder",
+        "language": "it",
+        "tvTypes": [
+            "AnimeMovie",
+            "Anime",
+            "OVA"
+        ],
+        "iconUrl": "https://www.animeunity.so/apple-touch-icon.png",
+        "apiVersion": 1
+    },
+    {
+        "url": "https://raw.githubusercontent.com/tradingelite456/builder/builds/AnimeWorld.cs3",
+        "status": 1,
+        "version": 15,
+        "name": "AnimeWorld",
+        "internalName": "AnimeWorld",
+        "authors": [
+            "Gian-Fr",
+            "doGior"
+        ],
+        "description": "Anime from AnimeWorld. This plugin is a fork of the AnimeWorld plugin in the ItalianProvider repo",
+        "fileSize": 36988,
+        "repositoryUrl": "https://github.com/tradingelite456/builder",
+        "language": "it",
+        "tvTypes": [
+            "AnimeMovie",
+            "Anime",
+            "OVA"
+        ],
+        "iconUrl": "https://static.animeworld.ac/assets/images/favicon/android-icon-192x192.png?s",
+        "apiVersion": 1
+    },
+    {
+        "url": "https://raw.githubusercontent.com/tradingelite456/builder/builds/Arte.cs3",
+        "status": 1,
+        "version": 1,
+        "name": "Arte",
+        "internalName": "Arte",
+        "authors": [
+            "doGior"
+        ],
+        "description": "Documentaries from arte.tv. Other languages will be implemented soon",
+        "fileSize": 21112,
+        "repositoryUrl": "https://github.com/tradingelite456/builder",
+        "language": "it",
+        "tvTypes": [
+            "Documentary"
+        ],
+        "iconUrl": "https://static-cdn.arte.tv/replay/favicons/favicon-194x194.png",
+        "apiVersion": 1
+    },
+    {
+        "url": "https://raw.githubusercontent.com/tradingelite456/builder/builds/CalcioStreaming.cs3",
+        "status": 1,
+        "version": 4,
+        "name": "CalcioStreaming",
+        "internalName": "CalcioStreaming",
+        "authors": [
+            "Gian-Fr",
+            "Adippe",
+            "doGior"
+        ],
+        "description": "Live streams from the CalcioStreaming. Forked from the CalcioStreaming plugin in the ItalianProvider repo",
+        "fileSize": 11317,
+        "repositoryUrl": "https://github.com/tradingelite456/builder",
+        "language": "it",
+        "tvTypes": [
+            "Live"
+        ],
+        "iconUrl": "https://www.calciostreaming.cool/templates/calciostreaming1/images/icons/apple-touch-icon.png",
+        "apiVersion": 1
+    },
+    {
+        "url": "https://raw.githubusercontent.com/tradingelite456/builder/builds/CB01.cs3",
+        "status": 1,
+        "version": 12,
+        "name": "CB01",
+        "internalName": "CB01",
+        "authors": [
+            "doGior"
+        ],
+        "description": "Movies and Shows from CB01",
+        "fileSize": 29720,
+        "repositoryUrl": "https://github.com/tradingelite456/builder",
+        "language": "it",
+        "tvTypes": [
+            "Movie",
+            "TvSeries",
+            "Cartoon"
+        ],
+        "iconUrl": "https://cb01.uno/favicon-512x512.png",
+        "apiVersion": 1
+    },
+    {
+        "url": "https://raw.githubusercontent.com/tradingelite456/builder/builds/CorsaroNero.cs3",
+        "status": 1,
+        "version": 3,
+        "name": "CorsaroNero",
+        "internalName": "CorsaroNero",
+        "authors": [
+            "doGior"
+        ],
+        "description": "Torrents from Il Corsaro Nero. If something doesn't work the torrent has probably not enough seeds",
+        "fileSize": 28581,
+        "repositoryUrl": "https://github.com/tradingelite456/builder",
+        "language": "it",
+        "tvTypes": [
+            "Movie",
+            "Torrent"
+        ],
+        "iconUrl": "https://ilcorsaronero.link/assets/images/logo-b01e50fc691111643e95a98975b49be1.svg",
+        "apiVersion": 1
+    },
+    {
+        "url": "https://raw.githubusercontent.com/tradingelite456/builder/builds/Huhu.cs3",
+        "status": 1,
+        "version": 3,
+        "name": "Huhu",
+        "internalName": "Huhu",
+        "authors": [
+            "doGior"
+        ],
+        "description": "TV channels from huhu.to",
+        "fileSize": 23496,
+        "repositoryUrl": "https://github.com/tradingelite456/builder",
+        "tvTypes": [
+            "Live"
+        ],
+        "iconUrl": "https://huhu.to/favicon.ico",
+        "apiVersion": 1
+    },
+    {
+        "url": "https://raw.githubusercontent.com/tradingelite456/builder/builds/StreamingCommunity.cs3",
+        "status": 1,
+        "version": 20,
+        "name": "StreamingCommunity",
+        "internalName": "StreamingCommunity",
+        "authors": [
+            "doGior"
+        ],
+        "description": "TV Shows and Movies from StreamingCommunity (now StreamingUnity)",
+        "fileSize": 39159,
+        "repositoryUrl": "https://github.com/tradingelite456/builder",
+        "language": "it",
+        "tvTypes": [
+            "TvSeries",
+            "Movie",
+            "Documentary",
+            "Cartoon"
+        ],
+        "iconUrl": "https://streamingunity.to/apple-touch-icon.png?v=2",
+        "apiVersion": 1
+    },
+    {
+        "url": "https://raw.githubusercontent.com/tradingelite456/builder/builds/Torrentio.cs3",
+        "status": 1,
+        "version": 3,
+        "name": "Torrentio",
+        "internalName": "Torrentio",
+        "authors": [
+            "doGior"
+        ],
+        "description": "Torrents from Torrentio",
+        "fileSize": 38119,
+        "repositoryUrl": "https://github.com/tradingelite456/builder",
+        "language": "it",
+        "tvTypes": [
+            "Movie",
+            "TvSeries",
+            "Torrent",
+            "Documentary"
+        ],
+        "iconUrl": "https://torrentio.strem.fun/images/logo_v1.png",
+        "apiVersion": 1
+    },
+    {
+        "url": "https://raw.githubusercontent.com/tradingelite456/builder/builds/TV.cs3",
+        "status": 1,
+        "version": 3,
+        "name": "TV",
+        "internalName": "TV",
+        "authors": [
+            "Gian-Fr",
+            "Adippe",
+            "doGior"
+        ],
+        "description": "Live streams from the Free TV github repository. Forked from the Free-TV plugin in the ItalianProvider repo",
+        "fileSize": 27912,
+        "repositoryUrl": "https://github.com/tradingelite456/builder",
+        "tvTypes": [
+            "Live"
+        ],
+        "iconUrl": "https://raw.githubusercontent.com/doGior/doGiorsHadEnough/refs/heads/master/TV/television.png",
+        "apiVersion": 1
+    }
+]
