@@ -1,12 +1,9 @@
 package it.dogior.hadEnough
 
-import android.webkit.WebView
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.base64Decode
-import com.lagradost.cloudstream3.network.CloudflareKiller
-import com.lagradost.cloudstream3.network.WebViewResolver
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorApi
@@ -14,9 +11,6 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.newExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
-import okhttp3.HttpUrl.Companion.toHttpUrl
-//import kotlinx.coroutines.Dispatchers
-//import kotlinx.coroutines.withContext
 import java.net.URL
 import java.net.URLEncoder
 
@@ -58,8 +52,8 @@ class DaddyLiveExtractor : ExtractorApi() {
             ?: return null
         val parsedUrl = URL(url1)
         val refererBase = "${parsedUrl.protocol}://${parsedUrl.host}"
-        val ref = URLEncoder.encode(refererBase, "UTF-8")
-        val userAgentEnc = URLEncoder.encode(userAgent, "UTF-8")
+//        val ref = URLEncoder.encode(refererBase, "UTF-8")
+//        val userAgentEnc = URLEncoder.encode(userAgent, "UTF-8")
 
         val resp2 = app.post(url1, headers).body.string()
 
