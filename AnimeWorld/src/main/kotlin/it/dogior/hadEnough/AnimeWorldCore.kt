@@ -3,7 +3,6 @@ package it.dogior.hadEnough
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.AnimeSearchResponse
 import com.lagradost.cloudstream3.DubStatus
-import com.lagradost.cloudstream3.Episode
 import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
@@ -29,11 +28,10 @@ import com.lagradost.cloudstream3.fixUrl
 import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newAnimeLoadResponse
 import com.lagradost.cloudstream3.newAnimeSearchResponse
+import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
-import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
-import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.newExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.loadExtractor
@@ -317,10 +315,10 @@ open class AnimeWorldCore(isSplit: Boolean = false) : MainAPI() {
 
         val episodes = servers.select(".server[data-name=\"9\"] .episode").map {
             val number = it.select("a").attr("data-episode-num").toIntOrNull()
-            Episode(
-                "$number¿$actualUrl",
-                episode = number,
-            )
+            newEpisode("$number¿$actualUrl"){
+                this.episode = number
+            }
+
         }
         val comingSoon = episodes.isEmpty()
         val nextAiringDate = document.select("#next-episode").attr("data-calendar-date")
@@ -366,8 +364,9 @@ open class AnimeWorldCore(isSplit: Boolean = false) : MainAPI() {
         callback: (ExtractorLink) -> Unit,
     ): Boolean {
 //        Log.d("AnimeWorld:loadLinks", "DATA : $data")
-        val epNumber = data.split("¿")[0].toInt()
-        val pageUrl = data.split("¿")[1]
+        val d = data.substringAfter("$mainUrl/")
+        val epNumber = d.split("¿")[0].toInt()
+        val pageUrl = d.split("¿")[1]
 
         val serverElem = request(pageUrl).document.select(".widget.servers")
         val servers = serverElem.select(".widget-body > .server")
