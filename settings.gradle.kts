@@ -18,6 +18,6 @@ include(
     "StreamingCommunity",
     "TV",
     "ToonItalia",
-    "Torrentio",
-    "YouTube"
+    "Torrentio"
+//    "YouTube"
 )
