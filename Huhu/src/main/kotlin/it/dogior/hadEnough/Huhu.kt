@@ -15,6 +15,8 @@ import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.VPNStatus
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.newHomePageResponse
+import com.lagradost.cloudstream3.newLiveSearchResponse
+import com.lagradost.cloudstream3.newLiveStreamLoadResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -53,7 +55,7 @@ class Huhu(domain: String, private val countries: Map<String, Boolean>, language
             channels.groupBy { it.country }.map {
                 HomePageList(
                     it.key,
-                    it.value.map { channel -> channel.toSearchResponse(this.name) },
+                    it.value.map { channel -> channelToSearchResponse(channel) },
                     false
                 )
             }.sortedBy { it.name }
@@ -71,20 +73,25 @@ class Huhu(domain: String, private val countries: Map<String, Boolean>, language
             query.lowercase().replace(" ", "") in
                     channel.name.lowercase().replace(" ", "")
         }
-        return matches.map { it.toSearchResponse(this.name) }
+        return matches.map { channelToSearchResponse(it) }
     }
 
     override suspend fun load(url: String): LoadResponse {
         Log.d("TV2", url)
         val channel = parseJson<Channel>(url)
-        return LiveStreamLoadResponse(
-            channel.name,
-            url,
-            this.name,
-            "https://huhu.to/play/${channel.id}/index.m3u8",
-            posterUrl = posterUrl,
-            tags = listOf(channel.country)
-        )
+        return newLiveStreamLoadResponse(channel.name,
+            url, "https://huhu.to/play/${channel.id}/index.m3u8"){
+            this.posterUrl = Companion.posterUrl
+            this.tags = listOf(channel.country)
+        }
+//        LiveStreamLoadResponse(
+//            channel.name,
+//            url,
+//            this.name,
+//            "https://huhu.to/play/${channel.id}/index.m3u8",
+//            posterUrl = posterUrl,
+//            tags = listOf(channel.country)
+//        )
     }
 
     override suspend fun loadLinks(
@@ -116,14 +123,16 @@ class Huhu(domain: String, private val countries: Map<String, Boolean>, language
         val name: String,
         @JsonProperty("p")
         val p: Int
-    ) {
-        fun toSearchResponse(apiName: String): LiveSearchResponse {
-            return LiveSearchResponse(
-                name,
-                this.toJson(),
-                apiName,
-                posterUrl = posterUrl
-            )
+    )
+    fun channelToSearchResponse(channel: Channel): LiveSearchResponse {
+        return newLiveSearchResponse(channel.name, channel.toJson()){
+            posterUrl = Companion.posterUrl
         }
+//        LiveSearchResponse(
+//            name,
+//            this.toJson(),
+//            apiName,
+//            posterUrl = posterUrl
+//        )
     }
 }

@@ -38,22 +38,25 @@ class TV(
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
-        if (urlList.isEmpty()){
-            return newHomePageResponse( HomePageList(
-                "Enable channels in the plugin settings",
-                emptyList(),
-                isHorizontalImages = true
-            ), false)
+        if (urlList.isEmpty()) {
+            return newHomePageResponse(
+                HomePageList(
+                    "Enable channels in the plugin settings",
+                    emptyList(),
+                    isHorizontalImages = true
+                ), false
+            )
         }
         val sections = urlList.map {
             val data = getTVChannels(it)
-            val sectionTitle = it.substringAfter("playlist_", "").replace(".m3u8", "").trim().capitalize()
+            val sectionTitle =
+                it.substringAfter("playlist_", "").replace(".m3u8", "").trim().capitalize()
             val show = data.map { showData ->
                 sharedPref?.edit()?.apply {
                     putString(showData.url, showData.toJson())
                     apply()
                 }
-                showData.toSearchResponse(apiName = this@TV.name)
+                tvChannelToSearchResponse(showData)
             }
             HomePageList(
                 sectionTitle,
@@ -61,7 +64,7 @@ class TV(
                 isHorizontalImages = true
             )
         }
-        return newHomePageResponse( sections, false)
+        return newHomePageResponse(sections, false)
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
@@ -70,7 +73,7 @@ class TV(
             data.filter {
                 it.attributes["tvg-id"]?.contains(query) ?: false ||
                         it.title?.lowercase()?.contains(query.lowercase()) ?: false
-            }.map { it.toSearchResponse(apiName = this@TV.name) }
+            }.map { tvChannelToSearchResponse(it) }
         }.flatten()
         return searchResponses
     }
@@ -87,13 +90,16 @@ class TV(
         val channelName = tvChannel.title ?: tvChannel.attributes["tvg-id"].toString()
         val posterUrl = tvChannel.attributes["tvg-logo"].toString()
 
-        return LiveStreamLoadResponse(
-            channelName,
-            streamUrl,
-            this.name,
-            url,
-            posterUrl
-        )
+        return newLiveStreamLoadResponse(channelName, streamUrl, url) {
+            this.posterUrl = posterUrl
+        }
+//        LiveStreamLoadResponse(
+//            channelName,
+//            streamUrl,
+//            this.name,
+//            url,
+//            posterUrl
+//        )
     }
 
     override suspend fun loadLinks(
@@ -116,6 +122,15 @@ class TV(
         )
         return true
     }
+
+    fun tvChannelToSearchResponse(channel: TVChannel): SearchResponse {
+        val streamUrl = channel.url.toString()
+        val channelName = channel.title ?: channel.attributes["tvg-id"].toString()
+        val posterUrl = channel.attributes["tvg-logo"].toString()
+        return newLiveSearchResponse(channelName,streamUrl,TvType.Live){
+            this.posterUrl = posterUrl
+        }
+    }
 }
 
 data class Playlist(
@@ -129,16 +144,16 @@ data class TVChannel(
     val url: String? = null,
     val userAgent: String? = null,
 ) {
-    fun toSearchResponse(apiName: String): SearchResponse {
-        val streamUrl = url.toString()
-        val channelName = title ?: attributes["tvg-id"].toString()
-        val posterUrl = attributes["tvg-logo"].toString()
-        return LiveSearchResponse(
-            channelName,
-            streamUrl,
-            apiName,
-            TvType.Live,
-            posterUrl,
-        )
-    }
+//    fun toSearchResponse(apiName: String): SearchResponse {
+//        val streamUrl = url.toString()
+//        val channelName = title ?: attributes["tvg-id"].toString()
+//        val posterUrl = attributes["tvg-logo"].toString()
+//        return LiveSearchResponse(
+//            channelName,
+//            streamUrl,
+//            apiName,
+//            TvType.Live,
+//            posterUrl,
+//        )
+//    }
 }
