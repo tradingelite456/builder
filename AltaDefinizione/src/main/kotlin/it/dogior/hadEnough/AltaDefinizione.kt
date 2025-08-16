@@ -13,21 +13,19 @@ import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.app
-import com.lagradost.cloudstream3.extractors.Supervideo
 import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
-import it.dogior.hadEnough.extractors.DroploadExtractor
-import it.dogior.hadEnough.extractors.MyMixdropExtractor
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.LoadResponse.Companion.addDuration
 import com.lagradost.cloudstream3.LoadResponse.Companion.addRating
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
-import com.lagradost.cloudstream3.utils.AppUtils.toJson
-import org.jsoup.Jsoup
+import com.lagradost.cloudstream3.utils.loadExtractor
+import okhttp3.FormBody
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
 class AltaDefinizione : MainAPI() {
-    override var mainUrl = "https://altadefinizionegratis.store"
+    override var mainUrl = "https://altadefinizione.free"
     override var name = "AltaDefinizione"
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Documentary)
     override var lang = "it"
@@ -46,7 +44,7 @@ class AltaDefinizione : MainAPI() {
         "$mainUrl/documentario/" to "Documentario",
         "$mainUrl/drammatico/" to "Drammatico",
         "$mainUrl/erotico/" to "Erotico",
-        "$mainUrl/famiglia/" to "Familiare",
+        "$mainUrl/famiglia/" to "Famiglia",
         "$mainUrl/fantascienza/" to "Fantascienza",
         "$mainUrl/fantasy/" to "Fantasy",
         "$mainUrl/giallo/" to "Giallo",
@@ -62,163 +60,113 @@ class AltaDefinizione : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val url = "${request.data.trimEnd('/')}/page/$page/"
+        val url = "${request.data}page/$page/"
         val doc = app.get(url).document
-        val items = doc.select("div.wrapperImage").mapNotNull {
+        val items = doc.select("#dle-content > .col").mapNotNull {
             it.toSearchResponse()
         }
-        val pagination = doc.select(".pages").select("a").last()?.text()?.toIntOrNull()
+        val pagination = doc.select("div.pagin > a").last()?.text()?.toIntOrNull()
         val hasNext = page < (pagination ?: 0)
 
         return newHomePageResponse(HomePageList(request.name, items), hasNext = hasNext)
     }
 
     private fun Element.toSearchResponse(): MovieSearchResponse? {
-        val aTag = this.selectFirst("a[href]") ?: return null
-        val img = this.selectFirst("img")?.attr("src") ?: return null
-        val title = this.selectFirst("h2.titleFilm a")?.text()?.trim() ?: return null
-        val href = fixUrl(aTag.attr("href"))
-        val poster = fixUrl(img)
-        val quality = this.selectFirst("span.hd")?.text()
+        val aTag = this.selectFirst(".movie-poster > a") ?: return null
+        val img = aTag.selectFirst("img")?.attr("data-src") ?: aTag.selectFirst("img")?.attr("src")
+        val title = this.select(".movie-title > a").text().trim()
+        val href = aTag.attr("href")
+        val poster = fixUrlNull(img)
+//        val rating = this.selectFirst("span.rate")?.text()
         return newMovieSearchResponse(title, href) {
             this.posterUrl = poster
-            quality?.let {
-                val qualityMap = mapOf(
-                    "HD" to SearchQuality.HD,
-                    "SD" to SearchQuality.SD,
-                    "CAM" to SearchQuality.Cam,
-                    "TS" to SearchQuality.Cam
-                )
-                this.quality = qualityMap.getOrDefault(
-                    qualityMap.keys.firstOrNull { q ->
-                    q in it
-                }, null)
-            }
         }
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val doc = app.get(
-            "$mainUrl/", params = mapOf(
-                "story" to query,
-                "do" to "search",
-                "subaction" to "search",
-                "titleonly" to "3"
+        val requestBody = formRequestBody(query)
+        val doc = app.post(
+            "$mainUrl/",
+            requestBody = requestBody,
+            headers = mapOf(
+                "Content-Type" to "application/x-www-form-urlencoded",
+                "Content-Length" to requestBody.contentLength().toString()
             )
         ).document
 
-        return doc.select("div.wrapperImage").mapNotNull {
+        return doc.select("div.movie").mapNotNull {
             it.toSearchResponse()
         }
     }
 
+    private fun formRequestBody(query: String): FormBody {
+        return FormBody.Builder()
+            .addEncoded("story", query)
+            .addEncoded("do", "search")
+            .addEncoded("subaction", "search")
+            .build()
+    }
+
+
     override suspend fun load(url: String): LoadResponse {
         val doc = app.get(url).document
+        val info = doc.selectFirst("div.row.align-items-start")!!
+        val poster = fixUrlNull(info.select("img.movie_entry-poster").attr("data-src"))
+        val plot = info.selectFirst("#text-content")?.ownText()?.trim() +
+                info.selectFirst(".more-text")?.ownText()?.trim()
+        val title = info.select("h1.movie_entry-title").text().ifEmpty { "Sconosciuto" }
+        val duration = info.select("div.meta-list > span").last()?.text()
+        val rating = doc.select("span.label.imdb").text()
 
-        val title = doc.selectFirst("h1")?.text()?.trim()?.removeSuffix(" streaming") ?: "Sconosciuto"
-        val poster = doc.selectFirst("div.col-lg-3.thumbPhoto img")?.attr("src")?.let { fixUrl(it) }
-        val plot = doc.selectFirst("p#sfull")?.ownText()?.trim()?.substringAfter("Trama: ")
-        val genres = doc.select("#details > li:nth-child(1)").select("a")
-        val year = doc.select("li")
-            .firstOrNull { it.selectFirst("label")?.text()?.contains("Anno") == true }
-            ?.ownText()?.trim()
-        val rating = doc.select(".rateIMDB").text().replace("IMDb: ", "")
+        val details = info.select(".movie_entry-details").select("div.row.flex-nowrap.mb-2")
+        val genreElements = details.toList().first { it.text().contains("Genere: ") }
+        val genres = genreElements.select("a").map { it.text() }
+        val yearElements = details.toList().first { it.text().contains("Anno: ") }
+        val year = yearElements.select("div").last()?.text()
         val episodes = getEpisodes(doc)
-
-        val tags = genres.map { it.text() }
-
         return if (episodes.size > 1) {
             newTvSeriesLoadResponse(title, url, TvType.TvSeries, episodes) {
                 this.posterUrl = poster
                 this.plot = plot
-                this.tags = tags
+                this.tags = genres
                 addRating(rating)
             }
         } else {
-            newMovieLoadResponse(title, url, TvType.Movie, episodes.firstOrNull()?.data ?: "") {
+            val rows = doc.select("iframe").first()
+            val mostraGuardaLink = rows?.attr("src")
+            val link = if (mostraGuardaLink?.contains("mostraguarda") == true) {
+                val mostraGuarda = app.get(mostraGuardaLink).document
+                val mirrors = mostraGuarda.select("ul._player-mirrors > li").mapNotNull {
+                    val l = it.attr("data-link")
+                    if (l.contains("mostraguarda")) null
+                    else fixUrlNull(l)
+                }
+                mirrors
+            } else {
+                emptyList()
+            }
+            newMovieLoadResponse(title, url, TvType.Movie, link) {
                 this.posterUrl = poster
                 this.plot = plot
-                this.tags = tags
-                this.year = year?.toInt()
+                this.tags = genres
+                this.year = year?.toIntOrNull()
                 addRating(rating)
+                addDuration(duration)
             }
         }
     }
 
-    private suspend fun getEpisodes(doc: Document): List<Episode> {
-        val episodes = mutableListOf<Episode>()
-        val supportedHosts = listOf("supervideo", "dropload", "mixdrop", "doodstream")
-
-        val seasonDivs = doc.select("div.tab-pane[id^=season-]")
-        if (seasonDivs.isNotEmpty()) {
-            for (seasonDiv in seasonDivs) {
-                val seasonNum =
-                    seasonDiv.attr("id").removePrefix("season-").toIntOrNull() ?: continue
-                for (li in seasonDiv.select("ul > li")) {
-                    val aTag = li.selectFirst("a[data-link]") ?: continue
-                    val epNum = aTag.attr("data-num").toIntOrNull()
-                    val epTitle = aTag.attr("data-title").ifBlank { "Episodio $epNum" }
-                    val mirrors = li.select("div.mirrors a.mr")
-
-                    val links = mirrors.mapNotNull {
-                        val url = it.attr("data-link")
-                        val host = supportedHosts.find { h -> url.contains(h) }
-                        if (host != null) VideoStream(host, url) else null
-                    }
-
-                    if (links.isNotEmpty()) {
-                        episodes.add(
-                            newEpisode(links.toJson()) {
-                                this.name = epTitle
-                                this.season = seasonNum
-                                this.episode = epNum
-                            }
-                        )
-                    }
-                }
-            }
-        } else {
-            var rows = doc.select("table#download-table tr[onclick]")
-            val sources = mutableListOf<VideoStream>()
-
-            if (rows.isEmpty()) {
-                val script = doc.selectFirst("script[src*=\"guardahd.stream/ddl/\"]")?.attr("src")
-                if (script != null) {
-                    val scriptUrl = when {
-                        script.startsWith("//") -> "https:$script"
-                        script.startsWith("/") -> "https://guardahd.stream$script"
-                        else -> script
-                    }
-                    val jsText = app.get(scriptUrl).text
-                    val htmlParts = jsText.lines()
-                        .filter { it.trim().startsWith("document.write(") }
-                        .map {
-                            it.trim()
-                                .removePrefix("document.write(\"")
-                                .removeSuffix("\");")
-                                .replace("\\'", "'")
-                        }
-                    val fakeHtml = htmlParts.joinToString("")
-                    val generatedDoc = Jsoup.parse(fakeHtml)
-                    rows = generatedDoc.select("table#download-table tr[onclick]")
-                }
-            }
-
-            for (row in rows) {
-                val onclick = row.attr("onclick")
-                val link =
-                    Regex("""window\.open\(\s*['"]([^'"]+)['"]""").find(onclick)?.groupValues?.get(1)
-                if (link == null || link.contains("mostraguarda.stream")) continue
-                val host = supportedHosts.find { link.contains(it) } ?: continue
-                sources.add(VideoStream(host, link))
-            }
-
-            if (sources.isNotEmpty()) {
-                episodes.add(newEpisode(sources.toJson()).apply { name = "Film Completo" })
+    private fun getEpisodes(doc: Document): List<Episode> {
+        val episodeElements = doc.select(".series-select > .dropdown.mirrors")
+        return episodeElements.map {
+            val season = it.attr("data-season")
+            val episode = it.attr("data-episode").substringAfter("-")
+            val mirrors = it.select(".dropdown-menu > span").map { it.attr("data-link") }
+            newEpisode(mirrors) {
+                this.season = season.toIntOrNull()
+                this.episode = episode.toIntOrNull()
             }
         }
-
-        return episodes
     }
 
     override suspend fun loadLinks(
@@ -227,24 +175,15 @@ class AltaDefinizione : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit,
     ): Boolean {
-        Log.d("AltaDefinizione", data)
-        val parsedData = parseJson<List<VideoStream>>(data)
-
-        parsedData.map {
-            if (it.host.contains("mixdrop")) {
-                MyMixdropExtractor().getUrl(it.url, "", subtitleCallback, callback)
-            } else if (it.host.contains("dropload")) {
-                DroploadExtractor().getUrl(it.url, "", subtitleCallback, callback)
-            } else if (it.host.contains("supervideo")) {
-                Supervideo().getUrl(it.url, "", subtitleCallback, callback)
-            }
-//            loadExtractor(it.url, data, subtitleCallback, callback)
+        val links = parseJson<List<String>>(data)
+        links.map {
+            loadExtractor(it, subtitleCallback, callback)
         }
         return false
     }
 
-    data class VideoStream(
-        val host: String,
-        val url: String
-    )
+//    data class VideoStream(
+//        val host: String,
+//        val url: String
+//    )
 }
