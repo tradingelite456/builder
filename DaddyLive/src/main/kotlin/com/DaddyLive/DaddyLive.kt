@@ -15,8 +15,8 @@ import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
 class DaddyLive : MainAPI() {
-    override var lang = "en"
-    override var mainUrl: String = BuildConfig.DaddyLive
+    override var lang = "fr"
+    override var mainUrl: String = "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_france.m3u8"
     override var name = "DaddyLive"
     override val hasMainPage = true
     override val hasChromecastSupport = true
@@ -24,19 +24,103 @@ class DaddyLive : MainAPI() {
         TvType.Live,
     )
 
+    // Liste des groupes français à prioriser
+    private val frenchGroups = setOf(
+        "france", "french", "français", "fr", "francia", "frankreich",
+        "tf1", "france 2", "france 3", "m6", "canal+", "arte", "bfm"
+    )
+
     private suspend fun fetchAllPlaylists(): Playlist {
         val allItems = mutableListOf<PlaylistItem>()
-        val content = app.get(mainUrl).text
-        val playlist = IptvPlaylistParser().parseM3U(content)
-        allItems.addAll(playlist.items)
+        
+        // URLs alternatives pour les chaînes françaises
+        val urls = listOf(
+            "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_france.m3u8",
+            "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/fr.m3u",
+            "https://raw.githubusercontent.com/davidmuma/EPG_dobleM/master/TDT_ES/data/IPTV_French_XMLTV.m3u"
+        )
+        
+        for (url in urls) {
+            try {
+                val content = app.get(url).text
+                val playlist = IptvPlaylistParser().parseM3U(content)
+                allItems.addAll(playlist.items.filter { item ->
+                    val groupTitle = item.attributes["group-title"]?.lowercase() ?: ""
+                    val title = item.title?.lowercase() ?: ""
+                    
+                    // Filtrer pour les chaînes françaises
+                    frenchGroups.any { group ->
+                        groupTitle.contains(group) || title.contains(group)
+                    } || groupTitle.contains("fr") || title.contains("france")
+                })
+            } catch (e: Exception) {
+                // Continuer avec l'URL suivante si celle-ci échoue
+                continue
+            }
+        }
+        
+        // Si aucune chaîne française n'est trouvée, utiliser toutes les chaînes de la première URL
+        if (allItems.isEmpty()) {
+            try {
+                val content = app.get(urls.first()).text
+                val playlist = IptvPlaylistParser().parseM3U(content)
+                allItems.addAll(playlist.items)
+            } catch (e: Exception) {
+                // En dernier recours, créer quelques chaînes de test
+                allItems.addAll(createTestChannels())
+            }
+        }
+        
         return Playlist(allItems)
+    }
+
+    private fun createTestChannels(): List<PlaylistItem> {
+        return listOf(
+            PlaylistItem(
+                title = "TF1",
+                attributes = mapOf(
+                    "group-title" to "France",
+                    "tvg-logo" to "https://upload.wikimedia.org/wikipedia/commons/d/da/TF1_logo_2013.png"
+                ),
+                url = "https://tf1-hls-live-ssl.tf1.fr/tf1/1/hls/live_2328.m3u8",
+                headers = mapOf("User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            ),
+            PlaylistItem(
+                title = "France 2",
+                attributes = mapOf(
+                    "group-title" to "France",
+                    "tvg-logo" to "https://upload.wikimedia.org/wikipedia/commons/7/79/France_2_logo_2018.svg"
+                ),
+                url = "https://raw.githubusercontent.com/azgaresncf/strm2hls/main/streams/france2.m3u8",
+                headers = mapOf("User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            ),
+            PlaylistItem(
+                title = "M6",
+                attributes = mapOf(
+                    "group-title" to "France",
+                    "tvg-logo" to "https://upload.wikimedia.org/wikipedia/commons/1/12/M6_logo_2009.svg"
+                ),
+                url = "https://raw.githubusercontent.com/azgaresncf/strm2hls/main/streams/m6.m3u8",
+                headers = mapOf("User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            )
+        )
     }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val data = fetchAllPlaylists()
         return newHomePageResponse(
-            data.items.groupBy { it.attributes["group-title"] }.map { group ->
-                val title = group.key ?: ""
+            data.items.groupBy { 
+                val group = it.attributes["group-title"] ?: "Autres"
+                // Prioritiser les groupes français
+                when {
+                    frenchGroups.any { fr -> group.lowercase().contains(fr) } -> "📺 Chaînes Françaises"
+                    group.lowercase().contains("sport") -> "⚽ Sport"
+                    group.lowercase().contains("news") || group.lowercase().contains("info") -> "📰 Actualités"
+                    group.lowercase().contains("movie") || group.lowercase().contains("cinema") -> "🎬 Cinéma"
+                    else -> group
+                }
+            }.map { group ->
+                val title = group.key
                 val show = group.value.map { channel ->
                     val streamurl = channel.url.orEmpty()
                     val channelname = channel.title.orEmpty()
@@ -45,9 +129,9 @@ class DaddyLive : MainAPI() {
                     val key = channel.key.orEmpty()
                     val keyid = channel.keyid.orEmpty()
 
-                    // 🔌 Pass parsed headers through to LoadData
+                    // Pass parsed headers through to LoadData
                     val headers = channel.headers
-                        .plusIfAbsent("User-Agent", channel.userAgent)
+                        .plusIfAbsent("User-Agent", channel.userAgent ?: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                         .filterValues { it.isNotBlank() }
 
                     newLiveSearchResponse(
@@ -64,11 +148,11 @@ class DaddyLive : MainAPI() {
                         TvType.Live
                     ) {
                         this.posterUrl = posterurl
-                        this.lang = nation
+                        this.lang = "fr"
                     }
                 }
                 HomePageList(title, show, isHorizontalImages = true)
-            }
+            }.sortedBy { if (it.name.contains("Françaises")) 0 else 1 } // Mettre les chaînes françaises en premier
         )
     }
 
@@ -85,7 +169,7 @@ class DaddyLive : MainAPI() {
                 val keyid = channel.keyid.orEmpty()
 
                 val headers = channel.headers
-                    .plusIfAbsent("User-Agent", channel.userAgent)
+                    .plusIfAbsent("User-Agent", channel.userAgent ?: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                     .filterValues { it.isNotBlank() }
 
                 newLiveSearchResponse(
@@ -102,7 +186,7 @@ class DaddyLive : MainAPI() {
                     TvType.Live
                 ) {
                     this.posterUrl = posterurl
-                    this.lang = nation
+                    this.lang = "fr"
                 }
             }
     }
@@ -111,7 +195,7 @@ class DaddyLive : MainAPI() {
         val data = parseJson<LoadData>(url)
         return newLiveStreamLoadResponse(data.title, data.url, url) {
             this.posterUrl = data.poster
-            this.plot = data.nation
+            this.plot = "Chaîne: ${data.nation}"
         }
     }
 
@@ -132,7 +216,9 @@ class DaddyLive : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
         val loadData = parseJson<LoadData>(data)
-        val headers = loadData.headers.filterValues { it.isNotBlank() }
+        val headers = loadData.headers.filterValues { it.isNotBlank() }.ifEmpty {
+            mapOf("User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        }
 
         if (loadData.url.contains(".m3u8", ignoreCase = true)) {
             callback.invoke(
@@ -140,28 +226,59 @@ class DaddyLive : MainAPI() {
                     "$name HLS",
                     name,
                     loadData.url,
-                    ExtractorLinkType.M3U8,
-                ) {
-                    this.quality = Qualities.P1080.value
-                    this.headers = headers
-                }
+                    "",
+                    Qualities.P1080.value,
+                    isM3u8 = true,
+                    headers = headers,
+                    extractorData = null
+                )
             )
+        } else if (loadData.url.contains(".mpd", ignoreCase = true)) {
+            // Pour les flux DASH avec DRM
+            if (loadData.key.isNotEmpty() && loadData.keyid.isNotEmpty()) {
+                val key = decodeHex(loadData.key)
+                val keyid = decodeHex(loadData.keyid)
+                callback.invoke(
+                    newDrmExtractorLink(
+                        "$name DASH",
+                        name,
+                        loadData.url,
+                        ExtractorLinkType.DASH,
+                        CLEARKEY_UUID
+                    ) {
+                        this.quality = Qualities.P1080.value
+                        this.key = key
+                        this.kid = keyid
+                        this.headers = headers
+                    }
+                )
+            } else {
+                // DASH sans DRM
+                callback.invoke(
+                    newExtractorLink(
+                        "$name DASH",
+                        name,
+                        loadData.url,
+                        "",
+                        Qualities.P1080.value,
+                        isDashMpd = true,
+                        headers = headers,
+                        extractorData = null
+                    )
+                )
+            }
         } else {
-            val key = decodeHex(loadData.key)
-            val keyid = decodeHex(loadData.keyid)
+            // URL directe
             callback.invoke(
-                newDrmExtractorLink(
-                    "$name DASH",
+                newExtractorLink(
+                    "$name Direct",
                     name,
                     loadData.url,
-                    ExtractorLinkType.DASH,
-                    CLEARKEY_UUID
-                ) {
-                    this.quality = Qualities.P1080.value
-                    this.key = key
-                    this.kid = keyid
-                    this.headers = headers
-                }
+                    "",
+                    Qualities.P1080.value,
+                    headers = headers,
+                    extractorData = null
+                )
             )
         }
         return true
@@ -177,7 +294,7 @@ data class Playlist(
 data class PlaylistItem(
     val title: String? = null,
     val attributes: Map<String, String> = emptyMap(),
-    val headers: Map<String, String> = emptyMap(), // ✅ parsed HTTP headers go here
+    val headers: Map<String, String> = emptyMap(),
     val url: String? = null,
     val userAgent: String? = null,
     val key: String? = null,
@@ -201,7 +318,8 @@ class IptvPlaylistParser {
     fun parseM3U(input: InputStream): Playlist {
         val reader = input.bufferedReader()
 
-        if (!reader.readLine().isExtendedM3u()) {
+        val firstLine = reader.readLine()
+        if (firstLine?.isExtendedM3u() != true) {
             throw PlaylistParserException.InvalidHeader()
         }
 
@@ -344,7 +462,7 @@ class IptvPlaylistParser {
         }
     }
 
-    // 🔧 Extract ALL inline params after '|', normalize common header names
+    // Extract ALL inline params after '|', normalize common header names
     private fun String.getUrlParameters(): Map<String, String> {
         val urlRegex = Regex("^(.*)\\|", RegexOption.IGNORE_CASE)
         val headersString = replace(urlRegex, "").replaceQuotesAndTrim()
