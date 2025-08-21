@@ -12,7 +12,6 @@ include(
     "CalcioStreaming",
     "CB01",
     "CorsaroNero",
-    "DaddyLive",
     "Huhu",
 //    "OnlineSerieTV",
     "StreamingCommunity",
