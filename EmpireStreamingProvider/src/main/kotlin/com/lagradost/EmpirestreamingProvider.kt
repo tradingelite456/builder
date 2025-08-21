@@ -252,7 +252,7 @@ class EmpirestreamingProvider : MainAPI() {
                                 addVidVF =
                                     "$addVidVF&${findVideolink(vid.property, vid.code)}"
                                 dubEpisodes.add(
-                                    Episode(
+                                    newEpisode(
                                         data = addVidVF,
                                         name = "\uD83C\uDDE8\uD83C\uDDF5 " + episodeJson.title,
                                         season = episodeJson.saison,
@@ -264,7 +264,7 @@ class EmpirestreamingProvider : MainAPI() {
                             } else {
                                 addVid = "$addVid&${findVideolink(vid.property, vid.code)}"
                                 subEpisodes.add(
-                                    Episode(
+                                    newEpisode(
                                         data = addVid,
                                         name = episodeJson.title,
                                         season = episodeJson.saison,
@@ -318,7 +318,7 @@ class EmpirestreamingProvider : MainAPI() {
                 TvType.Movie
 
             if (type_rec == TvType.TvSeries) {
-                TvSeriesSearchResponse(
+                newTvSeriesSearchResponse(
                     recTitle,
                     recUrl,
                     this.name,
@@ -327,7 +327,7 @@ class EmpirestreamingProvider : MainAPI() {
 
                     )
             } else
-                MovieSearchResponse(
+                newMovieSearchResponse(
                     recTitle,
                     recUrl,
                     this.name,
@@ -414,7 +414,7 @@ class EmpirestreamingProvider : MainAPI() {
                         subtitleCallback
                     ) { link ->
                         callback.invoke(
-                            ExtractorLink(
+                            newExtractorLink(
                                 link.source,
                                 link.name + flag,
                                 link.url,
@@ -440,7 +440,7 @@ class EmpirestreamingProvider : MainAPI() {
         val title = select("div.w-100 > section").attr("data-title")
         val link = fixUrl(select("div.w-100 > a").attr("href"))
         if (type.contains("film", true)) {
-            return MovieSearchResponse(
+            return newMovieSearchResponse(
                 name = title,
                 url = link,
                 apiName = title,
