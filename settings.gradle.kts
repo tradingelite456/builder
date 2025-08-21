@@ -11,6 +11,7 @@ include(
     "Arte",
     "CalcioStreaming",
     "CB01",
+    "EmpireStreamingProvider",
     "CorsaroNero",
     "Huhu",
 //    "OnlineSerieTV",
