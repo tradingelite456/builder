@@ -7,7 +7,8 @@ version = 6
 android {
     defaultConfig {
         val properties = Properties()
-        properties.load(project.rootProject.file("local.properties").inputStream())
+        // Au lieu de lire local.properties, utilisez la variable d'environnement
+val sdkDir = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
         android.buildFeatures.buildConfig=true
         buildConfigField("String", "DaddyLive", "\"${properties.getProperty("DaddyLive")}\"")
     }
