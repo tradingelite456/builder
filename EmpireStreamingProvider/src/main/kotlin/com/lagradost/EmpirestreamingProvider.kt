@@ -384,39 +384,41 @@ class EmpirestreamingProvider : MainAPI() {
         callback: (ExtractorLink) -> Unit,
     ): Boolean {
         for (part in data.split("||")) {
-            for (url in part.split("&")) {
-                var playerUrl = url
-                val flag = when {
-                    playerUrl.contains("*vf") -> {
-                        playerUrl = playerUrl.replace("*vf", "")
-                        "\uD83C\uDDE8\uD83C\uDDF5" // 🇨🇵
-                    }
-                    playerUrl.contains("*vostfr") -> {
-                        playerUrl = playerUrl.replace("*vostfr", "")
-                        "\uD83C\uDDEC\uD83C\uDDE7" // 🇬🇧
-                    }
-                    else -> ""
-                }
+    for (url in part.split("&")) {
+        var playerUrl = url   // ⚠️ bien var
 
-                if (playerUrl.isNotBlank()) {
-                    loadExtractor(
-                        httpsify(playerUrl),
-                        mainUrl,
-                        subtitleCallback
-                    ) { link ->
-                        callback.invoke(
-                            newExtractorLink(link.source, link.name + flag, link.url) {
-                                this.referer = link.referer
-                                this.quality = Qualities.Unknown.value
-                                this.isM3u8 = link.isM3u8
-                                this.headers = link.headers
-                                this.extractorData = link.extractorData
-                            }
-                        )
+        val flag = when {
+            playerUrl.contains("*vf") -> {
+                playerUrl = playerUrl.replace("*vf", "")
+                "\uD83C\uDDE8\uD83C\uDDF5" // 🇨🇵
+            }
+            playerUrl.contains("*vostfr") -> {
+                playerUrl = playerUrl.replace("*vostfr", "")
+                "\uD83C\uDDEC\uD83C\uDDE7" // 🇬🇧
+            }
+            else -> ""
+        }
+
+        if (playerUrl.isNotBlank()) {
+            loadExtractor(
+                httpsify(playerUrl),
+                mainUrl,
+                subtitleCallback
+            ) { link ->
+                callback.invoke(
+                    newExtractorLink(link.source, link.name + flag, link.url) {
+                        this.referer = link.referer
+                        this.quality = Qualities.Unknown.value
+                        this.isM3u8 = link.isM3u8
+                        this.headers = link.headers
+                        this.extractorData = link.extractorData
                     }
-                }
+                )
             }
         }
+    }
+}
+
 
         return true
     }
