@@ -376,26 +376,29 @@ class EmpirestreamingProvider : MainAPI() {
     }
 
 
-    // récupere les liens .mp4 ou m3u8 directement à partir du paramètre data généré avec la fonction load()
+        // récupere les liens .mp4 ou m3u8 directement à partir du paramètre data généré avec la fonction load()
     override suspend fun loadLinks(
         data: String, // fournit par load()
         isCasting: Boolean,
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit,
     ): Boolean {
-        data.split("||").forEach {
-            it.split("&").forEach {
-                var playerUrl = it
-                val flag = if (playerUrl.contains("*vf")) {
-                    playerUrl = playerUrl.replace("*vf", "")
-                    "\uD83C\uDDE8\uD83C\uDDF5"
-                } else if (playerUrl.contains("*vostfr")) {
-                    playerUrl = playerUrl.replace("*vostfr", "")
-                    "\uD83C\uDDEC\uD83C\uDDE7"
-                } else {
-                    ""
+        for (part in data.split("||")) {
+            for (url in part.split("&")) {
+                var playerUrl = url
+                val flag = when {
+                    playerUrl.contains("*vf") -> {
+                        playerUrl = playerUrl.replace("*vf", "")
+                        "\uD83C\uDDE8\uD83C\uDDF5" // 🇨🇵
+                    }
+                    playerUrl.contains("*vostfr") -> {
+                        playerUrl = playerUrl.replace("*vostfr", "")
+                        "\uD83C\uDDEC\uD83C\uDDE7" // 🇬🇧
+                    }
+                    else -> ""
                 }
-                if (!playerUrl.isBlank()) {
+
+                if (playerUrl.isNotBlank()) {
                     loadExtractor(
                         httpsify(playerUrl),
                         mainUrl,
@@ -417,6 +420,7 @@ class EmpirestreamingProvider : MainAPI() {
 
         return true
     }
+
 
     private suspend fun Element.toSearchResponse(url: String): SearchResponse {
 
