@@ -252,26 +252,24 @@ class EmpirestreamingProvider : MainAPI() {
                                 addVidVF =
                                     "$addVidVF&${findVideolink(vid.property, vid.code)}"
                                 dubEpisodes.add(
-                                    newEpisode(
-                                        data = addVidVF,
-                                        name = "\uD83C\uDDE8\uD83C\uDDF5 " + episodeJson.title,
-                                        season = episodeJson.saison,
-                                        episode = episodeJson.episode,
-                                        posterUrl = fixUrl("/images/episodes" + episodeJson.symImage.toString()),
-                                        description = episodeJson.description
-                                    )
+                                    newEpisode(addVidVF) {
+                                        this.name = "\uD83C\uDDE8\uD83C\uDDF5 " + episodeJson.title
+                                        this.season = episodeJson.saison
+                                        this.episode = episodeJson.episode
+                                        this.posterUrl = fixUrl("/images/episodes" + episodeJson.symImage.toString())
+                                        this.description = episodeJson.description
+                                    }
                                 )
                             } else {
                                 addVid = "$addVid&${findVideolink(vid.property, vid.code)}"
                                 subEpisodes.add(
-                                    newEpisode(
-                                        data = addVid,
-                                        name = episodeJson.title,
-                                        season = episodeJson.saison,
-                                        episode = episodeJson.episode,
-                                        posterUrl = fixUrl("/images/episodes" + episodeJson.symImage.toString()),
-                                        description = episodeJson.description
-                                    )
+                                    newEpisode(addVid) {
+                                        this.name = episodeJson.title
+                                        this.season = episodeJson.saison
+                                        this.episode = episodeJson.episode
+                                        this.posterUrl = fixUrl("/images/episodes" + episodeJson.symImage.toString())
+                                        this.description = episodeJson.description
+                                    }
                                 )
                             }
                         }
@@ -318,22 +316,13 @@ class EmpirestreamingProvider : MainAPI() {
                 TvType.Movie
 
             if (type_rec == TvType.TvSeries) {
-                newTvSeriesSearchResponse(
-                    recTitle,
-                    recUrl,
-                    this.name,
-                    TvType.TvSeries,
-                    image,
-
-                    )
+                newTvSeriesSearchResponse(recTitle, recUrl, TvType.TvSeries) {
+                    this.posterUrl = image
+                }
             } else
-                newMovieSearchResponse(
-                    recTitle,
-                    recUrl,
-                    this.name,
-                    TvType.Movie,
-                    image,
-                )
+                newMovieSearchResponse(recTitle, recUrl, TvType.Movie) {
+                    this.posterUrl = image
+                }
 
         }
 
@@ -414,16 +403,13 @@ class EmpirestreamingProvider : MainAPI() {
                         subtitleCallback
                     ) { link ->
                         callback.invoke(
-                            newExtractorLink(
-                                link.source,
-                                link.name + flag,
-                                link.url,
-                                link.referer,
-                                Qualities.Unknown.value,
-                                link.isM3u8,
-                                link.headers,
-                                link.extractorData
-                            )
+                            newExtractorLink(link.source, link.name + flag, link.url) {
+                                this.referer = link.referer
+                                this.quality = Qualities.Unknown.value
+                                this.isM3u8 = link.isM3u8
+                                this.headers = link.headers
+                                this.extractorData = link.extractorData
+                            }
                         )
                     }
                 }
@@ -440,14 +426,10 @@ class EmpirestreamingProvider : MainAPI() {
         val title = select("div.w-100 > section").attr("data-title")
         val link = fixUrl(select("div.w-100 > a").attr("href"))
         if (type.contains("film", true)) {
-            return newMovieSearchResponse(
-                name = title,
-                url = link,
-                apiName = title,
-                type = TvType.Movie,
-                posterUrl = posterUrl,
-                posterHeaders = interceptor.getCookieHeaders(url).toMap()
-            )
+            return newMovieSearchResponse(title, link, TvType.Movie) {
+                this.posterUrl = posterUrl
+                this.posterHeaders = interceptor.getCookieHeaders(url).toMap()
+            }
 
 
         } else  // an Serie
@@ -581,6 +563,5 @@ class EmpirestreamingProvider : MainAPI() {
     }
 
 }
-
 
 
