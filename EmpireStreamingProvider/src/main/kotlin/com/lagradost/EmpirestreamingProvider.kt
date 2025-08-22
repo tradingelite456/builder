@@ -215,8 +215,7 @@ class EmpirestreamingProvider : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val html =
-            avoidCloudflare(url) //
+        val html = avoidCloudflare(url)
         val document = html.document
         // url est le lien retourné par la fonction search (la variable href) ou la fonction getMainPage
         val subEpisodes = ArrayList<Episode>()
@@ -241,7 +240,7 @@ class EmpirestreamingProvider : MainAPI() {
             Regex("""result[\s]+=([\s]+.*\}\]\})[\s]*;""").find(html.text)!!.groupValues.get(1)
         var dataUrl = url
         if (document.select("article > div > span.ff-fb").text().contains("serie", true)) {
-            Regex("""(\[\{"id".*?\}\]\}\])""").findAll(jsonText).toList().apmap { season ->
+            Regex("""(\[\{"id".*?\}\]\}\])""").findAll(jsonText).toList().forEach { season ->
                 Regex("""(\{"id".*?\}\]\})""").findAll(season.groupValues.get(0))
                     .forEach { ep ->
                         val episodeJson = tryParseJson<EpisodeInfo>(ep.groupValues.get(0))!!
@@ -339,7 +338,7 @@ class EmpirestreamingProvider : MainAPI() {
                 this.plot = document.select("p.description").text()
                 this.year = year
                 this.tags = tags
-                this.posterHeaders = interceptor.getCookieHeaders(url).toMap()
+                this.posterHeaders = runBlocking { interceptor.getCookieHeaders(url) }.toMap()
                 this.recommendations = recommendations
                 this.actors = distribution
                 addTrailer(
@@ -358,7 +357,7 @@ class EmpirestreamingProvider : MainAPI() {
                 this.recommendations = recommendations
                 this.year = year
                 this.tags = tags
-                this.posterHeaders = interceptor.getCookieHeaders(url).toMap()
+                this.posterHeaders = runBlocking { interceptor.getCookieHeaders(url) }.toMap()
                 this.actors = distribution
                 addTrailer(
                     "https://www.youtube.com/watch?v=" + document.select("button.action-see-more")
@@ -419,7 +418,7 @@ class EmpirestreamingProvider : MainAPI() {
         return true
     }
 
-    private fun Element.toSearchResponse(url: String): SearchResponse {
+    private suspend fun Element.toSearchResponse(url: String): SearchResponse {
 
         val posterUrl = fixUrl(select("div.w-100 > picture > img").attr("data-src"))
         val type = select("div.w-100 > a").attr("data-itype")
@@ -428,7 +427,7 @@ class EmpirestreamingProvider : MainAPI() {
         if (type.contains("film", true)) {
             return newMovieSearchResponse(title, link, TvType.Movie) {
                 this.posterUrl = posterUrl
-                this.posterHeaders = interceptor.getCookieHeaders(url).toMap()
+                this.posterHeaders = runBlocking { interceptor.getCookieHeaders(url) }.toMap()
             }
 
 
@@ -441,7 +440,7 @@ class EmpirestreamingProvider : MainAPI() {
 
                 ) {
                 this.posterUrl = posterUrl
-                this.posterHeaders = interceptor.getCookieHeaders(url).toMap()
+                this.posterHeaders = runBlocking { interceptor.getCookieHeaders(url) }.toMap()
                 addDubStatus(
                     isDub = select(" div.w-100 > picture > img").attr("alt")
                         .contains("vf", true),
@@ -551,8 +550,7 @@ class EmpirestreamingProvider : MainAPI() {
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val url = request.data + "?page=$page&filter=dateCreatedAt&video=films"
-        val document =
-            avoidCloudflare(url).document
+        val document = avoidCloudflare(url).document
         val movies = document.select("li.card-web.card-video")
 
         val home =
@@ -563,5 +561,3 @@ class EmpirestreamingProvider : MainAPI() {
     }
 
 }
-
-
