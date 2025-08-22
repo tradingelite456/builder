@@ -377,51 +377,49 @@ class EmpirestreamingProvider : MainAPI() {
 
 
         // récupere les liens .mp4 ou m3u8 directement à partir du paramètre data généré avec la fonction load()
-    override suspend fun loadLinks(
-        data: String, // fournit par load()
-        isCasting: Boolean,
-        subtitleCallback: (SubtitleFile) -> Unit,
-        callback: (ExtractorLink) -> Unit,
-    ): Boolean {
-        for (part in data.split("||")) {
-    for (url in part.split("&")) {
-        var playerUrl = url   // ⚠️ bien var
+ override suspend fun loadLinks(
+    data: String,
+    isCasting: Boolean,
+    subtitleCallback: (SubtitleFile) -> Unit,
+    callback: (ExtractorLink) -> Unit,
+): Boolean {
+    for (part in data.split("||")) {
+        for (url in part.split("&")) {
+            var playerUrl = url   // ⚠️ BIEN var ici
 
-        val flag = when {
-            playerUrl.contains("*vf") -> {
-                playerUrl = playerUrl.replace("*vf", "")
-                "\uD83C\uDDE8\uD83C\uDDF5" // 🇨🇵
+            val flag = when {
+                playerUrl.contains("*vf") -> {
+                    playerUrl = playerUrl.replace("*vf", "")
+                    "\uD83C\uDDE8\uD83C\uDDF5" // 🇨🇵
+                }
+                playerUrl.contains("*vostfr") -> {
+                    playerUrl = playerUrl.replace("*vostfr", "")
+                    "\uD83C\uDDEC\uD83C\uDDE7" // 🇬🇧
+                }
+                else -> ""
             }
-            playerUrl.contains("*vostfr") -> {
-                playerUrl = playerUrl.replace("*vostfr", "")
-                "\uD83C\uDDEC\uD83C\uDDE7" // 🇬🇧
-            }
-            else -> ""
-        }
 
-        if (playerUrl.isNotBlank()) {
-            loadExtractor(
-                httpsify(playerUrl),
-                mainUrl,
-                subtitleCallback
-            ) { link ->
-                callback.invoke(
-                    newExtractorLink(link.source, link.name + flag, link.url) {
-                        this.referer = link.referer
-                        this.quality = Qualities.Unknown.value
-                        this.isM3u8 = link.isM3u8
-                        this.headers = link.headers
-                        this.extractorData = link.extractorData
-                    }
-                )
+            if (playerUrl.isNotBlank()) {
+                loadExtractor(
+                    httpsify(playerUrl),
+                    mainUrl,
+                    subtitleCallback
+                ) { link ->
+                    callback.invoke(
+                        newExtractorLink(link.source, link.name + flag, link.url) {
+                            this.referer = link.referer
+                            this.quality = Qualities.Unknown.value
+                            this.isM3u8 = link.isM3u8
+                            this.headers = link.headers
+                            this.extractorData = link.extractorData
+                        }
+                    )
+                }
             }
         }
     }
+    return true
 }
-
-
-        return true
-    }
 
 
     private suspend fun Element.toSearchResponse(url: String): SearchResponse {
