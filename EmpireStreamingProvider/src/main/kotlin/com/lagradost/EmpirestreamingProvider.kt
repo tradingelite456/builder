@@ -377,7 +377,7 @@ class EmpirestreamingProvider : MainAPI() {
 
 
         // récupere les liens .mp4 ou m3u8 directement à partir du paramètre data généré avec la fonction load()
- override suspend fun loadLinks(
+override suspend fun loadLinks(
     data: String,
     isCasting: Boolean,
     subtitleCallback: (SubtitleFile) -> Unit,
@@ -385,7 +385,7 @@ class EmpirestreamingProvider : MainAPI() {
 ): Boolean {
     for (part in data.split("||")) {
         for (url in part.split("&")) {
-            var playerUrl = url   // ⚠️ BIEN var ici
+            var playerUrl = url   // ⚠️ bien var
 
             val flag = when {
                 playerUrl.contains("*vf") -> {
@@ -400,6 +400,8 @@ class EmpirestreamingProvider : MainAPI() {
             }
 
             if (playerUrl.isNotBlank()) {
+                // Ici tu es dans une suspend function (loadLinks),
+                // et tu utilises des "for" → donc plus de problème avec loadExtractor
                 loadExtractor(
                     httpsify(playerUrl),
                     mainUrl,
