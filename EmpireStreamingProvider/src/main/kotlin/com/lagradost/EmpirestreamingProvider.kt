@@ -1,105 +1,73 @@
-package com.lagradost.cloudstream3.movieproviders
+package com.lagradost
 
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
-import com.lagradost.cloudstream3.mvvm.safeApiCall
-import com.lagradost.cloudstream3.utils.AppUtils.parseJson
-import com.lagradost.cloudstream3.utils.ExtractorLink
-import com.lagradost.cloudstream3.utils.loadExtractor
-import org.jsoup.Jsoup
-import org.jsoup.nodes.Element
+import com.lagradost.cloudstream3.utils.AppUtils
+import com.lagradost.cloudstream3.model.*
+import org.jsoup.nodes.Document
 
 class EmpireStreamingProvider : MainAPI() {
-    override var mainUrl = "https://empire-stream.ink/"
+
+    override val mainUrl = "https://empire-stream.ink/"
     override var name = "Empire Streaming"
-    override val hasMainPage = true
-    override var lang = "fr"
-    override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
+    override val lang = "FR"
 
-    // ----------- Data classes utilisées par l’API interne -----------
-    data class Image(val src: String?)
-    data class SymImage(val poster: String?)
-    data class NewEpisode(val id: String?, val title: String?, val poster: String?, val date: String?)
-    data class BackDrop(val src: String?)
+    private val filmsUrl = "$mainUrl/films?page="
+    private val seriesUrl = "$mainUrl/series?page="
+    private val searchUrl = "$mainUrl/recherche/"
 
-    // ----------- Page d’accueil (catégories principales) -----------
-    override val mainPage = mainPageOf(
-        "$mainUrlfilms?page=" to "Films",
-        "$mainUrlseries?page=" to "Séries"
-    )
+    // Utilisation simple de l'interceptor fourni par CS3
+    private val interceptor = AppUtils.defaultInterceptor()
 
-    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val url = request.data + page
-        val document = app.get(url, interceptor = interceptor).document
-        val items = document.select("div.mov").mapNotNull { it.toSearchResult() }
-        return newHomePageResponse(request.name, items, hasNext = true)
+    override fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        val list = mutableListOf<HomePageList>()
+        // Exemple : films récents
+        val filmsDoc = app.get(filmsUrl + page, interceptor = interceptor).document
+        val films = filmsDoc.select("div.film-item").map {
+            val title = it.selectFirst("h3.title")?.text() ?: return@map null
+            val url = fixUrl(it.selectFirst("a")?.attr("href") ?: "")
+            val poster = fixUrl(it.selectFirst("img")?.attr("src") ?: "")
+            Movie(url, title, poster)
+        }.filterNotNull()
+        list.add(HomePageList("Films", films))
+        return HomePageResponse(list)
     }
 
-    // ----------- Résultats de recherche -----------
-    override suspend fun search(query: String): List<SearchResponse> {
-        val url = "$mainUrlrecherche/$query"
-        val document = app.get(url, interceptor = interceptor).document
-        return document.select("div.mov").mapNotNull { it.toSearchResult() }
-    }
-
-    // ----------- Chargement d’une fiche (film ou série) -----------
-    override suspend fun load(url: String): LoadResponse? {
-        val document = app.get(url, interceptor = interceptor).document
-        val title = document.selectFirst("h1")?.text() ?: return null
-        val poster = document.selectFirst("div.poster img")?.attr("src")
-        val year = document.select("span.year").text().toIntOrNull()
-
-        val description = document.select("div.desc").text()
-        val actors = document.select("div.cast a").map { ActorData(it.text()) }
-
-        return if (url.contains("/series/")) {
-            val episodes = document.select("div#episodes a").mapNotNull { ep ->
-                val name = ep.text()
-                val link = fixUrl(ep.attr("href"))
-                Episode(link, name)
-            }
-            newTvSeriesLoadResponse(title, url, TvType.TvSeries, episodes) {
-                this.posterUrl = poster
-                this.year = year
-                this.plot = description
-                addActors(actors)
-            }
-        } else {
-            newMovieLoadResponse(title, url, TvType.Movie, url) {
-                this.posterUrl = poster
-                this.year = year
-                this.plot = description
-                addActors(actors)
-            }
+    override fun search(query: String): List<SearchResponse> {
+        val doc = app.get(searchUrl + query, interceptor = interceptor).document
+        return doc.select("div.result-item").mapNotNull {
+            val title = it.selectFirst("h3.title")?.text() ?: return@mapNotNull null
+            val url = fixUrl(it.selectFirst("a")?.attr("href") ?: "")
+            val poster = fixUrl(it.selectFirst("img")?.attr("src") ?: "")
+            Movie(url, title, poster)
         }
     }
 
-    // ----------- Chargement des liens (lecteurs/hosts) -----------
-    override suspend fun loadLinks(
-        data: String,
-        isCasting: Boolean,
-        subtitleCallback: (SubtitleFile) -> Unit,
-        callback: (ExtractorLink) -> Unit
-    ): Boolean {
-        safeApiCall {
-            val doc = app.get(data, interceptor = interceptor).document
-            val players = doc.select("iframe").map { it.attr("src") }
+    override fun load(url: String): LoadResponse {
+        val doc = app.get(url, interceptor = interceptor).document
+        val title = doc.selectFirst("h1.title")?.text() ?: "N/A"
+        val poster = fixUrl(doc.selectFirst("div.poster img")?.attr("src") ?: "")
 
-            for (player in players) {
-                val playerUrl = fixUrl(player)
-                loadExtractor(playerUrl, data, subtitleCallback, callback)
-            }
+        val loadResponse = LoadResponse(
+            name = title,
+            posterUrl = poster
+        )
+
+        // Acteurs
+        val actors = doc.select("div.cast a").map { Actor(it.text()) }
+        loadResponse.addActors(actors)
+
+        // Episodes pour séries
+        val episodes = doc.select("div#episodes a").mapNotNull {
+            val epName = it.text()
+            val epUrl = fixUrl(it.attr("href"))
+            newEpisode(epUrl, epName)
         }
-        return true
+        loadResponse.addEpisodes(episodes)
+
+        return loadResponse
     }
 
-    // ----------- Utilitaires internes -----------
-    private fun Element.toSearchResult(): SearchResponse? {
-        val title = this.selectFirst("h2")?.text() ?: return null
-        val href = fixUrl(this.selectFirst("a")?.attr("href") ?: return null)
-        val poster = this.selectFirst("img")?.attr("src")
-        return newMovieSearchResponse(title, href, TvType.Movie) {
-            this.posterUrl = poster
-        }
+    private fun fixUrl(url: String): String {
+        return if (url.startsWith("http")) url else mainUrl.trimEnd('/') + "/" + url.trimStart('/')
     }
 }
