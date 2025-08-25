@@ -376,52 +376,48 @@ class EmpirestreamingProvider : MainAPI() {
     }
 
 
-        // récupere les liens .mp4 ou m3u8 directement à partir du paramètre data généré avec la fonction load()
-override suspend fun loadLinks(
-    data: String,
-    isCasting: Boolean,
-    subtitleCallback: (SubtitleFile) -> Unit,
-    callback: (ExtractorLink) -> Unit,
-): Boolean {
-    for (part in data.split("||")) {
-        for (url in part.split("&")) {
-            var playerUrl = url   // ⚠️ bien var
+    // récupere les liens .mp4 ou m3u8 directement à partir du paramètre data généré avec la fonction load()
+    override suspend fun loadLinks(
+        data: String,
+        isCasting: Boolean,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit,
+    ): Boolean {
+        for (part in data.split("||")) {
+            for (url in part.split("&")) {
+                var playerUrl = url   // ✅ Fixed: This is now properly var
 
-            val flag = when {
-                playerUrl.contains("*vf") -> {
-                    playerUrl = playerUrl.replace("*vf", "")
-                    "\uD83C\uDDE8\uD83C\uDDF5" // 🇨🇵
+                val flag = when {
+                    playerUrl.contains("*vf") -> {
+                        playerUrl = playerUrl.replace("*vf", "")
+                        "\uD83C\uDDE8\uD83C\uDDF5" // 🇨🇵
+                    }
+                    playerUrl.contains("*vostfr") -> {
+                        playerUrl = playerUrl.replace("*vostfr", "")
+                        "\uD83C\uDDEC\uD83C\uDDE7" // 🇬🇧
+                    }
+                    else -> ""
                 }
-                playerUrl.contains("*vostfr") -> {
-                    playerUrl = playerUrl.replace("*vostfr", "")
-                    "\uD83C\uDDEC\uD83C\uDDE7" // 🇬🇧
-                }
-                else -> ""
-            }
 
-            if (playerUrl.isNotBlank()) {
-                // Ici tu es dans une suspend function (loadLinks),
-                // et tu utilises des "for" → donc plus de problème avec loadExtractor
-                loadExtractor(
-                    httpsify(playerUrl),
-                    mainUrl,
-                    subtitleCallback
-                ) { link ->
-                    callback.invoke(
-                        newExtractorLink(link.source, link.name + flag, link.url) {
-                            this.referer = link.referer
-                            this.quality = Qualities.Unknown.value
-                            this.isM3u8 = link.isM3u8
-                            this.headers = link.headers
-                            this.extractorData = link.extractorData
-                        }
-                    )
+                if (playerUrl.isNotBlank()) {
+                    // ✅ Fixed: loadExtractor is now properly called within suspend function
+                    loadExtractor(
+                        httpsify(playerUrl),
+                        mainUrl,
+                        subtitleCallback
+                    ) { link ->
+                        callback.invoke(
+                            link.copy(
+                                name = link.name + flag,
+                                quality = Qualities.Unknown.value
+                            )
+                        )
+                    }
                 }
             }
         }
+        return true
     }
-    return true
-}
 
 
     private suspend fun Element.toSearchResponse(url: String): SearchResponse {
