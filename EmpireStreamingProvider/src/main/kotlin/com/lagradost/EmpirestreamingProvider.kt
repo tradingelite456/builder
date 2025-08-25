@@ -407,16 +407,17 @@ class EmpirestreamingProvider : MainAPI() {
                         subtitleCallback
                     ) { link ->
                         callback.invoke(
-                            ExtractorLink(
+                            newExtractorLink(
                                 source = link.source,
                                 name = link.name + flag,
-                                url = link.url,
-                                referer = link.referer,
-                                quality = Qualities.Unknown.value,
-                                isM3u8 = link.isM3u8,
-                                headers = link.headers,
-                                extractorData = link.extractorData
-                            )
+                                url = link.url
+                            ) {
+                                this.referer = link.referer
+                                this.quality = Qualities.Unknown.value
+                                this.isM3u8 = link.isM3u8
+                                this.headers = link.headers
+                                this.extractorData = link.extractorData
+                            }
                         )
                     }
                 }
