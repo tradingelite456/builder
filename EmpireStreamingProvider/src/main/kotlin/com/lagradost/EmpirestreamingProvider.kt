@@ -1,233 +1,105 @@
-package com.lagradost
+package com.lagradost.cloudstream3.movieproviders
 
-import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
-import com.lagradost.cloudstream3.utils.*
-import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
+import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
+import com.lagradost.cloudstream3.mvvm.safeApiCall
+import com.lagradost.cloudstream3.utils.AppUtils.parseJson
+import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.loadExtractor
+import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
-import kotlin.collections.ArrayList
-import com.lagradost.cloudstream3.network.CloudflareKiller
-import com.lagradost.nicehttp.JsonAsString
-import com.lagradost.nicehttp.NiceResponse
 
-
-class EmpirestreamingProvider : MainAPI() {
-
+class EmpireStreamingProvider : MainAPI() {
     override var mainUrl = "https://empire-stream.ink/"
-    override var name = "\uD83D\uDC51 Empire-Streaming \uD83D\uDC51"
-    override val hasQuickSearch = false
+    override var name = "Empire Streaming"
     override val hasMainPage = true
     override var lang = "fr"
-    override val supportedTypes =
-        setOf(TvType.Movie, TvType.TvSeries)
-    private val interceptor = CloudflareKiller()
+    override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
 
-    data class SearchJson(
-        @JsonProperty("status") var status: Boolean? = null,
-        @JsonProperty("data") var data: Data? = Data()
+    // ----------- Data classes utilisées par l’API interne -----------
+    data class Image(val src: String?)
+    data class SymImage(val poster: String?)
+    data class NewEpisode(val id: String?, val title: String?, val poster: String?, val date: String?)
+    data class BackDrop(val src: String?)
+
+    // ----------- Page d’accueil (catégories principales) -----------
+    override val mainPage = mainPageOf(
+        "$mainUrlfilms?page=" to "Films",
+        "$mainUrlseries?page=" to "Séries"
     )
 
-    data class Films(
-        @JsonProperty("id") var id: Int? = null,
-        @JsonProperty("title") var title: String? = null,
-        @JsonProperty("versions") var versions: ArrayList<String> = arrayListOf(),
-        @JsonProperty("dateCreatedAt") var dateCreatedAt: String? = null,
-        @JsonProperty("description") var description: String? = null,
-        @JsonProperty("label") var label: String? = null,
-        @JsonProperty("image") var image: ArrayList<Image> = arrayListOf(),
-        @JsonProperty("season") var season: String? = null,
-        @JsonProperty("new_episode") var newEpisode: NewEpisode? = NewEpisode(),
-        @JsonProperty("sym_image") var symImage: SymImage? = SymImage(),
-        @JsonProperty("BackDrop") var BackDrop: ArrayList<BackDrop> = arrayListOf(),
-        @JsonProperty("note") var note: Int? = null,
-        @JsonProperty("createdAt") var createdAt: String? = null,
-        @JsonProperty("path") var path: String? = null,
-        @JsonProperty("trailer") var trailer: String? = null,
-        @JsonProperty("urlPath") var urlPath: String? = null
-    )
-
-    data class Data(
-        @JsonProperty("films") var films: ArrayList<Films> = arrayListOf(),
-        @JsonProperty("series") var series: ArrayList<Series> = arrayListOf()
-    )
-
-    data class Series(
-        @JsonProperty("id") var id: Int? = null,
-        @JsonProperty("title") var title: String? = null,
-        @JsonProperty("versions") var versions: ArrayList<String> = arrayListOf(),
-        @JsonProperty("dateCreatedAt") var dateCreatedAt: String? = null,
-        @JsonProperty("description") var description: String? = null,
-        @JsonProperty("label") var label: String? = null,
-        @JsonProperty("image") var image: ArrayList<Image> = arrayListOf(),
-        @JsonProperty("season") var season: String? = null,
-        @JsonProperty("new_episode") var newEpisode: NewEpisode? = NewEpisode(),
-        @JsonProperty("sym_image") var symImage: SymImage? = SymImage(),
-        @JsonProperty("BackDrop") var BackDrop: ArrayList<BackDrop> = arrayListOf(),
-        @JsonProperty("note") var note: Int? = null,
-        @JsonProperty("createdAt") var createdAt: String? = null,
-        @JsonProperty("path") var path: String? = null,
-        @JsonProperty("trailer") var trailer: String? = null,
-        @JsonProperty("urlPath") var urlPath: String? = null
-    )
-
-    override suspend fun search(query: String): List<SearchResponse> {
-        val json = JsonAsString("""{"search":"$query"}""")
-        val html =
-            app.post(
-                "$mainUrl/api/views/search",
-                data = null,
-                json = json, interceptor = interceptor
-            )
-        val jsonrep = html.parsed<SearchJson>()
-
-        return jsonrep.data!!.series.map {
-            newAnimeSearchResponse(
-                name = it.title.toString(),
-                url = fixUrl(it.urlPath.toString()),
-                type = TvType.TvSeries,
-            ) {
-                this.posterUrl = fixUrl("/images/medias" + it.symImage!!.poster.toString())
-                this.posterHeaders =
-                    interceptor.getCookieHeaders("$mainUrl/api/views/search").toMap()
-                addDubStatus(
-                    isDub = it.versions.any { it.contains("vf") },
-                    episodes = null
-                )
-            }
-        } + jsonrep.data!!.films.map {
-            newAnimeSearchResponse(
-                name = it.title.toString(),
-                url = fixUrl(it.urlPath.toString()),
-                type = TvType.TvSeries,
-            ) {
-                this.posterUrl =
-                    fixUrl("/images/medias" + it.symImage!!.poster.toString())
-                this.posterHeaders =
-                    interceptor.getCookieHeaders("$mainUrl/api/views/search").toMap()
-                addDubStatus(
-                    isDub = it.versions.any { it.contains("vf") },
-                    episodes = null
-                )
-            }
-        }
+    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        val url = request.data + page
+        val document = app.get(url, interceptor = interceptor).document
+        val items = document.select("div.mov").mapNotNull { it.toSearchResult() }
+        return newHomePageResponse(request.name, items, hasNext = true)
     }
 
-    // === Toutes tes data class EpisodeInfo, CreatedAt, YearProduct, Video, Image, etc... inchangées ===
+    // ----------- Résultats de recherche -----------
+    override suspend fun search(query: String): List<SearchResponse> {
+        val url = "$mainUrlrecherche/$query"
+        val document = app.get(url, interceptor = interceptor).document
+        return document.select("div.mov").mapNotNull { it.toSearchResult() }
+    }
 
-    // Je coupe ici pour éviter la surcharge mais toutes tes classes internes restent identiques
-    // Seuls les changements importants sont ci-dessous 👇
+    // ----------- Chargement d’une fiche (film ou série) -----------
+    override suspend fun load(url: String): LoadResponse? {
+        val document = app.get(url, interceptor = interceptor).document
+        val title = document.selectFirst("h1")?.text() ?: return null
+        val poster = document.selectFirst("div.poster img")?.attr("src")
+        val year = document.select("span.year").text().toIntOrNull()
 
-    override suspend fun load(url: String): LoadResponse {
-        val html = avoidCloudflare(url)
-        val document = html.document
-        val subEpisodes = ArrayList<Episode>()
-        val dubEpisodes = ArrayList<Episode>()
-        var dataUrl = url
+        val description = document.select("div.desc").text()
+        val actors = document.select("div.cast a").map { ActorData(it.text()) }
 
-        // (ton parsing des épisodes reste identique...)
-
-        if (subEpisodes.isEmpty() && dubEpisodes.isEmpty()) {
-            return newMovieLoadResponse(
-                name = document.select("h1.fs-40.c-w.ff-bb.tt-u.mb-0.ta-md-c.fs-md-30.mb-2").text(),
-                url = url,
-                type = TvType.Movie,
-                dataUrl = dataUrl
-            ) {
-                this.posterUrl = fixUrl(document.select("picture > img").attr("data-src"))
-                this.plot = document.select("p.description").text()
-                this.year =
-                    document.select("span.c-w.ff-cond.ml-2.ml-md-0.mt-md-1").text().toIntOrNull()
-                this.tags = document.select("ul.d-f.f-w.ls-n.mb-2.jc-md-c > li").map { it.text() }
-                this.posterHeaders = interceptor.getCookieHeaders(url).toMap() // ✅ plus de runBlocking
+        return if (url.contains("/series/")) {
+            val episodes = document.select("div#episodes a").mapNotNull { ep ->
+                val name = ep.text()
+                val link = fixUrl(ep.attr("href"))
+                Episode(link, name)
+            }
+            newTvSeriesLoadResponse(title, url, TvType.TvSeries, episodes) {
+                this.posterUrl = poster
+                this.year = year
+                this.plot = description
+                addActors(actors)
             }
         } else {
-            return newAnimeLoadResponse(
-                document.select("h1.fs-40.c-w.ff-bb.tt-u.mb-0.ta-md-c.fs-md-30.mb-2").text(),
-                url,
-                TvType.Anime,
-            ) {
-                this.posterUrl = fixUrl(document.select("picture > img").attr("data-src"))
-                this.plot = document.select("p.description").text()
-                this.posterHeaders = interceptor.getCookieHeaders(url).toMap() // ✅
-                if (subEpisodes.isNotEmpty()) addEpisodes(DubStatus.Subbed, subEpisodes)
-                if (dubEpisodes.isNotEmpty()) addEpisodes(DubStatus.Dubbed, dubEpisodes)
+            newMovieLoadResponse(title, url, TvType.Movie, url) {
+                this.posterUrl = poster
+                this.year = year
+                this.plot = description
+                addActors(actors)
             }
         }
     }
 
+    // ----------- Chargement des liens (lecteurs/hosts) -----------
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
         subtitleCallback: (SubtitleFile) -> Unit,
-        callback: (ExtractorLink) -> Unit,
+        callback: (ExtractorLink) -> Unit
     ): Boolean {
-        for (part in data.split("||")) {
-            for (url in part.split("&")) {
-                var playerUrl = url   // ✅ changé en var
+        safeApiCall {
+            val doc = app.get(data, interceptor = interceptor).document
+            val players = doc.select("iframe").map { it.attr("src") }
 
-                val flag = when {
-                    playerUrl.contains("*vf") -> {
-                        playerUrl = playerUrl.replace("*vf", "")
-                        "\uD83C\uDDE8\uD83C\uDDF5"
-                    }
-                    playerUrl.contains("*vostfr") -> {
-                        playerUrl = playerUrl.replace("*vostfr", "")
-                        "\uD83C\uDDEC\uD83C\uDDE7"
-                    }
-                    else -> ""
-                }
-
-                if (playerUrl.isNotBlank()) {
-                    loadExtractor(
-                        httpsify(playerUrl),
-                        mainUrl,
-                        subtitleCallback
-                    ) { link ->
-                        callback.invoke(
-                            newExtractorLink(
-                                source = link.source,
-                                name = link.name + flag,
-                                url = link.url
-                            ) {
-                                this.referer = link.referer
-                                this.quality = Qualities.Unknown.value
-                                this.isM3u8 = link.isM3u8
-                                this.headers = link.headers
-                                this.extractorData = link.extractorData
-                            }
-                        )
-                    }
-                }
+            for (player in players) {
+                val playerUrl = fixUrl(player)
+                loadExtractor(playerUrl, data, subtitleCallback, callback)
             }
         }
         return true
     }
 
-    private suspend fun Element.toSearchResponse(url: String): SearchResponse {
-        val posterUrl = fixUrl(select("div.w-100 > picture > img").attr("data-src"))
-        val type = select("div.w-100 > a").attr("data-itype")
-        val title = select("div.w-100 > section").attr("data-title")
-        val link = fixUrl(select("div.w-100 > a").attr("href"))
-        return if (type.contains("film", true)) {
-            newMovieSearchResponse(title, link, TvType.Movie) {
-                this.posterUrl = posterUrl
-                this.posterHeaders = interceptor.getCookieHeaders(url).toMap() // ✅
-            }
-        } else {
-            newAnimeSearchResponse(
-                name = title,
-                url = link,
-                type = TvType.TvSeries,
-            ) {
-                this.posterUrl = posterUrl
-                this.posterHeaders = interceptor.getCookieHeaders(url).toMap() // ✅
-                addDubStatus(
-                    isDub = select(" div.w-100 > picture > img").attr("alt")
-                        .contains("vf", true),
-                    episodes = null
-                )
-            }
+    // ----------- Utilitaires internes -----------
+    private fun Element.toSearchResult(): SearchResponse? {
+        val title = this.selectFirst("h2")?.text() ?: return null
+        val href = fixUrl(this.selectFirst("a")?.attr("href") ?: return null)
+        val poster = this.selectFirst("img")?.attr("src")
+        return newMovieSearchResponse(title, href, TvType.Movie) {
+            this.posterUrl = poster
         }
     }
 }
